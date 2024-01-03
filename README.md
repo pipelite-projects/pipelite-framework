@@ -1,1 +1,1 @@
-# pipelite-framework
+# Pipelite Framework
