@@ -8,6 +8,10 @@
     <version>${revision}</version>
     <packaging>pom</packaging>
 
+    <name>Pipelite</name>
+    <description>A lightweight Java EAI framework</description>
+    <url>https://pipelite.io</url>
+
     <organization>
         <name>Pipelite</name>
     </organization>
