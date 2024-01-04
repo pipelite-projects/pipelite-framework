@@ -10,6 +10,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <name>Pipelite DSL</name>
+
     <artifactId>pipelite-dsl</artifactId>
 
     <dependencies>
