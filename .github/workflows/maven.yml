@@ -43,7 +43,7 @@ jobs:
       run: |
           git config --global user.email "builds@pipelite.io"
           git config --global user.name "pipelite-builds"
-          ./mvnw -B -DskipTests deploy
+          ./mvnw -B -DskipTests -Pdeploy deploy
       env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
