@@ -1,1 +1,1 @@
-# # <img src="framework-docs/src/docs/pipelite-framework.png" width="80" height="80"> Pipelite Framework
+# <img src="framework-docs/src/docs/pipelite-framework.svg" width="200"> Pipelite Framework
