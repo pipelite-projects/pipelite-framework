@@ -10,6 +10,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <name>Pipelite Default Channnel Adapters</name>
+
     <artifactId>default-channel-adapters</artifactId>
     <packaging>jar</packaging>
 
