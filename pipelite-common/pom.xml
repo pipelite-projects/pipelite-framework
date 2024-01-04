@@ -9,6 +9,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <name>Pipelite Common library</name>
+
     <artifactId>pipelite-common</artifactId>
 
 </project>

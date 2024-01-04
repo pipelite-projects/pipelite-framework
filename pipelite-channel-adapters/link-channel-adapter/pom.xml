@@ -10,6 +10,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <name>Pipelite Link Channnel Adapter</name>
+
     <artifactId>link-channel-adapter</artifactId>
 
 </project>
