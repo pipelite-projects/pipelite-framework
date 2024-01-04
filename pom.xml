@@ -13,8 +13,29 @@
     </organization>
     <inceptionYear>2023</inceptionYear>
 
+    <developers>
+        <developer>
+            <id>vauti</id>
+            <name>Vincenzo Autiero</name>
+            <email>v.autiero@latitude.cloud</email>
+        </developer>
+    </developers>
+
+    <licenses>
+        <license>
+            <name>The Apache License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+        </license>
+    </licenses>
+
+    <scm>
+        <connection>scm:git:git@github.com:pipelite-projects/pipelite-framework.git</connection>
+        <developerConnection>scm:git:ssh://github.com:pipelite-projects/pipelite-framework.git</developerConnection>
+        <url>https://github.com/pipelite-projects/pipelite-framework/tree/main</url>
+    </scm>
+
     <properties>
-        <revision>0.0.1</revision>
+        <revision>0.1.0</revision>
         <current.year>2024</current.year>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
@@ -147,6 +168,7 @@
                     </execution>
                 </executions>
             </plugin>
+            
         </plugins>
     </build>
 
