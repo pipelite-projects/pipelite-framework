@@ -50,7 +50,7 @@
     </distributionManagement>
 
     <properties>
-        <revision>0.1.0</revision>
+        <revision>0.1.1-SNAPSHOT</revision>
         <current.year>2024</current.year>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
