@@ -10,8 +10,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <name>Pipelite Http Channnel Adapter</name>
-
+    <name>Pipelite Framework Http channel-adapter</name>
+    <description>Pipelite Framework, Http channel-adapter component</description>
     <artifactId>http-channel-adapter</artifactId>
 
     <dependencies>
@@ -20,7 +20,11 @@
             <artifactId>undertow-core</artifactId>
             <version>${version.undertow}</version>
         </dependency>
-
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${version.jackson-mapper}</version>
+        </dependency>
     </dependencies>
 
 </project>

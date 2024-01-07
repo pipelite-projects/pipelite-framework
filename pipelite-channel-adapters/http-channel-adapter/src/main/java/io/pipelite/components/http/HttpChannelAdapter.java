@@ -15,8 +15,12 @@
  */
 package io.pipelite.components.http;
 
+import io.pipelite.components.http.config.HttpChannelConfiguration;
+import io.pipelite.components.http.config.HttpChannelConfigurationImpl;
+import io.pipelite.components.http.config.HttpChannelConfigurer;
 import io.pipelite.components.http.undertow.DefaultHttpHandler;
 import io.pipelite.spi.channel.ChannelAdapter;
+import io.pipelite.spi.channel.ChannelConfigurer;
 import io.pipelite.spi.context.ContextEventListener;
 import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.Endpoint;
@@ -37,6 +41,8 @@ public class HttpChannelAdapter implements ChannelAdapter, ExchangeFactoryAware,
 
     private static final Integer DEFAULT_SERVER_PORT = 80;
 
+    private final HttpChannelConfiguration configuration;
+
     private final Map<String, Consumer> consumersByResource;
 
     private Undertow server;
@@ -44,6 +50,7 @@ public class HttpChannelAdapter implements ChannelAdapter, ExchangeFactoryAware,
     private ExchangeFactory exchangeFactory;
 
     public HttpChannelAdapter(){
+        configuration = new HttpChannelConfigurationImpl();
         consumersByResource = new LinkedHashMap<>();
     }
 
@@ -56,6 +63,16 @@ public class HttpChannelAdapter implements ChannelAdapter, ExchangeFactoryAware,
     public Endpoint createEndpoint(String url) {
         final EndpointURL endpointURL = EndpointURL.parse(url);
         return new HttpEndpoint(endpointURL, this);
+    }
+
+    @Override
+    public void configure(ChannelConfigurer<?> channelConfigurer) {
+        ((HttpChannelConfigurer) channelConfigurer).configure(configuration);
+    }
+
+    @Override
+    public Class<? extends ChannelConfigurer<?>> getChannelConfigurerType() {
+        return HttpChannelConfigurer.class;
     }
 
     @Override
@@ -98,12 +115,12 @@ public class HttpChannelAdapter implements ChannelAdapter, ExchangeFactoryAware,
 
     private HttpHandler createHttpHandler(){
         final PathHandler pathHandler = Handlers.path();
-        final DefaultHttpHandler httpHandler = new DefaultHttpHandler(this);
+        final DefaultHttpHandler httpHandler = new DefaultHttpHandler(this, configuration);
         httpHandler.setExchangeFactory(exchangeFactory);
 
-        consumersByResource.keySet().forEach(resource -> {
-            pathHandler.addExactPath(resource, httpHandler);
-        });
+        consumersByResource.keySet().forEach(resource ->
+            pathHandler.addExactPath(resource, httpHandler));
+
         return new BlockingHandler(pathHandler);
     }
 

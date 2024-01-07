@@ -15,6 +15,7 @@
  */
 package io.pipelite.spi.channel;
 
+@FunctionalInterface
 public interface ChannelConfigurer<T> {
 
     void configure(T configuration);

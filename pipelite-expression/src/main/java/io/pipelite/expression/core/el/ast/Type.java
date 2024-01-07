@@ -16,12 +16,14 @@
 package io.pipelite.expression.core.el.ast;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.Comparator;
 
 public enum Type {
 
-    ANY(Object.class), BOOLEAN(Boolean.class), NUMERIC(BigDecimal.class), TEXT(String.class);
+    ENUM(String.class), TEXT(String.class), BOOLEAN(Boolean.class), NUMERIC(BigDecimal.class), ANY(Object.class);
 
-    private Type(Class<?> type) {
+    Type(Class<?> type) {
         this.type = type;
     }
 
@@ -33,6 +35,18 @@ public enum Type {
 
     public boolean supports(Class<?> javaType) {
         return type.isAssignableFrom(javaType);
+    }
+
+    public static Type resolveAssignable(Object value){
+        return resolveAssignable(value.getClass());
+    }
+
+    public static Type resolveAssignable(Class<?> javaType){
+        return Arrays.stream(values())
+            //.sorted(Comparator.comparing(Type::ordinal).reversed())
+            .filter(value -> value.supports(javaType))
+            .findFirst()
+            .orElseThrow(() -> new IllegalArgumentException(String.format("Unable to resolve Type from '%s'", javaType)));
     }
 
 }

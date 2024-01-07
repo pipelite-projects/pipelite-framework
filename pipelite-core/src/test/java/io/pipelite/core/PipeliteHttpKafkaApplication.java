@@ -1,22 +1,7 @@
-/*
- * Copyright (C) 2023-2024 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package io.pipelite.core;
 
 import io.pipelite.channels.kafka.config.KafkaChannelConfigurer;
-import io.pipelite.channels.kafka.support.convert.impl.JsonSerializer;
+import io.pipelite.channels.kafka.support.convert.json.JsonSerializer;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
@@ -29,7 +14,7 @@ public class PipeliteHttpKafkaApplication {
     public PipeliteHttpKafkaApplication() {
         this.context = new DefaultPipeliteContext();
         this.context.addChannelConfigurer((KafkaChannelConfigurer) configuration -> {
-            configuration.putProducerConfig(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+            configuration.putProducerConfig("pipelite-inbound-topic", ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
         });
     }
 

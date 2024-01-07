@@ -15,15 +15,18 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <name>Pipelite Framework Examples</name>
+    <description>Pipelite Framework, Examples module</description>
+
     <properties>
-        <!--
-        <maven.compiler.source>11</maven.compiler.source>
-        <maven.compiler.target>11</maven.compiler.target>-->
+        <version.jsonassert>1.5.0</version.jsonassert>
         <version.logback>1.4.11</version.logback>
+        <version.springboot>3.1.1</version.springboot>
     </properties>
 
     <modules>
         <module>pipelite-springboot-application</module>
+        <module>pipelite-banking-application</module>
     </modules>
 
     <dependencies>

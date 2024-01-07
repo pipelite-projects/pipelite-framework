@@ -1,18 +1,3 @@
-/*
- * Copyright (C) 2023-2024 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package io.pipelite.core;
 
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
@@ -43,12 +28,12 @@ public class PipeliteRecipientListIntegrationTest {
 
         final FlowDefinition origin = Pipelite.defineFlow("origin-flow")
             .fromSource("origin-start")
-            .toRecipientList(recipientListBuilder ->
-                recipientListBuilder
-                    .toRecipients("link://destination-01-start", "link://destination-02-start")
-                    .when("Headers['X-Include-Log'] eq 'true'")
-                        .toRecipient("slf4j://logger")
-                    .end())
+            .toRoute(routeConfigurator ->
+                routeConfigurator.dynamicRouting()
+                    .when("Headers['X-To-Destinations'] eq 'true'").then("link://destination-01-start", "link://destination-02-start")
+                    .otherwise("slf4j://logger")
+                    .end()
+            )
             .build();
 
         final FlowDefinition destination01 = Pipelite.defineFlow("destination-01-flow")
@@ -69,7 +54,7 @@ public class PipeliteRecipientListIntegrationTest {
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
 
         final Exchange exchange = exchangeFactory.createExchange("Hello Pipelite!");
-        exchange.putHeader("X-Include-Log", "true");
+        exchange.putHeader("X-To-Destinations", "true");
 
         context.supplyExchange("origin-start", exchange);
 

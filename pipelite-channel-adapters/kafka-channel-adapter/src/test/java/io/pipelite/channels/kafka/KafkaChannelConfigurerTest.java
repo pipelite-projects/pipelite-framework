@@ -15,7 +15,7 @@
  */
 package io.pipelite.channels.kafka;
 
-import io.pipelite.channels.kafka.config.DefaultKafkaChannelConfiguration;
+import io.pipelite.channels.kafka.config.KafkaChannelConfigurationImpl;
 import io.pipelite.channels.kafka.config.KafkaChannelConfigurer;
 import org.junit.Assert;
 import org.junit.Test;
@@ -29,7 +29,7 @@ public class KafkaChannelConfigurerTest {
             configuration.setBootstrapServers("localhost:9093");
         };
 
-        final DefaultKafkaChannelConfiguration configuration = new DefaultKafkaChannelConfiguration();
+        final KafkaChannelConfigurationImpl configuration = new KafkaChannelConfigurationImpl();
         configurer.configure(configuration);
 
         Assert.assertNotNull(configurer);
@@ -43,7 +43,7 @@ public class KafkaChannelConfigurerTest {
 
         final KafkaChannelConfigurer configurer = (configuration) -> {};
 
-        final DefaultKafkaChannelConfiguration configuration = new DefaultKafkaChannelConfiguration();
+        final KafkaChannelConfigurationImpl configuration = new KafkaChannelConfigurationImpl();
         configurer.configure(configuration);
 
         Assert.assertNotNull(configurer);

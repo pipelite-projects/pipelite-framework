@@ -10,7 +10,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <name>Pipelite SPI</name>
+    <name>Pipelite Framework SPI</name>
+    <description>Pipelite Framework, Service Provider Interface</description>
 
     <artifactId>pipelite-spi</artifactId>
 
@@ -19,6 +20,12 @@
             <groupId>io.pipelite</groupId>
             <artifactId>pipelite-dsl</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${version.jackson-mapper}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>ch.qos.logback</groupId>

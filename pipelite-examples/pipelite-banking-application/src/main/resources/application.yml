@@ -1,0 +1,10 @@
+application:
+  name: "banking-application"
+  bank-id: "central-bank"
+
+logging:
+  level:
+    root: warn
+    banking: info
+    tx-debit: info
+    tx-credit: info

@@ -10,8 +10,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <name>Pipelite Kafka Channnel Adapter</name>
-
+    <name>Pipelite Framework Kafka channel-adapter</name>
+    <description>Pipelite Framework, Kafka channel-adapter component</description>
     <artifactId>kafka-channel-adapter</artifactId>
 
     <dependencies>

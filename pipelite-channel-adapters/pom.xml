@@ -10,7 +10,9 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <name>Pipelite Channnel Adapters</name>
+    <name>Pipelite Framework Channel-Adapters</name>
+    <description>Pipelite Framework, Channel-Adapters module</description>
+
     <artifactId>pipelite-channel-adapters</artifactId>
     <packaging>pom</packaging>
 

@@ -1,22 +1,8 @@
-/*
- * Copyright (C) 2023-2024 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package io.pipelite.core.flow.route;
 
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.route.AlwaysSatisfiedCondition;
 import io.pipelite.dsl.route.ExpressionCondition;
 import io.pipelite.dsl.route.Condition;
 import io.pipelite.dsl.route.ConditionEvaluator;
@@ -44,7 +30,10 @@ public class ExpressionConditionEvaluator implements ConditionEvaluator {
     public boolean evaluate(Condition condition, IOContext ioContext) {
 
         Preconditions.notNull(condition, "routeCondition is required and cannot be null");
-        Preconditions.state(condition instanceof ExpressionCondition, "routeCondition is not an instance of ExpressionRouteCondition");
+
+        if(condition instanceof AlwaysSatisfiedCondition){
+            return true;
+        }
 
         final ExpressionCondition expressionCondition = (ExpressionCondition) condition;
         Preconditions.hasText(expressionCondition.getExpression(), "routeCondition.expression must have text");

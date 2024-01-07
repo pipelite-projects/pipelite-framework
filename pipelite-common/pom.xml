@@ -9,7 +9,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <name>Pipelite Common library</name>
+    <name>Pipelite Framework Common</name>
+    <description>Pipelite Framework, Common library</description>
 
     <artifactId>pipelite-common</artifactId>
 

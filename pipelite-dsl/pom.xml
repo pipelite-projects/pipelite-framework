@@ -10,7 +10,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <name>Pipelite DSL</name>
+    <name>Pipelite Framework DSL</name>
+    <description>Pipelite Framework, Domain Specific Language</description>
 
     <artifactId>pipelite-dsl</artifactId>
 

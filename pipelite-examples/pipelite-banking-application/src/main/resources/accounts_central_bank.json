@@ -1,0 +1,14 @@
+[
+  {
+    "id": "0001",
+    "balance": {
+      "openingAmount": 1000.00
+    }
+  },
+  {
+    "id": "0002",
+    "balance": {
+      "openingAmount": 100.00
+    }
+  }
+]

@@ -1,0 +1,16 @@
+{
+  "transactionPhase": "TRANSACTION_DEBIT",
+  "transactionId": "485d8a5f-a64b-481f-99d0-1d21b695271b",
+  "debtor": {
+    "bankId": "eu-central-bank",
+    "accountNumber": "439a4f7db567"
+  },
+  "creditor": {
+    "bankId": "ch-bank-01",
+    "accountNumber": "c5251f7e"
+  },
+  "category": "PAYMENT",
+  "amount": 100.00,
+  "currencyCode": "EUR",
+  "circuit": "ONLINE-PAYMENTS"
+}

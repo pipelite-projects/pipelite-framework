@@ -10,7 +10,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <name>Pipelite Core</name>
+    <name>Pipelite Framework Core</name>
+    <description>Pipelite Framework, Core library</description>
 
     <artifactId>pipelite-core</artifactId>
 

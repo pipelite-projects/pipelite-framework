@@ -20,8 +20,8 @@ import io.pipelite.spi.endpoint.Endpoint;
 public interface ChannelAdapter {
 
     Endpoint createEndpoint(String url);
-    default void configure(ChannelConfigurer<?> channelConfigurer){}
 
+    default void configure(ChannelConfigurer<?> channelConfigurer){}
     default Class<? extends ChannelConfigurer<?>> getChannelConfigurerType(){
         return null;
     }

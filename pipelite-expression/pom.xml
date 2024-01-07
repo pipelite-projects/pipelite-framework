@@ -10,7 +10,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <name>Pipelite Expression</name>
+    <name>Pipelite Framework Expression</name>
+    <description>Pipelite Framework, Expression library</description>
 
     <artifactId>pipelite-expression</artifactId>
 

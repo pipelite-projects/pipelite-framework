@@ -72,7 +72,7 @@ public class DefaultKafkaProducer extends DefaultProducer implements ContextEven
     }
 
     private static Map<String,Object> createKafkaProperties(KafkaChannelConfiguration configuration){
-        final Map<String,Object> kafkaProperties = configuration.getProducerConfig();
+        final Map<String,Object> kafkaProperties = configuration.getProducerGlobalConfig();
         kafkaProperties.putIfAbsent(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configuration.getBootstrapServers());
         return kafkaProperties;
     }

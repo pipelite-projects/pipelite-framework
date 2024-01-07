@@ -19,18 +19,11 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Date;
 
-import io.pipelite.expression.support.conversion.support.BooleanToStringConverter;
-import io.pipelite.expression.support.conversion.support.NumberToNumberConverterFactory;
-import io.pipelite.expression.support.conversion.support.NumberToStringConverter;
-import io.pipelite.expression.support.conversion.support.StringToBooleanConverter;
-import io.pipelite.expression.support.conversion.support.StringToDateConverter;
-import io.pipelite.expression.support.conversion.support.StringToLocalDateConverter;
-import io.pipelite.expression.support.conversion.support.StringToLocalDateTimeConverter;
-import io.pipelite.expression.support.conversion.support.StringToNumberConverterFactory;
+import io.pipelite.expression.support.conversion.support.*;
 
 public class DefaultConversionConfiguration implements ConversionConfiguration {
 
-    private final String DATE_PATTERN = "yyyy-MM-dd HH:mm:ss";
+    private static final String DATE_PATTERN = "yyyy-MM-dd HH:mm:ss";
 
     @Override
     public void configureConverters(ConverterRegistry registry) {
@@ -41,9 +34,12 @@ public class DefaultConversionConfiguration implements ConversionConfiguration {
         registry.registerConverter(String.class, Date.class, new StringToDateConverter(DATE_PATTERN));
         registry.registerConverter(String.class, LocalDate.class, new StringToLocalDateConverter(DATE_PATTERN));
         registry.registerConverter(String.class, LocalDateTime.class, new StringToLocalDateTimeConverter(DATE_PATTERN));
+        registry.registerConverter(Enum.class, String.class, new EnumToStringConverter());
 
         registry.registerConverterFactory(Number.class, Number.class, new NumberToNumberConverterFactory());
         registry.registerConverterFactory(String.class, Number.class, new StringToNumberConverterFactory());
+        registry.registerConverterFactory(String.class, Enum.class, new StringToEnumConverterFactory());
+
     }
 
 }

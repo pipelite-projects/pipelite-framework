@@ -15,6 +15,7 @@
  */
 package io.pipelite.expression.core;
 
+import java.lang.annotation.Target;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -174,14 +175,23 @@ public class ExpressionImpl implements Expression {
             case OPERATOR:
                 final LazyObject holder2 = stack.pop();
                 final LazyObject holder1 = stack.pop();
-                Operator operator = tryResolveOperator(surface, evaluationContext).get();
-                Object value1 = tryConvert(holder1.eval(), operator.getInputType());
-                Object value2 = tryConvert(holder2.eval(), operator.getInputType());
-                stack.push(new OperationResult(operator, value1, value2));
+                final Operator operator = tryResolveOperator(surface, evaluationContext)
+                    .orElseThrow(() -> new IllegalStateException(String.format("Unable to resolve operator '%s'", surface)));
+
+                Object value1 = holder1.eval();
+                Object value2 = holder2.eval();
+
+                Type targetType = operator.getInputType();
+                if(value1 instanceof Enum || value2 instanceof Enum){
+                    targetType = Type.TEXT;
+                }
+                Object convertedValue1 = tryConvert(value1, targetType);
+                Object convertedValue2 = tryConvert(value2, targetType);
+                stack.push(new OperationResult(operator, convertedValue1, convertedValue2));
                 break;
             case VARIABLE:
                 Optional<Variable> variableHolder = tryFindVariable(surface, evaluationContext);
-                if (!variableHolder.isPresent()) {
+                if (variableHolder.isEmpty()) {
                     throw new ExpressionException("Unknown variable " + token);
                 }
                 stack.push(variableHolder.get());
@@ -192,7 +202,7 @@ public class ExpressionImpl implements Expression {
             case FUNCTION:
                 String functionName = surface.toUpperCase(Locale.ROOT);
                 Optional<AbstractLazyFunction> functionHolder = tryResolveFunction(functionName, evaluationContext);
-                if (!functionHolder.isPresent()) {
+                if (functionHolder.isEmpty()) {
                     throw new IllegalArgumentException(String.format("Cannot resolve function %s", functionName));
                 }
                 AbstractLazyFunction function = functionHolder.get();
@@ -229,6 +239,26 @@ public class ExpressionImpl implements Expression {
         return stack.pop().eval();
     }
 
+    private Object tryConvert(Object source, Class<?> targetType) {
+        if (source == null) {
+            return null;
+        }
+        else if (targetType.equals(source.getClass())) {
+            return source;
+        }
+        else {
+            if (conversionService.canConvert(source.getClass(), targetType)) {
+                return conversionService.convert(source, targetType);
+            } else {
+                if(targetType.isAssignableFrom(source.getClass())){
+                    return targetType.cast(source);
+                }
+                throw new CannotConvertValueException(
+                    String.format("Cannot convert from %s to %s", source.getClass(), targetType));
+            }
+        }
+    }
+
     private Object tryConvert(Object source, Type targetType) {
         if (source == null) {
             return null;
@@ -242,9 +272,8 @@ public class ExpressionImpl implements Expression {
                     return conversionService.convert(source, targetType.getJavaType());
                 }
                 throw new CannotConvertValueException(
-                        String.format("Cannot convert from %s to %s", source.getClass(), targetType.getJavaType()));
-            }
-            else {
+                    String.format("Cannot convert from %s to %s", source.getClass(), targetType.getJavaType()));
+            } else {
                 if (Number.class.isAssignableFrom(source.getClass())) {
                     if (conversionService.canConvert(source.getClass(), Type.NUMERIC.getJavaType())) {
                         return conversionService.convert(source, Type.NUMERIC.getJavaType());
@@ -252,7 +281,6 @@ public class ExpressionImpl implements Expression {
                 }
                 return targetType.getJavaType().cast(source);
             }
-
         }
     }
 

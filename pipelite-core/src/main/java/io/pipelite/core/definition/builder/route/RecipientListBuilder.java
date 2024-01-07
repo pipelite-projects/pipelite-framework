@@ -16,7 +16,7 @@
 package io.pipelite.core.definition.builder.route;
 
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.core.definition.builder.Builder;
+import io.pipelite.common.support.Builder;
 import io.pipelite.dsl.definition.builder.route.RecipientListOperations;
 import io.pipelite.dsl.route.ExpressionCondition;
 import io.pipelite.dsl.route.RecipientList;

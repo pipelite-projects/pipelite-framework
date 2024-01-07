@@ -16,7 +16,9 @@
 package io.pipelite.channels.kafka;
 
 import io.pipelite.channels.kafka.config.KafkaChannelConfiguration;
+import io.pipelite.channels.kafka.config.PayloadMapping;
 import io.pipelite.channels.kafka.support.KafkaConstants;
+import io.pipelite.channels.kafka.support.convert.json.JsonDeserializerConfig;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.spi.endpoint.*;
 import io.pipelite.spi.flow.exchange.Exchange;
@@ -30,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 public class KafkaConsumerService extends EventDrivenConsumerService {
@@ -97,7 +100,7 @@ public class KafkaConsumerService extends EventDrivenConsumerService {
             final Endpoint endpoint = getEndpoint();
             final EndpointProperties endpointProperties = endpoint.getProperties();
 
-            final Long period = endpointProperties.getAsLongOrDefault(PERIOD_PROPERTY_NAME, 100L);
+            final Long period = endpointProperties.getAsLongOrDefault(PERIOD_PROPERTY_NAME, 200L);
             final String timeUnitAsText = endpointProperties.getOrDefault(TIME_UNIT_PROPERTY_NAME, TimeUnit.MILLISECONDS.name());
             final TimeUnit timeUnit = TimeUnit.valueOf(timeUnitAsText);
 
@@ -118,13 +121,32 @@ public class KafkaConsumerService extends EventDrivenConsumerService {
 
     private static Map<String, Object> createKafkaProperties(KafkaChannelConfiguration configuration, EndpointURL endpointURL) {
 
-        final EndpointProperties endpointProperties = endpointURL.getProperties();
+        final String topicName = endpointURL.getResource();
+        //final EndpointProperties endpointProperties = endpointURL.getProperties();
 
-        final Map<String, Object> kafkaProperties = configuration.getConsumerConfig();
+        final Map<String, Object> kafkaProperties = configuration.getConsumerConfig(topicName);
+
         kafkaProperties.putIfAbsent(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, configuration.getBootstrapServers());
-        kafkaProperties.putIfAbsent(ConsumerConfig.GROUP_ID_CONFIG, endpointProperties.get(ConsumerConfig.GROUP_ID_CONFIG));
-        kafkaProperties.putIfAbsent(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, endpointProperties.getOrDefault(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
+        //kafkaProperties.putIfAbsent(ConsumerConfig.GROUP_ID_CONFIG, endpointProperties.get(ConsumerConfig.GROUP_ID_CONFIG));
+        //kafkaProperties.putIfAbsent(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, endpointProperties.getOrDefault(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
+
+        final Optional<PayloadMapping> payloadMappingHolder = configuration.resolvePayloadMapping(topicName);
+
+        payloadMappingHolder.ifPresent(payloadMapping -> {
+
+            payloadMapping.tryGetKeyDeserializer().ifPresent(keyDeserializer ->
+                kafkaProperties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, keyDeserializer));
+
+            payloadMapping.tryGetValueDeserializer().ifPresent(valueDeserializer ->
+                kafkaProperties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, valueDeserializer));
+
+            payloadMapping.tryGetValueDeserializerDefaultType().ifPresent(valueDeserializerDefaultType ->
+                kafkaProperties.put(JsonDeserializerConfig.VALUE_DEFAULT_TYPE, valueDeserializerDefaultType));
+
+        });
 
         return kafkaProperties;
+
     }
+
 }

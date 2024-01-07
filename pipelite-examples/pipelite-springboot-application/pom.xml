@@ -10,7 +10,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <name>Pipelite Spring Boot example application</name>
+    <name>Pipelite Framework SpringBoot Example</name>
+    <description>Pipelite Framework, SpringBoot Example application</description>
 
     <artifactId>pipelite-springboot-application</artifactId>
     <packaging>jar</packaging>

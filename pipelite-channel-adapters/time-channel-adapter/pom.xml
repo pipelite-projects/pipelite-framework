@@ -10,7 +10,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <name>Pipelite Time Channnel Adapter</name>
+    <name>Pipelite Framework Time channel-adapter</name>
+    <description>Pipelite Framework, Time channel-adapter component</description>
 
     <artifactId>time-channel-adapter</artifactId>
 

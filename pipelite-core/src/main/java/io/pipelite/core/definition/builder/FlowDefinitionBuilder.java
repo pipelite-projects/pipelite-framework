@@ -1,23 +1,11 @@
-/*
- * Copyright (C) 2023-2024 the original author or authors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      https://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package io.pipelite.core.definition.builder;
 
-import io.pipelite.core.definition.*;
+import io.pipelite.common.support.Builder;
+import io.pipelite.core.definition.FlowDefinitionImpl;
+import io.pipelite.core.definition.ProcessorDefinitionImpl;
+import io.pipelite.core.definition.SinkDefinitionImpl;
+import io.pipelite.core.definition.SourceDefinitionImpl;
 import io.pipelite.core.definition.builder.error.ErrorChannelBuilder;
-import io.pipelite.core.definition.builder.route.RecipientListBuilder;
 import io.pipelite.core.definition.builder.route.RouteDefinitionBuilder;
 import io.pipelite.core.flow.GlobalDefaultExceptionHandler;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
@@ -27,14 +15,12 @@ import io.pipelite.core.flow.process.WireTapProcessorNode;
 import io.pipelite.core.flow.process.filter.ExpressionFilterNode;
 import io.pipelite.core.flow.process.transform.PayloadTransformerNode;
 import io.pipelite.core.flow.route.ExpressionConditionEvaluator;
-import io.pipelite.core.flow.route.RecipientListRouterNode;
 import io.pipelite.core.flow.route.RouterNode;
 import io.pipelite.dsl.definition.*;
 import io.pipelite.dsl.definition.builder.*;
 import io.pipelite.dsl.process.PayloadTransformer;
 import io.pipelite.dsl.process.Processor;
 import io.pipelite.dsl.route.ConditionEvaluator;
-import io.pipelite.dsl.route.RecipientList;
 import io.pipelite.dsl.route.RoutingTable;
 import io.pipelite.expression.ExpressionParser;
 import io.pipelite.spi.flow.ExceptionHandler;
@@ -111,16 +97,6 @@ public class FlowDefinitionBuilder implements FlowOperations {
         final FlowNode routerNode = new RouterNode(routingTable, textExpressionEvaluator);
         final ProcessorDefinition routerDefinition = new ProcessorDefinitionImpl("to-route", routerNode);
         builder.with(target -> target.addProcessorDefinition(routerDefinition));
-        return this;
-    }
-
-    @Override
-    @Deprecated
-    public BuildOperations toRecipientList(RecipientListConfigurator configurator) {
-        final RecipientList recipientList = configurator.configure(new RecipientListBuilder());
-        final FlowNode recipientListNode = new RecipientListRouterNode(recipientList, conditionEvaluator);
-        final ProcessorDefinition recipientListNodeDefinition = new ProcessorDefinitionImpl("to-recipient-list", recipientListNode);
-        builder.with(target -> target.addProcessorDefinition(recipientListNodeDefinition));
         return this;
     }
 

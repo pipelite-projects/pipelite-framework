@@ -16,22 +16,26 @@
 package io.pipelite.channels.kafka.config;
 
 import java.util.Map;
+import java.util.Optional;
 
 public interface KafkaChannelConfiguration {
 
     void setBootstrapServers(String bootstrapServers);
     String getBootstrapServers();
 
-    Map<String, Object> getProducerConfig();
+    void putProducerGlobalConfig(String key, Object value);
+    Map<String,Object> getProducerGlobalConfig();
+    Map<String, Object> getProducerConfig(String topicName);
+    void putProducerConfig(String topicName, String key, Object value);
 
-    void setProducerConfig(Map<String, Object> producerConfig);
+    void putConsumerGlobalConfig(String key, Object value);
 
-    void putProducerConfig(String key, Object value);
+    Map<String, Object> getConsumerConfig(String topicName);
 
-    Map<String, Object> getConsumerConfig();
+    void putConsumerConfig(String topicName, String key, Object value);
 
-    void setConsumerConfig(Map<String, Object> consumerConfig);
+    void addPayloadMapping(PayloadMapping payloadMapping);
 
-    void putConsumerConfig(String key, Object value);
+    Optional<PayloadMapping> resolvePayloadMapping(String topicName);
 
 }

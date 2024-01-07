@@ -17,9 +17,6 @@ package io.pipelite.channels.kafka.config;
 
 import io.pipelite.spi.channel.ChannelConfigurer;
 
-@FunctionalInterface
 public interface KafkaChannelConfigurer extends ChannelConfigurer<KafkaChannelConfiguration> {
-
-    void configure(final KafkaChannelConfiguration configuration);
 
 }

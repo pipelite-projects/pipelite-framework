@@ -91,9 +91,9 @@ public class TestBeanProperties extends ExpressionTestSupport {
 
     @Test
     public void shouldEvaluateNestedMapPathExpression() {
-        Map<String, Object> map0 = new HashMap<String, Object>();
-        Map<String, Object> map1 = new HashMap<String, Object>();
-        Map<String, Object> map2 = new HashMap<String, Object>();
+        Map<String, Object> map0 = new HashMap<>();
+        Map<String, Object> map1 = new HashMap<>();
+        Map<String, Object> map2 = new HashMap<>();
         Bar bar = new Bar("bar");
         Foo foo = new Foo(bar);
         foo.setAge(1);

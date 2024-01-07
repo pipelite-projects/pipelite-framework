@@ -30,10 +30,11 @@ public class Preconditions {
         }
     }
 
-    public static void hasText(String argument, String errorMessage) {
+    public static String hasText(String argument, String errorMessage) {
         if (argument == null || argument.trim().isEmpty()) {
             throw new IllegalArgumentException(errorMessage);
         }
+        return argument;
     }
 
 }

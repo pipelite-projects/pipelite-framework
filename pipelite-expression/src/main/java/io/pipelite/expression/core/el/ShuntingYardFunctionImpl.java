@@ -55,16 +55,10 @@ public class ShuntingYardFunctionImpl implements ShuntingYardFunction {
                 stack.push(token);
                 break;
             case LITERAL:
-            case HEX_LITERAL:
+            case HEX_LITERAL, VARIABLE, BEAN_PATH_EXPRESSION:
                 outputQueue.add(token);
                 break;
-            case VARIABLE:
-                outputQueue.add(token);
-                break;
-            case BEAN_PATH_EXPRESSION:
-                outputQueue.add(token);
-                break;
-            case FUNCTION:
+                case FUNCTION:
                 stack.push(token);
                 lastFunction = token;
                 break;
