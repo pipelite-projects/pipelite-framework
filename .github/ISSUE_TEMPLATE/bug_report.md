@@ -1,5 +1,3 @@
-# Bug Report
-
 ---
 name: Bug report
 about: Create a report to help us improve
@@ -10,28 +8,31 @@ assignees: ''
 ---
 
 **Describe the bug**
-
 A clear and concise description of what the bug is.
 
 **To Reproduce**
-
-Please provide detailed steps for reproducing the issue.
-
-1. step 1
-2. step 2
-3. you get it...
+Steps to reproduce the behavior:
+1. Go to '...'
+2. Click on '....'
+3. Scroll down to '....'
+4. See error
 
 **Expected behavior**
-
 A clear and concise description of what you expected to happen.
 
-**Failure Logs**
+**Screenshots**
+If applicable, add screenshots to help explain your problem.
 
-Please include any relevant log snippets or files here.
+**Desktop (please complete the following information):**
+ - OS: [e.g. iOS]
+ - Browser [e.g. chrome, safari]
+ - Version [e.g. 22]
+
+**Smartphone (please complete the following information):**
+ - Device: [e.g. iPhone6]
+ - OS: [e.g. iOS8.1]
+ - Browser [e.g. stock browser, safari]
+ - Version [e.g. 22]
 
 **Additional context**
 Add any other context about the problem here.
-
-* Pipelite Framework Version:
-* Java version:
-* Operating System:
