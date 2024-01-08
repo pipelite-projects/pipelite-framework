@@ -70,6 +70,7 @@
         <module>pipelite-expression</module>
         <module>pipelite-core</module>
         <module>pipelite-channel-adapters</module>
+        <module>pipelite-traces</module>
         <module>pipelite-spring-starter</module>
         <module>pipelite-examples</module>
         <!--<module>pipelite-docs</module>-->

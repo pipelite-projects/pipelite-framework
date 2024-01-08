@@ -124,6 +124,9 @@ public class FlowFactory {
             producer.setProcessorName(toEndpointURL.getResource());
             producer.setExceptionHandler(exceptionHandler);
 
+            injectDependencies(producer);
+            setPrePostProcessors(producer);
+
             final String producerTag = LogUtils.formatTag(flowName, endpointDefinition.getFormattedUrl());
             producer.tag(producerTag);
 
