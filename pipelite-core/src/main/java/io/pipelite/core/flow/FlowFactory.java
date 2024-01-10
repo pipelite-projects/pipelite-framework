@@ -15,6 +15,7 @@
  */
 package io.pipelite.core.flow;
 
+import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.EndpointFactory;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
@@ -32,30 +33,45 @@ import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.Flow;
+import io.pipelite.spi.flow.FlowNodePostProcessor;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.pipelite.spi.flow.exchange.FlowNode;
 
-import java.util.Iterator;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 public class FlowFactory {
 
     private final PipeliteContext context;
     private final EndpointFactory endpointFactory;
 
-    public FlowFactory(PipeliteContext context){
+    private final Map<Class<? extends FlowNodePostProcessor>, FlowNodePostProcessor> flowNodePostProcessors;
+
+    public FlowFactory(PipeliteContext context) {
         Objects.requireNonNull(context, "context is required and cannot be null");
         this.context = context;
         endpointFactory = context.getEndpointFactory();
+        flowNodePostProcessors = new ConcurrentHashMap<>();
     }
 
     @Deprecated
-    public FlowFactory(PipeliteContext context, ExchangeFactory exchangeFactory){
+    public FlowFactory(PipeliteContext context, ExchangeFactory exchangeFactory) {
         this(context);
     }
 
-    public Flow createFlow(FlowDefinition flowDefinition){
+    public void addFlowNodePostProcessor(FlowNodePostProcessor postProcessor) {
+
+        if (!flowNodePostProcessors.containsKey(postProcessor.getClass())) {
+            flowNodePostProcessors.put(postProcessor.getClass(), postProcessor);
+        }
+
+    }
+
+    public Flow createFlow(FlowDefinition flowDefinition) {
 
         Objects.requireNonNull(flowDefinition, "flowDefinition is required and cannot be null");
 
@@ -70,26 +86,30 @@ public class FlowFactory {
         /*
          * Create consumer
          */
-        final Consumer consumer = sourceEndpoint.createConsumer();
+
+        Consumer consumer = sourceEndpoint.createConsumer();
         final String consumerTag = LogUtils.formatTag(flowName, sourceDefinition.getFormattedUrl());
         consumer.setFlowName(flowName);
         consumer.setSourceEndpointResource(sourceEndpointURL.getResource());
         consumer.setProcessorName(sourceEndpointURL.getResource());
         consumer.tag(consumerTag);
         consumer.setExceptionHandler(exceptionHandler);
+
         injectDependencies(consumer);
-        setPrePostProcessors(consumer);
+        setExchangePrePostProcessors(consumer);
+
+        consumer = postProcessFlowNode(consumer);
 
         Iterator<ProcessorDefinition> processorsIterator = flowDefinition.iterateProcessorDefinitions();
         FlowNode previousProcessor = consumer;
 
         final EndpointDefinition endpointDefinition = flowDefinition.endpointDefinition();
 
-        while(processorsIterator.hasNext()){
+        while (processorsIterator.hasNext()) {
 
             ProcessorDefinition processorDefinition = processorsIterator.next();
             FlowNode processor = processorDefinition.getProcessor(FlowNode.class);
-            Objects.requireNonNull(processor, String.format("Invalid ProcessorDefinition [%s], processor is required!",
+            Preconditions.notNull(processor, String.format("Invalid ProcessorDefinition [%s], processor is required!",
                 processorDefinition.getProcessorName()));
 
             processor.setFlowName(flowName);
@@ -100,9 +120,11 @@ public class FlowFactory {
             processor.tag(processorTag);
 
             injectDependencies(processor);
-            setPrePostProcessors(processor);
+            setExchangePrePostProcessors(processor);
 
-            if(!processorsIterator.hasNext() && endpointDefinition == null){
+            processor = postProcessFlowNode(processor);
+
+            if (!processorsIterator.hasNext() && endpointDefinition == null) {
                 // If it's last processor and there is no sinkEndpoint
                 // then add Return-Address router proxy
                 processor = new ReturnAddressRouterNode(processor);
@@ -113,11 +135,11 @@ public class FlowFactory {
             previousProcessor = processor;
         }
 
-        if(endpointDefinition != null){
+        if (endpointDefinition != null) {
             final Endpoint toEndpoint = endpointFactory.createEndpoint(endpointDefinition);
             final EndpointURL toEndpointURL = toEndpoint.getEndpointURL();
 
-            final Producer producer = toEndpoint.createProducer();
+            Producer producer = toEndpoint.createProducer();
 
             producer.setFlowName(flowName);
             producer.setSourceEndpointResource(sourceEndpointURL.getResource());
@@ -125,10 +147,12 @@ public class FlowFactory {
             producer.setExceptionHandler(exceptionHandler);
 
             injectDependencies(producer);
-            setPrePostProcessors(producer);
+            setExchangePrePostProcessors(producer);
 
             final String producerTag = LogUtils.formatTag(flowName, endpointDefinition.getFormattedUrl());
             producer.tag(producerTag);
+
+            producer = postProcessFlowNode(producer);
 
             Objects.requireNonNull(previousProcessor, "previousProcessor is required here!");
             previousProcessor.setNext(producer);
@@ -137,19 +161,35 @@ public class FlowFactory {
         return new Flow(flowName, sourceDefinition.getUrl(), sourceEndpoint, consumer);
     }
 
-    private void injectDependencies(Object flowNode){
+    private void injectDependencies(Object flowNode) {
 
-        if(flowNode instanceof ExchangeFactoryAware){
-            ((ExchangeFactoryAware)flowNode).setExchangeFactory(context.getExchangeFactory());
+        if (flowNode instanceof ExchangeFactoryAware) {
+            ((ExchangeFactoryAware) flowNode).setExchangeFactory(context.getExchangeFactory());
         }
-        if(flowNode instanceof PipeliteContextAware){
-            ((PipeliteContextAware)flowNode).setPipeliteContext(context);
+        if (flowNode instanceof PipeliteContextAware) {
+            ((PipeliteContextAware) flowNode).setPipeliteContext(context);
         }
 
     }
 
-    private void setPrePostProcessors(FlowNode flowNode){
+    private Collection<FlowNodePostProcessor> sortedFlowNodePostProcessor() {
+        return flowNodePostProcessors
+            .values()
+            .stream()
+            .sorted(Comparator.comparing(FlowNodePostProcessor::getOrder).reversed())
+            .toList();
+    }
+
+    private <T extends FlowNode> T postProcessFlowNode(T flowNode) {
+        final AtomicReference<T> postProcessed = new AtomicReference<>(flowNode);
+        sortedFlowNodePostProcessor()
+            .forEach(postProcessor -> postProcessed.set(postProcessor.postProcess(flowNode)));
+        return postProcessed.get();
+    }
+
+    private void setExchangePrePostProcessors(FlowNode flowNode) {
         flowNode.addExchangePreProcessor(new FlowExecutionExchangePreProcessor());
         flowNode.addExchangePostProcessor(new FlowExecutionExchangePostProcessor());
     }
+
 }
