@@ -9,6 +9,7 @@ import io.pipelite.common.support.Preconditions;
 import io.pipelite.common.trace.Traceable;
 
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Map;
@@ -27,7 +28,7 @@ public class OTelSpanDynamicInvocationHandler implements InvocationHandler {
 
         this.tracer = Preconditions.notNull(tracer, "tracer is required and cannot be null");
         this.flowName = Preconditions.notNull(flowName, "flowName is required and cannot be null");
-        this.processorName = Preconditions.notNull(flowName, "processorName is required and cannot be null");
+        this.processorName = Preconditions.notNull(processorName, "processorName is required and cannot be null");
         this.target = Preconditions.notNull(target, "target is required and cannot be null");
         this.cachedMethods = new ConcurrentHashMap<>();
         discoverMethods();
@@ -45,6 +46,7 @@ public class OTelSpanDynamicInvocationHandler implements InvocationHandler {
             final Span span = tracer.spanBuilder(processorName)
                 .setSpanKind(SpanKind.INTERNAL)
                 .setAttribute("flowName", flowName)
+                .setAttribute("processorName", processorName)
                 .startSpan();
 
             try (Scope ignored = span.makeCurrent()) {
@@ -52,10 +54,13 @@ public class OTelSpanDynamicInvocationHandler implements InvocationHandler {
                 invocationResult = targetMethod.invoke(target, args);
                 span.setStatus(StatusCode.OK);
 
-            } catch (Throwable exception) {
+            } catch (InvocationTargetException exception) {
 
-                span.recordException(exception);
-                span.setStatus(StatusCode.ERROR, exception.getClass().getName());
+                final Throwable targetException = exception.getTargetException();
+                span.recordException(targetException);
+                span.setStatus(StatusCode.ERROR, targetException.getClass().getName());
+
+                throw targetException;
 
             } finally {
 

@@ -1,0 +1,21 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+exporters:
+  debug:
+    verbosity: detailed
+  otlphttp/pipelite:
+    endpoint: http://host.docker.internal:8080
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [debug,otlphttp/pipelite]
+    metrics:
+      receivers: [otlp]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      exporters: [debug]

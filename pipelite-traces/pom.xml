@@ -16,6 +16,7 @@
 
     <properties>
         <version.otel>1.34.0</version.otel>
+        <version.otel-api-logs>1.25.0-alpha</version.otel-api-logs>
     </properties>
 
     <dependencyManagement>
@@ -34,6 +35,11 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>io.opentelemetry</groupId>
+                <artifactId>opentelemetry-api-logs</artifactId>
+                <version>${version.otel-api-logs}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -47,17 +53,17 @@
 
         <dependency>
             <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-api</artifactId>
+            <artifactId>opentelemetry-sdk</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.opentelemetry</groupId>
+            <artifactId>opentelemetry-api-logs</artifactId>
         </dependency>
 
         <dependency>
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-otlp</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>io.opentelemetry</groupId>
-            <artifactId>opentelemetry-sdk-logs</artifactId>
         </dependency>
 
         <dependency>
