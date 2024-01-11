@@ -1,4 +1,4 @@
-package io.pipelite.spi.trace;
+package io.pipelite.common.trace;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

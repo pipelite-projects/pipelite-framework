@@ -27,6 +27,7 @@ import io.pipelite.dsl.definition.EndpointDefinition;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.ProcessorDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
+import io.pipelite.dsl.process.Processor;
 import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;

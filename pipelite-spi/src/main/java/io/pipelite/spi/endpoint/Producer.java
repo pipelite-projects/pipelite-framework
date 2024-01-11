@@ -15,11 +15,16 @@
  */
 package io.pipelite.spi.endpoint;
 
+import io.pipelite.common.trace.Traceable;
+import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.FlowNode;
 
 public interface Producer extends FlowNode {
 
     Endpoint getEndpoint();
+
+    @Traceable
+    void process(Exchange exchange);
 
     @Override
     default void setNext(FlowNode next) {

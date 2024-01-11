@@ -81,11 +81,6 @@ public abstract class AbstractFlowNode implements FlowNode {
     }
 
     @Override
-    public String getFlowName() {
-        return this.flowName;
-    }
-
-    @Override
     public void setFlowName(String flowName) {
         this.flowName = flowName;
     }
@@ -93,11 +88,6 @@ public abstract class AbstractFlowNode implements FlowNode {
     @Override
     public void setSourceEndpointResource(String sourceEndpointResource) {
         this.sourceEndpointResource = sourceEndpointResource;
-    }
-
-    @Override
-    public String getProcessorName() {
-        return this.processorName;
     }
 
     @Override

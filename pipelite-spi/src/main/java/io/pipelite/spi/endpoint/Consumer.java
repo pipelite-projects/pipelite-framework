@@ -15,6 +15,7 @@
  */
 package io.pipelite.spi.endpoint;
 
+import io.pipelite.common.trace.Traceable;
 import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.FlowNode;
@@ -23,8 +24,12 @@ public interface Consumer extends FlowNode {
 
     Endpoint getEndpoint();
     //FlowNode getProcessor();
+
+    @Traceable
     void consume(Exchange exchange);
+
     void setExceptionHandler(ExceptionHandler exceptionHandler);
+
     void tag(String tag);
 
 }

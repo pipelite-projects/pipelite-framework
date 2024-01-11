@@ -18,15 +18,9 @@ package io.pipelite.spi.flow.exchange;
 import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import io.pipelite.spi.flow.process.ExchangePreProcessor;
-import io.pipelite.spi.trace.Traceable;
 
 public interface FlowNode {
 
-    String getFlowName();
-
-    String getProcessorName();
-
-    @Traceable
     void process(Exchange exchange);
 
     void setNext(FlowNode next);

@@ -15,10 +15,12 @@
  */
 package io.pipelite.dsl.process;
 
+import io.pipelite.common.trace.Traceable;
 import io.pipelite.dsl.IOContext;
 
 public interface Processor {
 
+    @Traceable
     void process(IOContext ioContext, ProcessContribution contribution);
 
 }
