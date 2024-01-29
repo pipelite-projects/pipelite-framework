@@ -129,6 +129,16 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
     }
 
     @Override
+    public void setSequenceNumber(int sequenceNumber) {
+        eventDrivenConsumer.setSequenceNumber(sequenceNumber);
+    }
+
+    @Override
+    public int getSequenceNumber() {
+        return eventDrivenConsumer.getSequenceNumber();
+    }
+
+    @Override
     public void setSourceEndpointResource(String sourceEndpointResource) {
         eventDrivenConsumer.setSourceEndpointResource(sourceEndpointResource);
     }

@@ -22,26 +22,31 @@ import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.pipelite.spi.flow.exchange.FlowNode;
-import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Comparator;
 import java.util.Objects;
 
 public abstract class AbstractProcessorNode extends AbstractFlowNode implements FlowNode, ExchangeFactoryAware {
 
+    public interface WrapDelegateCallback {
+        Processor doWithDelegate(Processor delegate);
+    }
+
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
-    private final Processor delegate;
+    private Processor delegate;
 
     private ExchangeFactory exchangeFactory;
 
     public AbstractProcessorNode(Processor delegate) {
         Objects.requireNonNull(delegate, "delegate is required and cannot be null");
         this.delegate = delegate;
+    }
+
+    public void wrapDelegate(WrapDelegateCallback callback){
+        Objects.requireNonNull(callback, "callback is required and cannot be null");
+        this.delegate = Objects.requireNonNull(callback.doWithDelegate(delegate), "delegate is required and cannot be null");
     }
 
     @Override

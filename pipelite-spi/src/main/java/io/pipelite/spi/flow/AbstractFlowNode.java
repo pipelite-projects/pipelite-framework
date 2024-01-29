@@ -34,6 +34,9 @@ public abstract class AbstractFlowNode implements FlowNode {
     private String flowName;
     private String sourceEndpointResource;
     private String processorName;
+
+    private int sequenceNumber = -1;
+
     protected String tag;
     protected FlowNode next;
     protected ExceptionHandler exceptionHandler;
@@ -93,6 +96,15 @@ public abstract class AbstractFlowNode implements FlowNode {
     @Override
     public void setProcessorName(String processorName) {
         this.processorName = processorName;
+    }
+
+    public void setSequenceNumber(int sequenceNumber){
+        this.sequenceNumber = sequenceNumber;
+    }
+
+    @Override
+    public int getSequenceNumber() {
+        return sequenceNumber;
     }
 
     @Override

@@ -66,7 +66,7 @@ public class Builder<T> {
         if (constructorParameters != null) {
             final Class<?>[] parametersType = Arrays.stream(constructorParameters)
                 .map(Object::getClass)
-                .collect(Collectors.toList())
+                .toList()
                 .toArray(new Class[]{});
             constructor = targetType.getConstructor(parametersType);
             constructor.setAccessible(true);

@@ -112,6 +112,11 @@ public class Exchange implements IOContext, Serializable {
     }
 
     @Override
+    public Iterable<String> headersKeySet() {
+        return headers.headersKeySet();
+    }
+
+    @Override
     public boolean hasHeader(String headerName) {
         return headers.hasHeader(headerName);
     }

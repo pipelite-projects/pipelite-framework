@@ -77,4 +77,9 @@ public class HeadersImpl extends HashMap<String, Object> implements Headers {
     public boolean hasHeader(String headerName) {
         return containsKey(headerName);
     }
+
+    @Override
+    public Iterable<String> headersKeySet() {
+        return keySet();
+    }
 }

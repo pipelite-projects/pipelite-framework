@@ -25,5 +25,6 @@ public interface Headers {
     void putHeader(String headerName, Object headerValue);
     void removeHeader(String headerName);
     boolean hasHeader(String headerName);
+    Iterable<String> headersKeySet();
 
 }

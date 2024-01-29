@@ -41,6 +41,11 @@ public class PipeliteAutoConfiguration {
     }
 
     @Bean
+    public FlowFactoryPostProcessorRegistrar flowFactoryPostProcessorRegistrar(PipeliteContext pipeliteContext){
+        return new FlowFactoryPostProcessorRegistrar(pipeliteContext);
+    }
+
+    @Bean
     public PipeliteContextInitializerBeanPostProcessor pipeliteContextInitializerBeanPostProcessor(PipeliteContext pipeliteContext){
         return new PipeliteContextInitializerBeanPostProcessor(pipeliteContext);
     }

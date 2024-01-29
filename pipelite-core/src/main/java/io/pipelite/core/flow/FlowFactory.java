@@ -19,6 +19,7 @@ import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.EndpointFactory;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
+import io.pipelite.core.flow.process.AbstractProcessorNode;
 import io.pipelite.core.flow.process.FlowExecutionExchangePostProcessor;
 import io.pipelite.core.flow.process.FlowExecutionExchangePreProcessor;
 import io.pipelite.core.flow.route.ReturnAddressRouterNode;
@@ -34,29 +35,27 @@ import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.Flow;
-import io.pipelite.spi.flow.FlowNodePostProcessor;
+import io.pipelite.spi.flow.FlowFactoryPostProcessor;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.pipelite.spi.flow.exchange.FlowNode;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 public class FlowFactory {
 
     private final PipeliteContext context;
     private final EndpointFactory endpointFactory;
 
-    private final Map<Class<? extends FlowNodePostProcessor>, FlowNodePostProcessor> flowNodePostProcessors;
+    private final Map<Class<? extends FlowFactoryPostProcessor>, FlowFactoryPostProcessor> flowFactoryPostProcessors;
 
     public FlowFactory(PipeliteContext context) {
         Objects.requireNonNull(context, "context is required and cannot be null");
         this.context = context;
         endpointFactory = context.getEndpointFactory();
-        flowNodePostProcessors = new ConcurrentHashMap<>();
+        flowFactoryPostProcessors = new ConcurrentHashMap<>();
     }
 
     @Deprecated
@@ -64,10 +63,10 @@ public class FlowFactory {
         this(context);
     }
 
-    public void addFlowNodePostProcessor(FlowNodePostProcessor postProcessor) {
+    public void addPostProcessor(FlowFactoryPostProcessor postProcessor) {
 
-        if (!flowNodePostProcessors.containsKey(postProcessor.getClass())) {
-            flowNodePostProcessors.put(postProcessor.getClass(), postProcessor);
+        if (!flowFactoryPostProcessors.containsKey(postProcessor.getClass())) {
+            flowFactoryPostProcessors.put(postProcessor.getClass(), postProcessor);
         }
 
     }
@@ -88,18 +87,21 @@ public class FlowFactory {
          * Create consumer
          */
 
+        int sequenceNumber = 0;
+
         Consumer consumer = sourceEndpoint.createConsumer();
         final String consumerTag = LogUtils.formatTag(flowName, sourceDefinition.getFormattedUrl());
         consumer.setFlowName(flowName);
         consumer.setSourceEndpointResource(sourceEndpointURL.getResource());
         consumer.setProcessorName(sourceEndpointURL.getResource());
+        consumer.setSequenceNumber(sequenceNumber++);
         consumer.tag(consumerTag);
         consumer.setExceptionHandler(exceptionHandler);
 
         injectDependencies(consumer);
         setExchangePrePostProcessors(consumer);
 
-        consumer = postProcessFlowNode(consumer);
+        consumer = postProcessFlowNode(consumer, flowName, sourceEndpointURL.getResource());
 
         Iterator<ProcessorDefinition> processorsIterator = flowDefinition.iterateProcessorDefinitions();
         FlowNode previousProcessor = consumer;
@@ -110,12 +112,14 @@ public class FlowFactory {
 
             ProcessorDefinition processorDefinition = processorsIterator.next();
             FlowNode processor = processorDefinition.getProcessor(FlowNode.class);
+
             Preconditions.notNull(processor, String.format("Invalid ProcessorDefinition [%s], processor is required!",
                 processorDefinition.getProcessorName()));
 
             processor.setFlowName(flowName);
             processor.setSourceEndpointResource(sourceEndpointURL.getResource());
             processor.setProcessorName(processorDefinition.getProcessorName());
+            processor.setSequenceNumber(sequenceNumber++);
             processor.setExceptionHandler(exceptionHandler);
             final String processorTag = LogUtils.formatTag(flowName, processorDefinition.getProcessorName());
             processor.tag(processorTag);
@@ -123,7 +127,9 @@ public class FlowFactory {
             injectDependencies(processor);
             setExchangePrePostProcessors(processor);
 
-            processor = postProcessFlowNode(processor);
+            if(processor instanceof AbstractProcessorNode processorNode){
+                processorNode.wrapDelegate(delegate -> postProcessDelegate(delegate, flowName, processorDefinition.getProcessorName()));
+            }
 
             if (!processorsIterator.hasNext() && endpointDefinition == null) {
                 // If it's last processor and there is no sinkEndpoint
@@ -145,6 +151,7 @@ public class FlowFactory {
             producer.setFlowName(flowName);
             producer.setSourceEndpointResource(sourceEndpointURL.getResource());
             producer.setProcessorName(toEndpointURL.getResource());
+            producer.setSequenceNumber(sequenceNumber++);
             producer.setExceptionHandler(exceptionHandler);
 
             injectDependencies(producer);
@@ -153,7 +160,7 @@ public class FlowFactory {
             final String producerTag = LogUtils.formatTag(flowName, endpointDefinition.getFormattedUrl());
             producer.tag(producerTag);
 
-            producer = postProcessFlowNode(producer);
+            producer = postProcessFlowNode(producer, flowName, toEndpointURL.getResource());
 
             Objects.requireNonNull(previousProcessor, "previousProcessor is required here!");
             previousProcessor.setNext(producer);
@@ -173,18 +180,25 @@ public class FlowFactory {
 
     }
 
-    private Collection<FlowNodePostProcessor> sortedFlowNodePostProcessor() {
-        return flowNodePostProcessors
+    private Collection<FlowFactoryPostProcessor> sortedFlowNodePostProcessor() {
+        return flowFactoryPostProcessors
             .values()
             .stream()
-            .sorted(Comparator.comparing(FlowNodePostProcessor::getOrder).reversed())
+            .sorted(Comparator.comparing(FlowFactoryPostProcessor::getOrder).reversed())
             .toList();
     }
 
-    private <T extends FlowNode> T postProcessFlowNode(T flowNode) {
+    private <T extends FlowNode> T postProcessFlowNode(T flowNode, String flowName, String processorName) {
         final AtomicReference<T> postProcessed = new AtomicReference<>(flowNode);
         sortedFlowNodePostProcessor()
-            .forEach(postProcessor -> postProcessed.set(postProcessor.postProcess(flowNode)));
+            .forEach(postProcessor -> postProcessed.set(postProcessor.postProcess(flowNode, flowName, processorName)));
+        return postProcessed.get();
+    }
+
+    private Processor postProcessDelegate(Processor delegate, String flowName, String processorName) {
+        final AtomicReference<Processor> postProcessed = new AtomicReference<>(delegate);
+        sortedFlowNodePostProcessor()
+            .forEach(postProcessor -> postProcessed.set(postProcessor.postProcess(postProcessed.get(), flowName, processorName)));
         return postProcessed.get();
     }
 

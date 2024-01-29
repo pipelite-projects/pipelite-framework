@@ -108,6 +108,16 @@ public class ScheduledPollingConsumerService extends AbstractService implements 
     }
 
     @Override
+    public void setSequenceNumber(int sequenceNumber) {
+        pollingConsumer.setSequenceNumber(sequenceNumber);
+    }
+
+    @Override
+    public int getSequenceNumber() {
+        return pollingConsumer.getSequenceNumber();
+    }
+
+    @Override
     public void setNext(FlowNode next) {
         pollingConsumer.setNext(next);
     }

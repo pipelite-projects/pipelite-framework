@@ -26,7 +26,8 @@ import java.util.Collection;
 import java.util.Properties;
 import java.util.function.Function;
 
-public class ResourceCandidateComponentsAnalyzer implements Function<URL, Collection<CandidateComponentMetadata>> {
+public class
+ResourceCandidateComponentsAnalyzer implements Function<URL, Collection<CandidateComponentMetadata>> {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 

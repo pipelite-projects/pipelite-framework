@@ -15,13 +15,17 @@
  */
 package io.pipelite.spi.flow;
 
-public interface PostProcessor {
+import io.pipelite.dsl.process.Processor;
+import io.pipelite.spi.flow.exchange.FlowNode;
 
-    int LOWEST_PRECEDENCE = Integer.MIN_VALUE;
-    int HIGHEST_PRECEDENCE = Integer.MAX_VALUE;
+public interface FlowFactoryPostProcessor extends PostProcessor {
 
-    default int getOrder(){
-        return 0;
+    default <T extends FlowNode> T postProcess(T flowNode, String flowName, String processorName){
+        return flowNode;
+    }
+
+    default Processor postProcess(Processor processor, String flowName, String processorName){
+        return processor;
     }
 
 }

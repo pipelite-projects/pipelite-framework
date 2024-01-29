@@ -30,6 +30,9 @@ public interface FlowNode {
     void setSourceEndpointResource(String sourceEndpointResource);
     void setProcessorName(String processorName);
 
+    void setSequenceNumber(int sequenceNumber);
+    int getSequenceNumber();
+
     void addExchangePreProcessor(ExchangePreProcessor exchangePreProcessor);
     void addExchangePostProcessor(ExchangePostProcessor exchangePostProcessor);
 

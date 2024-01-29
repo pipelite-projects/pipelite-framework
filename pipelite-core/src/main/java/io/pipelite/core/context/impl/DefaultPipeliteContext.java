@@ -35,6 +35,7 @@ import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.spi.flow.Flow;
+import io.pipelite.spi.flow.FlowFactoryPostProcessor;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
@@ -190,7 +191,9 @@ public class DefaultPipeliteContext implements PipeliteContext {
         }
     }
 
-
+    public void addFlowFactoryPostProcessor(FlowFactoryPostProcessor postProcessor){
+        flowFactory.addPostProcessor(postProcessor);
+    }
 
     private void registerFlows() {
 

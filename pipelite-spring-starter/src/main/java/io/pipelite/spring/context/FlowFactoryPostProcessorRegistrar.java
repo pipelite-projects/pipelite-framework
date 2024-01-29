@@ -16,29 +16,31 @@
 package io.pipelite.spring.context;
 
 import io.pipelite.core.context.PipeliteContext;
-import io.pipelite.dsl.definition.FlowDefinition;
+import io.pipelite.core.context.impl.DefaultPipeliteContext;
+import io.pipelite.spi.flow.FlowFactoryPostProcessor;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.core.Ordered;
 import org.springframework.core.PriorityOrdered;
 import org.springframework.util.Assert;
 
-public class FlowDefinitionRegistrar implements BeanPostProcessor, PriorityOrdered {
+public class FlowFactoryPostProcessorRegistrar implements BeanPostProcessor, PriorityOrdered {
 
-    private final PipeliteContext pipeliteContext;
+    private final DefaultPipeliteContext pipeliteContext;
 
-    public FlowDefinitionRegistrar(PipeliteContext pipeliteContext) {
+    public FlowFactoryPostProcessorRegistrar(PipeliteContext pipeliteContext) {
         Assert.notNull(pipeliteContext, "pipeliteContext is required and cannot be null");
-        this.pipeliteContext = pipeliteContext;
+        this.pipeliteContext = (DefaultPipeliteContext) pipeliteContext;
     }
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
 
-        if(bean instanceof FlowDefinition flowDefinition){
-            pipeliteContext.registerFlowDefinition(flowDefinition);
+        if(bean instanceof FlowFactoryPostProcessor postProcessor){
+            pipeliteContext.addFlowFactoryPostProcessor(postProcessor);
         }
         return bean;
+
     }
 
     @Override

@@ -76,6 +76,15 @@ public class EventDrivenConsumerServiceTest {
             }
 
             @Override
+            public void setSequenceNumber(int sequenceNumber) {
+            }
+
+            @Override
+            public int getSequenceNumber() {
+                return 0;
+            }
+
+            @Override
             public void setNext(FlowNode next) {
             }
 
