@@ -138,6 +138,8 @@ public class FlowFactory {
                 injectDependencies(processor);
             }
 
+            //processor = postProcessFlowNode(processor, flowName, processorDefinition.getProcessorName());
+
             previousProcessor.setNext(processor);
             previousProcessor = processor;
         }

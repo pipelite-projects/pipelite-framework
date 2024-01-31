@@ -21,6 +21,7 @@ import io.pipelite.spi.flow.process.ExchangePreProcessor;
 
 public interface FlowNode {
 
+
     void process(Exchange exchange);
 
     void setNext(FlowNode next);
