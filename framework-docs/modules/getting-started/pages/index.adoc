@@ -1,0 +1,13 @@
+= Primi Passi
+:description: Guida introduttiva all'installazione e all'uso del Pipelite Framework
+
+Questa sezione fornisce tutto il necessario per iniziare a usare Pipelite rapidamente.
+
+. xref:installation.adoc[*Installazione*] — Aggiungi le dipendenze Maven al tuo progetto.
+. xref:first-pipeline.adoc[*Prima Pipeline*] — Crea ed esegui la tua prima pipeline in pochi minuti.
+
+== Prerequisiti
+
+* Java {java-version} o superiore
+* Apache Maven 3.8+
+* (Opzionale) Spring Boot {spring-boot-version}+ per il modulo `pipelite-spring-starter`

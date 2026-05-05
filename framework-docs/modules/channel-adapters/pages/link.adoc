@@ -1,0 +1,52 @@
+= Link Channel Adapter
+:description: Adapter per il collegamento diretto tra due flow interni
+
+L'adapter `link` permette di collegare due flow interni allo stesso `PipeliteContext`, inviando l'`Exchange` da un flow al consumer di un altro.
+
+== Disponibilità
+
+Incluso in `default-channel-adapters`, transitivamente disponibile con `pipelite-core`.
+
+== Utilizzo
+
+[source,java]
+----
+// Flow principale
+Pipelite.defineFlow("main-flow")
+    .fromSource("http://ingest")
+    .process("enrich", exchange -> { /* arricchimento */ })
+    .toSink("link://secondary-flow")          // <1>
+    .build();
+
+// Flow secondario collegato
+Pipelite.defineFlow("secondary-flow")
+    .fromSource("link://secondary-flow")      // <2>
+    .process("finalize", exchange -> { /* ... */ })
+    .toSink("slf4j://output")
+    .build();
+----
+<1> Il sink `link://secondary-flow` invia l'Exchange direttamente al consumer del flow secondario.
+<2> Il source `link://secondary-flow` riceve gli Exchange dal flow principale.
+
+== Formato URL
+
+[source]
+----
+link://<flow-name>
+----
+
+[cols="1,3"]
+|===
+|Parametro |Descrizione
+
+|`flow-name`
+|Nome del flow destinatario (deve corrispondere al nome usato in `.fromSource`)
+|===
+
+== Caratteristiche
+
+* Il passaggio dell'Exchange è *sincrono* nel thread del flow mittente.
+* Non implica serializzazione: l'`Exchange` viene passato per riferimento.
+* Utile per suddividere pipeline complesse in flow modulari riutilizzabili.
+
+WARNING: Assicurarsi che il flow destinatario sia registrato nel contesto prima dell'avvio, altrimenti il `LinkProducer` non riuscirà a risolvere il `Consumer` di destinazione.

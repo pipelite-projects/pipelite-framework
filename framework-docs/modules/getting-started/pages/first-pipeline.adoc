@@ -1,0 +1,92 @@
+= Prima Pipeline
+:description: Creazione ed esecuzione della prima pipeline con Pipelite
+
+== Esempio standalone
+
+Il seguente esempio crea una pipeline che si attiva ogni secondo (time adapter) e logga il payload corrente tramite SLF4J.
+
+[source,java]
+----
+import io.pipelite.core.Pipelite;
+import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.dsl.definition.FlowDefinition;
+
+public class HelloPipelite {
+
+    public static void main(String[] args) {
+
+        FlowDefinition flow = Pipelite.defineFlow("hello-flow")
+            .fromSource("time://ticker?period=1000")           // <1>
+            .process("log-step", (exchange) -> {               // <2>
+                System.out.println("Tick: " + exchange.getInputPayload());
+                exchange.setOutputPayload("processed");
+            })
+            .toSink("slf4j://output-logger")                   // <3>
+            .build();                                          // <4>
+
+        PipeliteContext context = Pipelite.createContext();    // <5>
+        context.registerFlowDefinition(flow);
+        context.start();                                       // <6>
+    }
+}
+----
+<1> Il `time://` adapter genera un tick ogni 1000 ms.
+<2> Un processore inline che riceve l'Exchange ed elabora il payload.
+<3> Il sink `slf4j://` logga il messaggio di output tramite SLF4J.
+<4> `build()` restituisce la `FlowDefinition` immutabile.
+<5> Il `PipeliteContext` è il runtime container.
+<6> `start()` avvia tutti i consumer e inizia l'elaborazione.
+
+== Esempio con Spring Boot
+
+Con lo starter Spring Boot la configurazione si riduce a:
+
+[source,java]
+----
+@SpringBootApplication
+public class Application {
+
+    public static void main(String[] args) {
+        SpringApplication.run(ApplicationConfiguration.class);
+    }
+
+    @Configuration
+    @EnablePipelite                                            // <1>
+    public static class ApplicationConfiguration {
+
+        @Bean
+        public FlowDefinition ingressFlow() {
+            return Pipelite.defineFlow("ingress-flow")
+                .fromSource("http://ingress")                 // <2>
+                .wireTap("audit-log", "slf4j://audit")        // <3>
+                .process("validate", exchange -> {
+                    // logica di validazione
+                    exchange.setOutputPayload(exchange.getInputPayload());
+                })
+                .toSink("slf4j://main-log")
+                .build();
+        }
+    }
+}
+----
+<1> `@EnablePipelite` abilita l'autoconfiguration del framework.
+<2> Il source `http://ingress` apre un listener HTTP sulla porta 80 al path `/ingress`.
+<3> `wireTap` invia una copia del messaggio al canale di audit senza bloccare il flow principale.
+
+== Aggiungere error handling
+
+[source,java]
+----
+FlowDefinition flow = Pipelite.defineFlow("resilient-flow")
+    .fromSource("kafka://my-topic")
+    .process("transform", exchange -> {
+        // elaborazione che potrebbe generare eccezioni
+    })
+    .toSink("slf4j://output")
+    .withRetryChannel()                                        // <1>
+    .build();
+----
+<1> `withRetryChannel()` abilita il retry automatico in caso di eccezione non gestita.
+
+Per un error channel personalizzato usa `withErrorChannel(cfg -> ...)`.
+Per i dettagli completi vedi xref:core:error-handling.adoc[Error Handling].

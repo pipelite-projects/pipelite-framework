@@ -1,0 +1,131 @@
+= Definizione del Flow
+:description: Riferimento completo del DSL per la definizione di una pipeline Pipelite
+
+== Punto di ingresso
+
+[source,java]
+----
+FlowDefinitionBuilder builder = Pipelite.defineFlow("flow-name");
+----
+
+Il nome del flow deve essere univoco all'interno del `PipeliteContext`.
+
+== fromSource
+
+Definisce l'endpoint sorgente del flow.
+Accetta un URL con lo schema del channel adapter.
+
+[source,java]
+----
+.fromSource("time://ticker?period=1000")
+.fromSource("http://ingress")
+.fromSource("kafka://my-topic")
+----
+
+== process
+
+Aggiunge un nodo di elaborazione generico.
+
+[source,java]
+----
+.process("step-name", exchange -> {
+    String input = exchange.getInputPayloadAs(String.class);
+    exchange.setOutputPayload(input.trim());
+})
+----
+
+Il secondo argomento è un `Processor` (interfaccia funzionale).
+Il nome (`"step-name"`) è usato per il logging e il tracing.
+
+== transformPayload
+
+Trasformazione pura del payload, senza accesso diretto all'`Exchange`.
+
+[source,java]
+----
+.transformPayload("to-dto", payload ->
+    objectMapper.convertValue(payload.getPayloadAs(Map.class), MyDto.class)
+)
+----
+
+== filter
+
+Blocca il flow se l'espressione restituisce `false`.
+Vedi xref:expressions.adoc[Espressioni] per la sintassi.
+
+[source,java]
+----
+.filter("non-empty", "${body} != null")
+----
+
+== wireTap
+
+Invia una copia del messaggio a un endpoint secondario senza bloccare il flow.
+
+[source,java]
+----
+.wireTap("audit", "slf4j://audit-logger")
+----
+
+== toSink
+
+Definisce l'endpoint destinazione del flow.
+Dopo `toSink` sono disponibili solo `withRetryChannel`, `withErrorChannel` e `build`.
+
+[source,java]
+----
+.toSink("slf4j://output")
+.toSink("kafka://output-topic")
+----
+
+== toRoute
+
+Aggiunge un nodo di routing.
+Vedi xref:routing.adoc[Routing] per la documentazione completa.
+
+[source,java]
+----
+.toRoute(route -> route.contentBased()
+    .when(new PayloadTypeCondition(OrderEvent.class), "order-flow")
+    .otherwise("default-flow")
+    .build()
+)
+----
+
+== withRetryChannel
+
+Abilita il retry automatico in caso di eccezione.
+Disponibile dopo `toSink` o come terminazione alternativa dopo un processore.
+
+[source,java]
+----
+.withRetryChannel()
+.build()
+----
+
+== withErrorChannel
+
+Configura un error channel personalizzato.
+
+[source,java]
+----
+.withErrorChannel(builder ->
+    builder.toSink("slf4j://dead-letter").build()
+)
+.build()
+----
+
+== build
+
+Finalizza la definizione e restituisce una `FlowDefinition` immutabile.
+
+[source,java]
+----
+FlowDefinition definition = Pipelite.defineFlow("my-flow")
+    .fromSource("time://tick")
+    .toSink("slf4j://log")
+    .build();
+----
+
+NOTE: `build()` non avvia il flow.
+Il flow viene attivato solo dopo `PipeliteContext.start()`.

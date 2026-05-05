@@ -1,0 +1,68 @@
+= Configuration Properties
+:description: Proprietà di configurazione Spring Boot per il modulo pipelite-spring-starter
+
+Il modulo `pipelite-spring-starter` supporta la configurazione tramite `application.properties` o `application.yml`.
+
+NOTE: Le proprietà di configurazione esternale tramite `application.properties` sono in fase di sviluppo attivo per la versione `0.2.0`.
+La configurazione corrente avviene prevalentemente tramite bean Spring e la SPI `ChannelConfigurer`.
+
+== Proprietà pianificate
+
+Le proprietà seguenti sono previste per le prossime versioni:
+
+[cols="1,1,3"]
+|===
+|Proprietà |Default |Descrizione
+
+|`pipelite.enabled`
+|`true`
+|Abilita o disabilita l'autoconfiguration di Pipelite.
+
+|`pipelite.context.auto-start`
+|`true`
+|Avvia automaticamente il `PipeliteContext` al bootstrap di Spring.
+
+|`pipelite.adapters.http.port`
+|`80`
+|Porta del server HTTP Undertow.
+
+|`pipelite.adapters.http.host`
+|`0.0.0.0`
+|Indirizzo di bind del server HTTP.
+
+|`pipelite.adapters.kafka.bootstrap-servers`
+|`localhost:9092`
+|Bootstrap servers Kafka.
+
+|`pipelite.adapters.kafka.group-id`
+|`pipelite-default`
+|Consumer group ID Kafka.
+|===
+
+== Configurazione corrente tramite bean
+
+Fino alla disponibilità delle properties esternali, usa bean `@Configuration`:
+
+=== HTTP
+
+[source,java]
+----
+// Attualmente la porta è fissa a 80.
+// Supporto per configurazione esterna pianificato.
+----
+
+=== Kafka
+
+[source,java]
+----
+@Bean
+public KafkaChannelConfigurer kafkaConfigurer() {
+    return config -> {
+        config.setBootstrapServers("kafka-broker:9092");
+        config.setGroupId("my-app-group");
+        config.setAutoOffsetReset("earliest");
+    };
+}
+----
+
+Il bean `KafkaChannelConfigurer` viene rilevato automaticamente dall'autoconfiguration e applicato al `KafkaChannelAdapter`.

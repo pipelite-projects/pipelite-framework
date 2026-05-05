@@ -1,0 +1,96 @@
+= Flow e PipeliteContext
+:description: Ciclo di vita dei Flow, FlowRegistry e PipeliteContext
+
+== PipeliteContext
+
+Il `PipeliteContext` è il contenitore principale del runtime.
+Gestisce la registrazione delle definizioni di flow, l'istanza degli adapter e il ciclo di vita complessivo.
+
+=== Creazione standalone
+
+[source,java]
+----
+PipeliteContext context = Pipelite.createContext();
+----
+
+=== Registrazione e avvio
+
+[source,java]
+----
+context.registerFlowDefinition(flowDefinition);
+context.start();
+
+// ... esecuzione dell'applicazione ...
+
+context.stop();
+----
+
+=== Componenti interni
+
+[cols="1,3"]
+|===
+|Componente |Responsabilità
+
+|`FlowRegistry`
+|Mantiene il registro di tutti i `Flow` attivi, indicizzati per nome.
+
+|`ChannelAdapterManager`
+|Risolve i `ChannelAdapter` tramite classpath scan e li associa agli URL degli endpoint.
+
+|`EndpointFactory`
+|Crea gli `Endpoint` delegando al `ChannelAdapter` corretto in base allo schema URL.
+
+|`ServiceManager`
+|Avvia e ferma tutti i `Service` registrati (consumer polling, server HTTP, ecc.).
+
+|`ExchangeFactory`
+|Crea nuove istanze di `Exchange` e `Message` con identità distribuita.
+|===
+
+== FlowDefinition
+
+La `FlowDefinition` è l'oggetto immutabile prodotto dal DSL.
+Descrive la topologia del flow (source, processori, sink, error channel) senza alcuna logica di esecuzione.
+
+Il framework la usa come blueprint per costruire il `Flow` runtime al momento dell'`start()`.
+
+[source,java]
+----
+FlowDefinition definition = Pipelite.defineFlow("my-flow")
+    .fromSource("time://ticker?period=5000")
+    .toSink("slf4j://log")
+    .build();
+
+// La definizione è immutabile e riutilizzabile
+context.registerFlowDefinition(definition);
+----
+
+== Flow
+
+Il `Flow` è l'istanza runtime di una `FlowDefinition`.
+Incapsula il `Consumer` della sorgente e la catena di `FlowNode`.
+Viene creato e avviato automaticamente da `PipeliteContext.start()`.
+
+== Ciclo di vita dettagliato
+
+[source]
+----
+PipeliteContext.start()
+  │
+  ├─ ChannelAdapterManager.initialize()
+  │    └─ scan classpath → carica ChannelAdapter
+  │
+  ├─ Per ogni FlowDefinition registrata:
+  │    ├─ EndpointFactory.createSourceEndpoint()
+  │    ├─ EndpointFactory.createSinkEndpoint()
+  │    ├─ Costruzione catena FlowNode (processori, trasformatori, router)
+  │    └─ FlowRegistry.register(flow)
+  │
+  └─ ServiceManager.startAll()
+       ├─ Avvia EventDrivenConsumerService (HTTP, Link, ecc.)
+       └─ Avvia ScheduledPollingConsumerService (Time, Kafka, ecc.)
+
+PipeliteContext.stop()
+  └─ ServiceManager.stopAll()
+       └─ Shutdown ordinato di tutti i consumer
+----

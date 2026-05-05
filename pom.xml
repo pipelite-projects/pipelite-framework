@@ -72,7 +72,7 @@
         <module>pipelite-channel-adapters</module>
         <module>pipelite-spring-starter</module>
         <module>pipelite-examples</module>
-        <!--<module>pipelite-docs</module>-->
+        <module>framework-docs</module>
     </modules>
 
     <build>

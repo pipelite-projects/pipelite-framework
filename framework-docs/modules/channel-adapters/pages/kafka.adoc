@@ -1,0 +1,89 @@
+= Kafka Channel Adapter
+:description: Adapter Apache Kafka per consumer e producer
+
+Il modulo `kafka-channel-adapter` fornisce integrazione con *Apache Kafka 3.6.x*.
+
+== Dipendenza
+
+[source,xml,subs="attributes+"]
+----
+<dependency>
+    <groupId>{project-group-id}</groupId>
+    <artifactId>kafka-channel-adapter</artifactId>
+    <version>{project-version}</version>
+</dependency>
+----
+
+== Utilizzo come sorgente (consumer)
+
+[source,java]
+----
+Pipelite.defineFlow("kafka-consumer")
+    .fromSource("kafka://my-topic")
+    .process("handle", exchange -> {
+        String record = exchange.getInputPayloadAs(String.class);
+        // elaborazione del record Kafka
+    })
+    .toSink("slf4j://log")
+    .build();
+----
+
+Il `KafkaPollingConsumer` esegue il polling in un thread dedicato tramite `KafkaConsumerService`.
+
+=== Formato URL
+
+[source]
+----
+kafka://<topic-name>[?<params>]
+----
+
+== Utilizzo come sink (producer)
+
+[source,java]
+----
+.toSink("kafka://output-topic")
+----
+
+Il `DefaultKafkaProducer` invia il payload serializzato come valore del record Kafka.
+
+== Configurazione
+
+La configurazione Kafka viene fornita tramite `KafkaChannelConfigurer`:
+
+[source,java]
+----
+KafkaChannelConfigurer configurer = (config) -> {
+    config.setBootstrapServers("localhost:9092");
+    config.setGroupId("pipelite-consumer-group");
+    config.setAutoOffsetReset("earliest");
+};
+----
+
+Con Spring Boot è possibile definire il configurer come `@Bean`.
+
+=== Proprietà disponibili di KafkaChannelConfiguration
+
+[cols="1,1,3"]
+|===
+|Proprietà |Default |Descrizione
+
+|`bootstrapServers`
+|`localhost:9092`
+|Indirizzo del broker Kafka
+
+|`groupId`
+|`pipelite-default`
+|Consumer group ID
+
+|`autoOffsetReset`
+|`latest`
+|Policy di reset dell'offset (`earliest` / `latest`)
+|===
+
+== Serializzazione
+
+Il modulo include:
+
+* `JsonSerializer` — Serializzazione del payload Java in JSON tramite Jackson.
+* `JsonDeserializer` — Deserializzazione da JSON al tipo target.
+* `TypeConverterRegistry` — Registro dei converter disponibili.

@@ -25,3 +25,7 @@ buildNumber.properties
 
 #VisualParadigm project backup
 *.vpp.bak*
+
+#framework-docs
+framework-docs/node_modules
+framework-docs/build

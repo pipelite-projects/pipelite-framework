@@ -1,0 +1,22 @@
+= Spring Boot Integration
+:description: Integrazione di Pipelite con Spring Boot tramite il modulo pipelite-spring-starter
+
+Il modulo `pipelite-spring-starter` fornisce integrazione nativa con Spring Boot {spring-boot-version}+.
+
+== Funzionalità
+
+* Autoconfiguration automatica del `PipeliteContext`.
+* Registrazione automatica dei `FlowDefinition` esposti come `@Bean`.
+* Gestione del ciclo di vita tramite `SmartLifecycle` di Spring.
+* Annotazione `@EnablePipelite` per attivare l'integrazione.
+
+[cols="1,3"]
+|===
+|Pagina |Contenuto
+
+|xref:autoconfiguration.adoc[Autoconfiguration]
+|Come funziona l'autoconfiguration, `@EnablePipelite`, `FlowDefinitionRegistrar`.
+
+|xref:configuration-properties.adoc[Configuration Properties]
+|Tutte le proprietà `application.properties` / `application.yml` supportate.
+|===

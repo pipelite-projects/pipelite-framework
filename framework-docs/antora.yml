@@ -1,0 +1,21 @@
+name: pipelite
+version: '0.1.0'
+display_version: 0.1.0
+title: Pipelite Framework
+start_page: ROOT:index.adoc
+
+asciidoc:
+  attributes:
+    project-version: '0.1.0'
+    project-group-id: io.pipelite
+    spring-boot-version: '3.1.1'
+    java-version: '17'
+
+nav:
+  - modules/ROOT/nav.adoc
+  - modules/overview/nav.adoc
+  - modules/getting-started/nav.adoc
+  - modules/core/nav.adoc
+  - modules/dsl/nav.adoc
+  - modules/channel-adapters/nav.adoc
+  - modules/spring-integration/nav.adoc

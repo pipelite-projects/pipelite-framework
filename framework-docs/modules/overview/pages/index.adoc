@@ -1,0 +1,79 @@
+= Panoramica di Pipelite
+:description: Introduzione al Pipelite Framework, filosofia di progettazione e casi d'uso
+
+Pipelite è un framework Java {java-version}+ per la costruzione di pipeline di integrazione basate su messaggi.
+Il suo obiettivo primario è consentire agli sviluppatori di connettere sistemi eterogenei tramite un modello di programmazione dichiarativo e composabile, ispirato agli *Enterprise Integration Patterns* di Hohpe e Woolf.
+
+== Caratteristiche principali
+
+* *DSL fluente* — Definizione di pipeline tramite un'API Java type-safe e leggibile.
+* *Motore asincrono* — Esecuzione non bloccante basata su thread-pool configurabili.
+* *Channel Adapter estensibili* — Integrazione nativa con HTTP, Apache Kafka, timer schedulati, SLF4J e pipeline collegate.
+* *Error Handling dichiarativo* — Canale di errore e retry channel configurabili direttamente nella definizione del flow.
+* *Spring Boot Starter* — Autoconfiguration completa per applicazioni Spring Boot.
+* *SPI aperta* — Interfaccia `ChannelAdapter` e `Endpoint` per l'implementazione di adapter personalizzati.
+
+== Quando usare Pipelite
+
+Pipelite si adatta particolarmente bene a scenari in cui è necessario:
+
+* Costruire *microservizi event-driven* che reagiscono a messaggi da code Kafka o richieste HTTP.
+* Implementare *pipelines di elaborazione dati* con trasformazione, filtraggio e routing condizionale.
+* Creare *workflow schedulati* attivati da timer con logica di retry automatica.
+* Connettere componenti interni dell'applicazione senza accoppiamento diretto.
+
+== Confronto con altri framework
+
+[cols="1,1,1,1"]
+|===
+|Caratteristica |Pipelite |Apache Camel |Spring Integration
+
+|Footprint
+|Leggero (< 500 KB core)
+|Pesante (runtime completo)
+|Medio (dipende da Spring)
+
+|Configurazione
+|DSL Java fluente
+|DSL Java/XML/YAML
+|DSL Java/XML/annotazioni
+
+|Spring Boot
+|Starter dedicato
+|Starter dedicato
+|Nativo
+
+|EIP
+|Subset selezionato
+|Completo
+|Completo
+
+|Curva di apprendimento
+|Bassa
+|Alta
+|Media
+|===
+
+== Struttura del progetto
+
+Il progetto Maven è organizzato in moduli separati per responsabilità:
+
+[source]
+----
+pipelite-framework/
+├── pipelite-common          # Utilità condivise
+├── pipelite-spi             # Service Provider Interface
+├── pipelite-dsl             # API del Domain Specific Language
+├── pipelite-expression      # Motore di valutazione espressioni
+├── pipelite-core            # Motore di esecuzione centrale
+├── pipelite-channel-adapters
+│   ├── default-channel-adapters
+│   ├── http-channel-adapter
+│   ├── kafka-channel-adapter
+│   ├── link-channel-adapter
+│   ├── slf4j-channel-adapter
+│   └── time-channel-adapter
+├── pipelite-spring-starter  # Integrazione Spring Boot
+├── pipelite-examples        # Esempi applicativi
+└── framework-docs           # Questa documentazione
+----

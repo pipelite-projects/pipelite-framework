@@ -1,0 +1,85 @@
+= Error Handling
+:description: Gestione degli errori, retry channel e flow execution dump in Pipelite
+
+Pipelite offre due modalità di gestione degli errori a livello di flow: il *retry channel* e l'*error channel personalizzato*.
+Entrambi si configurano tramite il DSL al termine della definizione del flow.
+
+== Retry Channel
+
+Il retry channel è la modalità più semplice.
+Quando un'eccezione si propaga attraverso il flow, il framework serializza l'`Exchange` in un `FlowExecutionDump` e lo rimette in coda per un tentativo successivo.
+
+[source,java]
+----
+FlowDefinition flow = Pipelite.defineFlow("resilient-flow")
+    .fromSource("kafka://my-topic")
+    .process("parse", exchange -> {
+        // può lanciare eccezioni
+    })
+    .toSink("slf4j://output")
+    .withRetryChannel()    // <1>
+    .build();
+----
+<1> Abilita il retry automatico con la strategia di default.
+
+=== Meccanismo interno
+
+. L'eccezione viene catturata da `RetryChannelExceptionHandler`.
+. L'`Exchange` viene serializzato in un `FlowExecutionDump` tramite `FlowExecutionDumpFactory`.
+. Il dump viene persistito in `FlowExecutionDumpRepository` (implementazione in-memory di default: `FlowExecutionDumpInMemoryRepository`).
+. Il `RetryPollingConsumer` recupera periodicamente i dump e riprova l'esecuzione.
+. `RetryStrategyFilter` determina se il tentativo deve essere effettuato in base alla strategia configurata.
+
+== Error Channel Personalizzato
+
+Per una gestione degli errori più flessibile usa `withErrorChannel`:
+
+[source,java]
+----
+FlowDefinition flow = Pipelite.defineFlow("flow-with-error-channel")
+    .fromSource("http://api/v1/ingest")
+    .process("process", exchange -> { /* ... */ })
+    .toSink("slf4j://output")
+    .withErrorChannel(builder ->
+        builder.toSink("slf4j://error-log")   // <1>
+               .build()
+    )
+    .build();
+----
+<1> L'error channel invia il messaggio di errore verso il sink configurato.
+
+L'`ErrorChannelOperations` espone:
+
+[source,java]
+----
+builder.toSink(String url)   // destinazione del messaggio in errore
+       .build()              // produce ErrorChannelDefinition
+----
+
+== Gestore di default
+
+Se nessun error channel è configurato, l'eccezione viene gestita da `GlobalDefaultExceptionHandler`, che logga l'errore e interrompe l'elaborazione senza propagare l'eccezione al chiamante.
+
+== FlowExecutionDump
+
+Il `FlowExecutionDump` è la serializzazione dell'`Exchange` al momento del fallimento.
+Contiene il payload serializzato, gli headers e le properties necessarie al retry.
+
+[cols="1,3"]
+|===
+|Classe |Descrizione
+
+|`FlowExecutionDump` (interfaccia)
+|Contratto per il dump di esecuzione
+
+|`DefaultFlowExecutionDump`
+|Implementazione standard in-memory
+
+|`SerializedFlowExecutionDump`
+|Versione serializzata Base64 per persistenza
+
+|`FlowExecutionDumpInMemoryRepository`
+|Repository in-memory (non persistente tra riavvii)
+|===
+
+TIP: Per ambienti di produzione con requisiti di durabilità, si può implementare `FlowExecutionDumpRepository` con backend persistente (es. database, Redis).

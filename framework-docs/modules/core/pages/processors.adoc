@@ -1,0 +1,107 @@
+= Processori e Trasformatori
+:description: Tipi di nodi di elaborazione disponibili in una pipeline Pipelite
+
+I nodi di elaborazione (`FlowNode`) sono le unità atomiche che compongono la logica di una pipeline.
+Vengono aggiunti tramite il DSL nella fase `ProcessOperations`.
+
+== Processor
+
+L'interfaccia `Processor` rappresenta la logica applicativa generica.
+
+[source,java]
+----
+@FunctionalInterface
+public interface Processor {
+    void process(IOContext exchange) throws Exception;
+}
+----
+
+Usage nel DSL:
+
+[source,java]
+----
+.process("step-name", exchange -> {
+    String payload = exchange.getInputPayloadAs(String.class);
+    exchange.setOutputPayload(payload.toUpperCase());
+})
+----
+
+Il `Processor` riceve un `IOContext` (superinterface di `Exchange`) che espone l'accesso completo a input, output e headers.
+
+== PayloadTransformer
+
+`PayloadTransformer` è una specializzazione che trasforma il payload senza necessità di gestire esplicitamente l'`Exchange`.
+
+[source,java]
+----
+@FunctionalInterface
+public interface PayloadTransformer<I, O> {
+    O transform(PayloadHolder<I> payload);
+}
+----
+
+Usage nel DSL:
+
+[source,java]
+----
+.transformPayload("to-uppercase", payload ->
+    payload.getPayloadAs(String.class).toUpperCase()
+)
+----
+
+NOTE: `PayloadTransformer` è preferibile a `Processor` quando la logica riguarda solo il payload, senza necessità di accedere agli headers.
+
+== Filter (Expression Filter)
+
+Il nodo `filter` blocca il proseguimento del flow se l'espressione è falsa.
+
+[source,java]
+----
+.filter("only-non-empty", "${body} != null && !${body}.isEmpty()")
+----
+
+L'espressione utilizza il motore del modulo `pipelite-expression`.
+Il placeholder `${body}` si riferisce al payload corrente.
+
+== WireTap
+
+Il WireTap invia una *copia* del messaggio corrente a un endpoint secondario in modo non bloccante, senza interrompere il flow principale.
+
+[source,java]
+----
+.wireTap("audit-log", "slf4j://audit-logger")
+----
+
+Il messaggio continua a scorrere normalmente lungo il flow principale mentre la copia viene inviata al canale indicato dall'URL.
+
+== Message Translator
+
+Il `MessageTranslatorNode` converte il tipo del messaggio da un formato a un altro tramite un `Function<Message, Message>`.
+È configurato internamente dal framework durante la costruzione del flow.
+
+== Riepilogo dei nodi disponibili tramite DSL
+
+[cols="2,3,3"]
+|===
+|Metodo DSL |Nodo creato |Descrizione
+
+|`.process(name, processor)`
+|`DefaultProcessorNode`
+|Elaborazione generica tramite `Processor`
+
+|`.transformPayload(name, transformer)`
+|`PayloadTransformerNode`
+|Trasformazione pura del payload
+
+|`.filter(name, expression)`
+|`ExpressionFilterNode`
+|Filtraggio basato su espressione
+
+|`.wireTap(name, url)`
+|`WireTapProcessorNode`
+|Fork non bloccante verso endpoint secondario
+
+|`.toRoute(configurator)`
+|`RouterNode` / `RecipientListRouterNode` / `RoutingSlipRouterNode`
+|Routing condizionale o dinamico (vedi xref:dsl:routing.adoc[Routing])
+|===
