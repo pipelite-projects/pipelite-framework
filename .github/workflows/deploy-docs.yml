@@ -32,7 +32,7 @@ jobs:
       - name: Download UI Bundle
         run: |
           ASSET_URL=$(curl -s -H "Authorization: Bearer ${{ secrets.ANTORA_UI_BUNDLE_TOKEN }}" \
-            https://api.github.com/repos/pipelite-projects/pipelite-antora-ui/releases/tags/v1.0.0 \
+            https://api.github.com/repos/pipelite-projects/pipelite-antora-ui/releases/tags/v1.0.1 \
             | jq -r '.assets[] | select(.name=="ui-bundle.zip") | .url')
           
           curl -L -H "Authorization: Bearer ${{ secrets.ANTORA_UI_BUNDLE_TOKEN }}" \
