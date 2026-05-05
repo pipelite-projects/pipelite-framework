@@ -1,6 +1,7 @@
 = Panoramica di Pipelite
 :description: Introduzione al Pipelite Framework, filosofia di progettazione e casi d'uso
 
+
 Pipelite è un framework Java {java-version}+ per la costruzione di pipeline di integrazione basate su messaggi.
 Il suo obiettivo primario è consentire agli sviluppatori di connettere sistemi eterogenei tramite un modello di programmazione dichiarativo e composabile, ispirato agli *Enterprise Integration Patterns* di Hohpe e Woolf.
 
