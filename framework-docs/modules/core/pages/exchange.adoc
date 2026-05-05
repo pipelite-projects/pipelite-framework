@@ -1,0 +1,92 @@
+= Exchange
+:description: L'oggetto Exchange come contenitore di trasporto dei messaggi in Pipelite
+
+L'`Exchange` è il veicolo fondamentale con cui i dati viaggiano lungo un flow.
+Ogni volta che una sorgente produce un evento, viene creato un nuovo `Exchange` che viene passato attraverso tutti i nodi della pipeline.
+
+== Struttura
+
+[source,java]
+----
+public class Exchange implements IOContext, Serializable {
+    private final Message input;    // messaggio in ingresso (immutabile dopo la creazione)
+    private Message output;         // messaggio di risposta (opzionale)
+    private final Headers headers;  // metadati trasversali
+    private final Map<String, Object> properties; // stato interno del routing
+}
+----
+
+== Accesso al payload
+
+[source,java]
+----
+// Leggere il payload in ingresso
+Object raw = exchange.getInputPayload();
+MyDto dto  = exchange.getInputPayloadAs(MyDto.class);
+
+// Verificare il tipo del payload
+Class<?> type = exchange.getInputPayloadType();
+
+// Impostare il payload di output
+exchange.setOutputPayload(result);
+
+// Forward automatico (input → output se output è vuoto)
+exchange.forwardIfNecessary();
+----
+
+== Headers
+
+Gli headers sono coppie chiave-valore stringa condivise tra tutti i nodi del flow.
+
+[source,java]
+----
+// Scrittura
+exchange.putHeader("correlation-id", "abc123");
+
+// Lettura sicura
+Optional<String> id = exchange.tryGetHeader("correlation-id");
+
+// Lettura con aspettativa (lancia eccezione se assente)
+String id = exchange.expectHeader("correlation-id");
+
+// Lettura tipizzata
+Optional<Integer> count = exchange.tryGetHeaderAs("retry-count", Integer.class);
+
+// Rimozione
+exchange.removeHeader("temp-header");
+----
+
+== Properties
+
+Le properties sono coppie chiave-valore `Object` usate internamente dal framework per il routing.
+
+[source,java]
+----
+exchange.setProperty("my-key", myObject);
+MyType value = exchange.getProperty("my-key", MyType.class);
+MyType valueOrDefault = exchange.getPropertyOrDefault("my-key", MyType.class, defaultValue);
+exchange.removeProperty("my-key");
+----
+
+NOTE: Le properties di sistema come `routing-slip` e `return-address` sono gestite automaticamente dal framework tramite le costanti in `IOKeys`.
+
+== Return Address
+
+Il pattern *Return Address* permette di far rispondere il flow a un canale specificato dinamicamente.
+
+[source,java]
+----
+exchange.setReturnAddress("reply-flow");
+Optional<String> replyTo = exchange.tryGetReturnAddress();
+exchange.resetReturnAddress();
+----
+
+== Routing Slip
+
+Il pattern *Routing Slip* permette di specificare in modo dinamico la sequenza di flow da attraversare.
+
+[source,java]
+----
+exchange.setRoutingSlip(routingSlip);
+Optional<RoutingSlip> slip = exchange.tryGetRoutingSlip();
+----

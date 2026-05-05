@@ -1,0 +1,107 @@
+= Autoconfiguration
+:description: Funzionamento dell'autoconfiguration di Pipelite con Spring Boot
+
+== Dipendenza
+
+[source,xml,subs="attributes+"]
+----
+<dependency>
+    <groupId>{project-group-id}</groupId>
+    <artifactId>pipelite-spring-starter</artifactId>
+    <version>{project-version}</version>
+</dependency>
+----
+
+== @EnablePipelite
+
+L'annotazione `@EnablePipelite` attiva l'intera infrastruttura Pipelite nel contesto Spring.
+Va applicata a una classe di configurazione:
+
+[source,java]
+----
+@Configuration
+@EnablePipelite
+public class PipeliteConfig {
+
+    @Bean
+    public FlowDefinition myFlow() {
+        return Pipelite.defineFlow("my-flow")
+            .fromSource("time://tick?period=10000")
+            .toSink("slf4j://log")
+            .build();
+    }
+}
+----
+
+Con `@SpringBootApplication` può essere posizionata direttamente sulla classe principale:
+
+[source,java]
+----
+@SpringBootApplication
+@EnablePipelite
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+----
+
+== Componenti autoconfigurati
+
+`@EnablePipelite` importa `PipeliteConfigurationImportSelector`, che registra:
+
+[cols="1,3"]
+|===
+|Bean |Responsabilità
+
+|`PipeliteContext`
+|Il context singleton del framework, costruito da `PipeliteAutoConfiguration`.
+
+|`FlowDefinitionRegistrar`
+|`BeanPostProcessor` che intercetta ogni bean di tipo `FlowDefinition` e lo registra nel `PipeliteContext`.
+
+|`PipeliteContextInitializer`
+|Inizializza il context con le factory interne.
+
+|`PipeliteContextLifecycleManager`
+|Implementa `SmartLifecycle` per avviare e fermare il context in sincronia con Spring.
+|===
+
+== Ciclo di vita con Spring
+
+`PipeliteContextLifecycleManager` si integra con il lifecycle di Spring:
+
+* `start()` → invocato da Spring dopo il refresh del `ApplicationContext`.
+* `stop()` → invocato da Spring durante lo shutdown ordinato.
+
+L'ordine di precedenza garantisce che tutti i `FlowDefinition` bean siano già stati registrati prima dell'avvio del context.
+
+== Registrazione di FlowDefinition multipli
+
+Tutti i bean di tipo `FlowDefinition` vengono rilevati e registrati automaticamente da `FlowDefinitionRegistrar`:
+
+[source,java]
+----
+@Configuration
+@EnablePipelite
+public class FlowConfig {
+
+    @Bean
+    public FlowDefinition orderFlow() {
+        return Pipelite.defineFlow("order-flow")
+            .fromSource("kafka://orders")
+            .toSink("slf4j://orders")
+            .build();
+    }
+
+    @Bean
+    public FlowDefinition paymentFlow() {
+        return Pipelite.defineFlow("payment-flow")
+            .fromSource("kafka://payments")
+            .toSink("slf4j://payments")
+            .build();
+    }
+}
+----
+
+Non è necessario registrarli manualmente nel `PipeliteContext`.

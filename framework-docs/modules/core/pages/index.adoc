@@ -1,0 +1,25 @@
+= Core
+:description: Documentazione del modulo core di Pipelite
+
+Il modulo `pipelite-core` contiene il motore di esecuzione del framework.
+Questa sezione descrive i concetti fondamentali necessari per comprendere come i messaggi vengono elaborati lungo una pipeline.
+
+[cols="1,3"]
+|===
+|Pagina |Contenuto
+
+|xref:exchange.adoc[Exchange]
+|Struttura dell'`Exchange`, accesso a input/output, headers e properties.
+
+|xref:messages.adoc[Message e Headers]
+|Il `Message`, il payload e l'API degli `Headers`.
+
+|xref:flows.adoc[Flow e PipeliteContext]
+|Ciclo di vita, `FlowRegistry`, `PipeliteContext`, `FlowDefinition`.
+
+|xref:processors.adoc[Processori e Trasformatori]
+|`Processor`, `PayloadTransformer`, WireTap e tutti i tipi di nodo.
+
+|xref:error-handling.adoc[Error Handling]
+|Canale di errore, retry channel, `FlowExecutionDump`.
+|===

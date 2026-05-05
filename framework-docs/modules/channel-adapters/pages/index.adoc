@@ -1,0 +1,53 @@
+= Channel Adapter
+:description: Panoramica di tutti i channel adapter disponibili in Pipelite
+
+I *Channel Adapter* sono i connettori che collegano una pipeline Pipelite ai sistemi esterni.
+Ogni adapter implementa l'interfaccia SPI `ChannelAdapter` e viene scoperto automaticamente a runtime tramite classpath scan.
+
+== Adapter disponibili
+
+[cols="1,1,1,3"]
+|===
+|Adapter |Schema URL |Modulo |Descrizione
+
+|xref:http.adoc[HTTP]
+|`http://`
+|`http-channel-adapter`
+|Server HTTP inbound (Undertow) e client HTTP outbound.
+
+|xref:kafka.adoc[Kafka]
+|`kafka://`
+|`kafka-channel-adapter`
+|Consumer e producer Apache Kafka.
+
+|xref:time.adoc[Time]
+|`time://`
+|`default-channel-adapters`
+|Generatore di tick periodici (cron-like).
+
+|xref:slf4j.adoc[SLF4J]
+|`slf4j://`
+|`default-channel-adapters`
+|Logging del payload tramite SLF4J (solo sink).
+
+|xref:link.adoc[Link]
+|`link://`
+|`default-channel-adapters`
+|Collegamento diretto tra due flow interni.
+|===
+
+== Scoperta automatica
+
+Gli adapter sono registrati tramite il file:
+
+[source]
+----
+META-INF/pipelite/adapters
+----
+
+Ogni riga contiene il nome completo della classe che implementa `ChannelAdapter`.
+Il `FactoryComponentClasspathScanner` carica le classi all'avvio del contesto.
+
+== Creare un adapter personalizzato
+
+Vedi xref:custom.adoc[Adapter personalizzato] per la guida all'implementazione della SPI.

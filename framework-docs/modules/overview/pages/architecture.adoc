@@ -1,0 +1,145 @@
+= Architettura
+:description: Architettura interna del Pipelite Framework, componenti e loro interazioni
+
+== Visione d'insieme
+
+Pipelite si basa su un'architettura a pipeline orientata ai messaggi.
+Ogni *flow* rappresenta un percorso di elaborazione che inizia da una *sorgente* (source), attraversa uno o più *processori* e termina in un *sink*.
+La comunicazione tra i nodi avviene tramite oggetti `Exchange` che incapsulano il messaggio in transito.
+
+[source]
+----
+Source Endpoint
+      │
+      ▼
+[Exchange: input Message + Headers + Properties]
+      │
+      ▼
+Processor Node 1  ──── WireTap ──► Side Channel
+      │
+      ▼
+Processor Node 2 (transform / filter / route)
+      │
+      ▼
+Sink Endpoint
+----
+
+== Componenti principali
+
+=== PipeliteContext
+
+Il `PipeliteContext` è il contenitore centrale del framework.
+Si occupa di:
+
+* Registrare le `FlowDefinition` prodotte dal DSL.
+* Istanziare i `Flow` a partire dalle definizioni.
+* Gestire il ciclo di vita del framework (start / stop).
+* Fornire il `ChannelAdapterManager` e il `FlowRegistry`.
+
+[source,java]
+----
+PipeliteContext context = Pipelite.createContext();
+context.registerFlowDefinition(flowDefinition);
+context.start();
+----
+
+=== Flow
+
+Un `Flow` è l'unità di esecuzione di una pipeline.
+Ogni flow è associato a un `Endpoint` sorgente che produce `Exchange` e a una catena di `FlowNode` che li elaborano sequenzialmente.
+
+=== Exchange
+
+L'`Exchange` è il contenitore di trasporto del messaggio lungo il flow.
+Contiene:
+
+* `input` — Il `Message` in ingresso con payload e headers.
+* `output` — Il `Message` di risposta (opzionale).
+* `headers` — Metadati condivisi tra i nodi (`Headers`).
+* `properties` — Proprietà di contesto (routing slip, return address, ecc.).
+
+=== Message
+
+Un `Message` trasporta il payload applicativo con i propri header.
+Il payload può essere qualsiasi tipo Java serializzabile.
+
+=== Endpoint
+
+Ogni `ChannelAdapter` produce `Endpoint`.
+Un `Endpoint` può esporre:
+
+* Un `Consumer` (event-driven o polling) per ricevere messaggi dalla sorgente.
+* Un `Producer` per inviare messaggi verso la destinazione.
+
+=== FlowNode
+
+I `FlowNode` sono i nodi della catena di elaborazione.
+Tipi disponibili:
+
+[cols="1,3"]
+|===
+|Tipo |Responsabilità
+
+|`DefaultProcessorNode`
+|Esecuzione di logica applicativa tramite `Processor`
+
+|`PayloadTransformerNode`
+|Trasformazione del payload tramite `PayloadTransformer`
+
+|`MessageTranslatorNode`
+|Traduzione del tipo di messaggio
+
+|`ExpressionFilterNode`
+|Filtraggio basato su espressione
+
+|`WireTapProcessorNode`
+|Invio asincrono su canale secondario senza interrompere il flow principale
+
+|`RouterNode`
+|Routing content-based con tabella di routing
+
+|`RecipientListRouterNode`
+|Invio a più destinatari contemporaneamente
+
+|`RoutingSlipRouterNode`
+|Routing dinamico tramite routing slip
+
+|`ReturnAddressRouterNode`
+|Routing verso l'indirizzo di ritorno impostato sull'Exchange
+|===
+
+== Ciclo di vita
+
+[source]
+----
+1. Definizione dei flow tramite DSL  (FlowDefinition)
+2. Registrazione nel PipeliteContext
+3. context.start()
+   ├── Risoluzione dei ChannelAdapter (classpath scan)
+   ├── Creazione degli Endpoint
+   ├── Costruzione dei FlowNode
+   └── Avvio dei Consumer (EventDriven o Polling)
+4. Elaborazione dei messaggi in runtime
+5. context.stop()
+   └── Shutdown ordinato di tutti i service
+----
+
+== Modello di threading
+
+* I *consumer event-driven* (es. HTTP) reagiscono agli eventi nel thread del server.
+* I *consumer polling* (es. Kafka, Time) vengono eseguiti in thread dedicati gestiti da `ScheduledPollingConsumerService`.
+* I *WireTap* inviano su un canale separato in modo *non bloccante*.
+* Il `RetryService` gestisce i retry su thread separato con accesso al `FlowExecutionDumpRepository`.
+
+== SPI — Estensibilità
+
+Per creare un nuovo channel adapter è sufficiente implementare:
+
+[source,java]
+----
+public interface ChannelAdapter {
+    Endpoint createEndpoint(String url);
+}
+----
+
+L'adapter viene scoperto automaticamente tramite classpath scan (file `META-INF/pipelite/adapters`).

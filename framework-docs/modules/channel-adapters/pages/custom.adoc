@@ -1,0 +1,135 @@
+= Adapter Personalizzato
+:description: Guida all'implementazione di un ChannelAdapter personalizzato tramite la SPI di Pipelite
+
+Pipelite espone una SPI aperta che consente di creare adapter personalizzati per qualsiasi sistema esterno.
+
+== Dipendenza SPI
+
+[source,xml,subs="attributes+"]
+----
+<dependency>
+    <groupId>{project-group-id}</groupId>
+    <artifactId>pipelite-spi</artifactId>
+    <version>{project-version}</version>
+</dependency>
+----
+
+== Implementare ChannelAdapter
+
+[source,java]
+----
+public class MyCustomChannelAdapter implements ChannelAdapter {
+
+    @Override
+    public Endpoint createEndpoint(String url) {
+        EndpointURL endpointURL = EndpointURL.parse(url);
+        return new MyCustomEndpoint(endpointURL, this);
+    }
+}
+----
+
+== Implementare Endpoint
+
+[source,java]
+----
+public class MyCustomEndpoint extends DefaultEndpoint {
+
+    public MyCustomEndpoint(EndpointURL url, ChannelAdapter adapter) {
+        super(url, adapter);
+    }
+
+    @Override
+    public Consumer createConsumer() {
+        return new MyCustomConsumer(this);    // per uso come sorgente
+    }
+
+    @Override
+    public Producer createProducer() {
+        return new MyCustomProducer(this);    // per uso come sink
+    }
+}
+----
+
+== Implementare Consumer (sorgente)
+
+Per consumer *event-driven*:
+
+[source,java]
+----
+public class MyCustomConsumer extends AbstractConsumer
+    implements EventDrivenConsumer {
+
+    public void onMessage(Object data) {
+        Exchange exchange = exchangeFactory.createExchange(data);
+        process(exchange);
+    }
+}
+----
+
+Per consumer *polling*:
+
+[source,java]
+----
+public class MyCustomPollingConsumer extends DefaultPollingConsumer {
+
+    @Override
+    protected Exchange poll() {
+        Object data = mySystem.fetchNext();
+        if (data == null) return null;
+        return exchangeFactory.createExchange(data);
+    }
+}
+----
+
+== Implementare Producer (sink)
+
+[source,java]
+----
+public class MyCustomProducer extends AbstractProducer {
+
+    @Override
+    public void produce(Exchange exchange) throws Exception {
+        Object payload = exchange.getInputPayload();
+        mySystem.send(payload);
+    }
+}
+----
+
+== Registrazione tramite classpath scan
+
+Crea il file di registrazione nella directory `resources` del tuo modulo:
+
+[source]
+----
+src/main/resources/META-INF/pipelite/adapters
+----
+
+Contenuto del file (una classe per riga):
+
+[source]
+----
+com.example.adapters.MyCustomChannelAdapter
+----
+
+Il `FactoryComponentClasspathScanner` carica automaticamente tutte le classi registrate in questo file all'avvio del `PipeliteContext`.
+
+== Integrazione con il ciclo di vita del contesto
+
+Se il tuo adapter ha bisogno di essere notificato dell'avvio e dell'arresto del contesto, implementa `ContextEventListener`:
+
+[source,java]
+----
+public class MyCustomChannelAdapter
+    implements ChannelAdapter, ContextEventListener {
+
+    @Override
+    public void onContextStarted() {
+        // avvio connessione al sistema esterno
+    }
+
+    @Override
+    public void onContextStopped() {
+        // chiusura ordinata della connessione
+    }
+}
+----

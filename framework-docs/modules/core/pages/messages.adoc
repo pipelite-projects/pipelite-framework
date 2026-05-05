@@ -1,0 +1,76 @@
+= Message e Headers
+:description: Il Message come contenitore del payload e l'API degli Headers
+
+== Message
+
+Il `Message` (package `io.pipelite.spi.flow.exchange`) è il contenitore del payload applicativo.
+Ogni `Exchange` ha un `Message` di input e, opzionalmente, uno di output.
+
+=== API principale
+
+[source,java]
+----
+Message input = exchange.getInput();
+
+// Accesso al payload
+Object payload       = input.getPayloadAs(Object.class);
+MyDto dto            = input.getPayloadAs(MyDto.class);
+Class<?> payloadType = input.getPayloadType();
+boolean hasPayload   = input.hasPayload();
+
+// Modifica del payload (nel processore)
+input.setPayload(newValue);
+----
+
+=== SimpleMessage
+
+L'implementazione concreta è `SimpleMessage`, che porta un payload tipizzato e una mappa di header propri del messaggio.
+I valori di default sono creati dalla `MessageFactory` (iniettata dal contesto).
+
+== Headers
+
+La classe `Headers` (interfaccia e implementazione `HeadersImpl`) fornisce l'accesso ai metadati del messaggio.
+
+=== Lettura
+
+[source,java]
+----
+Headers headers = exchange.getHeaders();
+
+// Lettura opzionale
+Optional<String> value = headers.tryGetHeader("x-request-id");
+
+// Lettura con aspettativa (lancia NoSuchElementException se assente)
+String value = headers.expectHeader("x-request-id");
+
+// Lettura tipizzata
+Optional<Integer> n = headers.tryGetHeaderAs("retry-count", Integer.class);
+
+// Verifica presenza
+boolean present = headers.hasHeader("x-request-id");
+----
+
+=== Scrittura
+
+[source,java]
+----
+headers.putHeader("x-correlation-id", "xyz-789");
+headers.removeHeader("x-temp");
+----
+
+=== Header di sistema
+
+Il framework usa alcuni header riservati, definiti in `IOKeys`:
+
+[cols="1,3"]
+|===
+|Costante |Scopo
+
+|`IOKeys.RETURN_ADDRESS_HEADER_NAME`
+|Indirizzo del flow di risposta (pattern Return Address)
+
+|`IOKeys.ROUTING_SLIP_PROPERTY_NAME`
+|Lista dinamica di flow da attraversare (property, non header)
+|===
+
+WARNING: Non usare le chiavi riservate di sistema come header applicativi per evitare collisioni con il comportamento del framework.

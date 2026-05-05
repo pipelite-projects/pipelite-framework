@@ -1,0 +1,7 @@
+* xref:channel-adapters:index.adoc[Channel Adapter]
+** xref:channel-adapters:http.adoc[HTTP]
+** xref:channel-adapters:kafka.adoc[Kafka]
+** xref:channel-adapters:time.adoc[Time]
+** xref:channel-adapters:slf4j.adoc[SLF4J]
+** xref:channel-adapters:link.adoc[Link]
+** xref:channel-adapters:custom.adoc[Adapter personalizzato]

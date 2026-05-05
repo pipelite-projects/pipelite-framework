@@ -1,0 +1,82 @@
+= HTTP Channel Adapter
+:description: Adapter HTTP basato su Undertow per inbound e outbound
+
+Il modulo `http-channel-adapter` implementa un server HTTP inbound basato su *Undertow 2.2.x*.
+
+== Dipendenza
+
+[source,xml,subs="attributes+"]
+----
+<dependency>
+    <groupId>{project-group-id}</groupId>
+    <artifactId>http-channel-adapter</artifactId>
+    <version>{project-version}</version>
+</dependency>
+----
+
+== Utilizzo come sorgente (inbound)
+
+[source,java]
+----
+Pipelite.defineFlow("http-inbound")
+    .fromSource("http://ingress")     // <1>
+    .process("handle", exchange -> {
+        String body = exchange.getInputPayloadAs(String.class);
+        exchange.setOutputPayload("OK");
+    })
+    .toSink("slf4j://log")
+    .build();
+----
+<1> Apre un listener HTTP sulla porta 80 (default) al path `/ingress`.
+
+=== Formato URL
+
+[source]
+----
+http://<path>
+----
+
+[cols="1,1,3"]
+|===
+|Parametro |Default |Descrizione
+
+|path
+|(required)
+|Il path HTTP sul quale il server rimane in ascolto (es. `/api/v1/events`)
+|===
+
+Il server Undertow viene avviato automaticamente da `HttpChannelAdapter.onContextStarted()` alla prima registrazione di un consumer HTTP.
+
+NOTE: La porta di default è 80.
+La configurazione di porta e host personalizzati sarà disponibile in una versione futura.
+
+== Utilizzo come sink (outbound)
+
+Il modulo include un `HttpProducer` per l'invio di messaggi verso endpoint HTTP esterni.
+
+[source,java]
+----
+.toSink("http://target-service/api/notify")
+----
+
+Il `HttpProducer` invia il payload come corpo della richiesta HTTP POST.
+
+== Registrazione multipla di path
+
+È possibile registrare più path sullo stesso server:
+
+[source,java]
+----
+context.registerFlowDefinition(
+    Pipelite.defineFlow("flow-orders")
+        .fromSource("http://orders").toSink("slf4j://orders").build()
+);
+context.registerFlowDefinition(
+    Pipelite.defineFlow("flow-payments")
+        .fromSource("http://payments").toSink("slf4j://payments").build()
+);
+----
+
+`HttpChannelAdapter` mantiene una mappa di consumer per path e condivide un'unica istanza Undertow.
+
+WARNING: Non è possibile registrare due flow sullo stesso path HTTP: viene lanciata `IllegalStateException`.
