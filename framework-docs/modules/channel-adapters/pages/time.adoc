@@ -1,28 +1,28 @@
 = Time Channel Adapter
-:description: Adapter per la generazione di tick periodici come sorgente di flow
+:description: Adapter for generating periodic ticks as a flow source
 
-L'adapter `time` genera tick periodici e li immette come messaggi nel flow.
-È utile per pipeline schedulate, polling di risorse esterne e workflow basati su timer.
+The `time` adapter generates periodic ticks and injects them as messages into the flow.
+It is useful for scheduled pipelines, external resource polling, and timer-based workflows.
 
-== Disponibilità
+== Availability
 
-Incluso in `default-channel-adapters`, transitivamente disponibile con `pipelite-core`.
+Included in `default-channel-adapters`, transitively available with `pipelite-core`.
 
-== Utilizzo
+== Usage
 
 [source,java]
 ----
 Pipelite.defineFlow("scheduled-flow")
     .fromSource("time://ticker?period=5000")   // <1>
     .process("check", exchange -> {
-        // logica eseguita ogni 5 secondi
+        // logic executed every 5 seconds
     })
     .toSink("slf4j://log")
     .build();
 ----
-<1> Genera un tick ogni 5000 ms.
+<1> Generates a tick every 5000 ms.
 
-== Formato URL
+== URL format
 
 [source]
 ----
@@ -31,19 +31,19 @@ time://<name>[?period=<ms>]
 
 [cols="1,1,3"]
 |===
-|Parametro |Default |Descrizione
+|Parameter |Default |Description
 
 |`name`
 |(required)
-|Nome logico del timer (es. `ticker`, `heartbeat`)
+|Logical name of the timer (e.g. `ticker`, `heartbeat`)
 
 |`period`
 |`1000`
-|Periodo di tick in millisecondi
+|Tick period in milliseconds
 |===
 
-== Meccanismo interno
+== Internal mechanism
 
-Il `TimePollingConsumer` usa un `ScheduledExecutorService` tramite `TimeService`.
-Ad ogni tick viene creato un nuovo `Exchange` con payload contenente il timestamp corrente.
-Il consumer viene avviato e fermato insieme al `PipeliteContext`.
+The `TimePollingConsumer` uses a `ScheduledExecutorService` via `TimeService`.
+On each tick, a new `Exchange` is created with a payload containing the current timestamp.
+The consumer is started and stopped together with the `PipeliteContext`.

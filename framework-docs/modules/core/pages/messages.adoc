@@ -1,56 +1,56 @@
-= Message e Headers
-:description: Il Message come contenitore del payload e l'API degli Headers
+= Message and Headers
+:description: The Message as payload container and the Headers API
 
 == Message
 
-Il `Message` (package `io.pipelite.spi.flow.exchange`) è il contenitore del payload applicativo.
-Ogni `Exchange` ha un `Message` di input e, opzionalmente, uno di output.
+The `Message` (package `io.pipelite.spi.flow.exchange`) is the container for the application payload.
+Each `Exchange` has an input `Message` and, optionally, an output `Message`.
 
-=== API principale
+=== Main API
 
 [source,java]
 ----
 Message input = exchange.getInput();
 
-// Accesso al payload
+// Payload access
 Object payload       = input.getPayloadAs(Object.class);
 MyDto dto            = input.getPayloadAs(MyDto.class);
 Class<?> payloadType = input.getPayloadType();
 boolean hasPayload   = input.hasPayload();
 
-// Modifica del payload (nel processore)
+// Payload modification (inside a processor)
 input.setPayload(newValue);
 ----
 
 === SimpleMessage
 
-L'implementazione concreta è `SimpleMessage`, che porta un payload tipizzato e una mappa di header propri del messaggio.
-I valori di default sono creati dalla `MessageFactory` (iniettata dal contesto).
+The concrete implementation is `SimpleMessage`, which carries a typed payload and a map of message-own headers.
+Default values are created by the `MessageFactory` (injected by the context).
 
 == Headers
 
-La classe `Headers` (interfaccia e implementazione `HeadersImpl`) fornisce l'accesso ai metadati del messaggio.
+The `Headers` class (interface and implementation `HeadersImpl`) provides access to message metadata.
 
-=== Lettura
+=== Read
 
 [source,java]
 ----
 Headers headers = exchange.getHeaders();
 
-// Lettura opzionale
+// Optional read
 Optional<String> value = headers.tryGetHeader("x-request-id");
 
-// Lettura con aspettativa (lancia NoSuchElementException se assente)
+// Read with expectation (throws NoSuchElementException if absent)
 String value = headers.expectHeader("x-request-id");
 
-// Lettura tipizzata
+// Typed read
 Optional<Integer> n = headers.tryGetHeaderAs("retry-count", Integer.class);
 
-// Verifica presenza
+// Presence check
 boolean present = headers.hasHeader("x-request-id");
 ----
 
-=== Scrittura
+=== Write
 
 [source,java]
 ----
@@ -58,19 +58,19 @@ headers.putHeader("x-correlation-id", "xyz-789");
 headers.removeHeader("x-temp");
 ----
 
-=== Header di sistema
+=== System headers
 
-Il framework usa alcuni header riservati, definiti in `IOKeys`:
+The framework uses several reserved headers, defined in `IOKeys`:
 
 [cols="1,3"]
 |===
-|Costante |Scopo
+|Constant |Purpose
 
 |`IOKeys.RETURN_ADDRESS_HEADER_NAME`
-|Indirizzo del flow di risposta (pattern Return Address)
+|Address of the reply flow (Return Address pattern)
 
 |`IOKeys.ROUTING_SLIP_PROPERTY_NAME`
-|Lista dinamica di flow da attraversare (property, non header)
+|Dynamic list of flows to traverse (property, not header)
 |===
 
-WARNING: Non usare le chiavi riservate di sistema come header applicativi per evitare collisioni con il comportamento del framework.
+WARNING: Do not use system-reserved keys as application headers to avoid collisions with framework behaviour.

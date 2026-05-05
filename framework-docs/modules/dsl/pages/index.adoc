@@ -1,10 +1,10 @@
 = DSL
-:description: Il Domain Specific Language di Pipelite per la definizione dichiarativa dei flow
+:description: The Pipelite Domain Specific Language for declarative flow definition
 
-Il DSL di Pipelite è un'API Java fluente e type-safe che permette di definire pipeline di integrazione in modo dichiarativo.
-Il punto di ingresso è sempre `Pipelite.defineFlow(name)`, che restituisce un builder con step vincolati dalla gerarchia di interfacce.
+The Pipelite DSL is a fluent, type-safe Java API that allows integration pipelines to be defined declaratively.
+The entry point is always `Pipelite.defineFlow(name)`, which returns a builder with steps constrained by the interface hierarchy.
 
-== Gerarchia delle operazioni
+== Operation hierarchy
 
 [source]
 ----
@@ -23,18 +23,18 @@ FlowOperations
                                                                  └─ .build()
 ----
 
-La gerarchia di interfacce garantisce che il compilatore Java imponga la corretta sequenza: source → processori → sink → error handling → build.
+The interface hierarchy ensures that the Java compiler enforces the correct sequence: source → processors → sink → error handling → build.
 
 [cols="1,3"]
 |===
-|Pagina |Contenuto
+|Page |Content
 
-|xref:flow-definition.adoc[Definizione del Flow]
-|Tutte le operazioni del builder: `fromSource`, `process`, `transformPayload`, `filter`, `wireTap`, `toSink`, `withRetryChannel`, `withErrorChannel`, `build`.
+|xref:flow-definition.adoc[Flow Definition]
+|All builder operations: `fromSource`, `process`, `transformPayload`, `filter`, `wireTap`, `toSink`, `withRetryChannel`, `withErrorChannel`, `build`.
 
 |xref:routing.adoc[Routing]
-|Content-based routing, recipient list e routing slip.
+|Content-based routing, recipient list, and routing slip.
 
-|xref:expressions.adoc[Espressioni]
-|Sintassi delle espressioni usate da `filter` e router.
+|xref:expressions.adoc[Expressions]
+|Expression syntax used by `filter` and routers.
 |===

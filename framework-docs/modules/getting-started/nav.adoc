@@ -1,3 +1,3 @@
-* xref:getting-started:index.adoc[Primi Passi]
-** xref:getting-started:installation.adoc[Installazione]
-** xref:getting-started:first-pipeline.adoc[Prima Pipeline]
+* xref:getting-started:index.adoc[Getting Started]
+** xref:getting-started:installation.adoc[Installation]
+** xref:getting-started:first-pipeline.adoc[First Pipeline]

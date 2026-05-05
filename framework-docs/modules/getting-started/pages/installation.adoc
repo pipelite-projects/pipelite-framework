@@ -1,9 +1,9 @@
-= Installazione
-:description: Come aggiungere Pipelite Framework come dipendenza Maven
+= Installation
+:description: How to add the Pipelite Framework as a Maven dependency
 
-== Dipendenza core (standalone)
+== Core dependency (standalone)
 
-Per usare Pipelite senza Spring Boot aggiungi il modulo core al tuo `pom.xml`:
+To use Pipelite without Spring Boot, add the core module to your `pom.xml`:
 
 [source,xml,subs="attributes+"]
 ----
@@ -14,11 +14,11 @@ Per usare Pipelite senza Spring Boot aggiungi il modulo core al tuo `pom.xml`:
 </dependency>
 ----
 
-Il modulo `pipelite-core` include transitivamente `pipelite-common`, `pipelite-spi`, `pipelite-dsl`, `pipelite-expression` e il modulo `default-channel-adapters`.
+The `pipelite-core` module transitively includes `pipelite-common`, `pipelite-spi`, `pipelite-dsl`, `pipelite-expression`, and the `default-channel-adapters` module.
 
-== Integrazione Spring Boot
+== Spring Boot integration
 
-Per applicazioni Spring Boot usa invece lo starter dedicato:
+For Spring Boot applications, use the dedicated starter instead:
 
 [source,xml,subs="attributes+"]
 ----
@@ -29,11 +29,11 @@ Per applicazioni Spring Boot usa invece lo starter dedicato:
 </dependency>
 ----
 
-Lo starter aggiunge l'autoconfiguration e la gestione automatica del ciclo di vita del `PipeliteContext`.
+The starter adds autoconfiguration and automatic lifecycle management for the `PipeliteContext`.
 
-== Channel Adapter opzionali
+== Optional channel adapters
 
-Gli adapter HTTP e Kafka devono essere aggiunti esplicitamente:
+The HTTP and Kafka adapters must be added explicitly:
 
 [source,xml,subs="attributes+"]
 ----
@@ -52,9 +52,9 @@ Gli adapter HTTP e Kafka devono essere aggiunti esplicitamente:
 </dependency>
 ----
 
-Gli adapter `time`, `slf4j` e `link` sono inclusi in `default-channel-adapters`, già presente come dipendenza transitiva di `pipelite-core`.
+The `time`, `slf4j`, and `link` adapters are included in `default-channel-adapters`, already present as a transitive dependency of `pipelite-core`.
 
-== Distribuzione
+== Distribution
 
-Pipelite è pubblicato su Maven Central.
-Non è necessaria nessuna configurazione aggiuntiva di repository.
+Pipelite is published on Maven Central.
+No additional repository configuration is required.

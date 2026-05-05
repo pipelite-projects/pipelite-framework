@@ -1,71 +1,71 @@
-= Panoramica di Pipelite
-:description: Introduzione al Pipelite Framework, filosofia di progettazione e casi d'uso
+= Pipelite Overview
+:description: Introduction to the Pipelite Framework, design philosophy, and use cases
 
-Pipelite è un framework Java {java-version}+ per la costruzione di pipeline di integrazione basate su messaggi.
-Il suo obiettivo primario è consentire agli sviluppatori di connettere sistemi eterogenei tramite un modello di programmazione dichiarativo e composabile, ispirato agli *Enterprise Integration Patterns* di Hohpe e Woolf.
+Pipelite is a Java {java-version}+ framework for building message-based integration pipelines.
+Its primary goal is to enable developers to connect heterogeneous systems through a declarative and composable programming model, inspired by the *Enterprise Integration Patterns* of Hohpe and Woolf.
 
-== Caratteristiche principali
+== Key Features
 
-* *DSL fluente* — Definizione di pipeline tramite un'API Java type-safe e leggibile.
-* *Motore asincrono* — Esecuzione non bloccante basata su thread-pool configurabili.
-* *Channel Adapter estensibili* — Integrazione nativa con HTTP, Apache Kafka, timer schedulati, SLF4J e pipeline collegate.
-* *Error Handling dichiarativo* — Canale di errore e retry channel configurabili direttamente nella definizione del flow.
-* *Spring Boot Starter* — Autoconfiguration completa per applicazioni Spring Boot.
-* *SPI aperta* — Interfaccia `ChannelAdapter` e `Endpoint` per l'implementazione di adapter personalizzati.
+* *Fluent DSL* — Pipeline definition through a type-safe, readable Java API.
+* *Asynchronous engine* — Non-blocking execution based on configurable thread pools.
+* *Extensible Channel Adapters* — Native integration with HTTP, Apache Kafka, scheduled timers, SLF4J, and linked pipelines.
+* *Declarative Error Handling* — Error channel and retry channel configurable directly in the flow definition.
+* *Spring Boot Starter* — Complete autoconfiguration for Spring Boot applications.
+* *Open SPI* — `ChannelAdapter` and `Endpoint` interfaces for implementing custom adapters.
 
-== Quando usare Pipelite
+== When to Use Pipelite
 
-Pipelite si adatta particolarmente bene a scenari in cui è necessario:
+Pipelite is particularly well suited to scenarios where you need to:
 
-* Costruire *microservizi event-driven* che reagiscono a messaggi da code Kafka o richieste HTTP.
-* Implementare *pipelines di elaborazione dati* con trasformazione, filtraggio e routing condizionale.
-* Creare *workflow schedulati* attivati da timer con logica di retry automatica.
-* Connettere componenti interni dell'applicazione senza accoppiamento diretto.
+* Build *event-driven microservices* that react to messages from Kafka queues or HTTP requests.
+* Implement *data processing pipelines* with transformation, filtering, and conditional routing.
+* Create *scheduled workflows* triggered by timers with automatic retry logic.
+* Connect internal application components without direct coupling.
 
-== Confronto con altri framework
+== Comparison with Other Frameworks
 
 [cols="1,1,1,1"]
 |===
-|Caratteristica |Pipelite |Apache Camel |Spring Integration
+|Feature |Pipelite |Apache Camel |Spring Integration
 
 |Footprint
-|Leggero (< 500 KB core)
-|Pesante (runtime completo)
-|Medio (dipende da Spring)
+|Lightweight (< 500 KB core)
+|Heavy (full runtime)
+|Medium (depends on Spring)
 
-|Configurazione
-|DSL Java fluente
-|DSL Java/XML/YAML
-|DSL Java/XML/annotazioni
+|Configuration
+|Fluent Java DSL
+|Java/XML/YAML DSL
+|Java/XML/annotations DSL
 
 |Spring Boot
-|Starter dedicato
-|Starter dedicato
-|Nativo
+|Dedicated starter
+|Dedicated starter
+|Native
 
 |EIP
-|Subset selezionato
-|Completo
-|Completo
+|Selected subset
+|Complete
+|Complete
 
-|Curva di apprendimento
-|Bassa
-|Alta
-|Media
+|Learning curve
+|Low
+|High
+|Medium
 |===
 
-== Struttura del progetto
+== Project Structure
 
-Il progetto Maven è organizzato in moduli separati per responsabilità:
+The Maven project is organized into separate modules by responsibility:
 
 [source]
 ----
 pipelite-framework/
-├── pipelite-common          # Utilità condivise
+├── pipelite-common          # Shared utilities
 ├── pipelite-spi             # Service Provider Interface
-├── pipelite-dsl             # API del Domain Specific Language
-├── pipelite-expression      # Motore di valutazione espressioni
-├── pipelite-core            # Motore di esecuzione centrale
+├── pipelite-dsl             # Domain Specific Language API
+├── pipelite-expression      # Expression evaluation engine
+├── pipelite-core            # Core execution engine
 ├── pipelite-channel-adapters
 │   ├── default-channel-adapters
 │   ├── http-channel-adapter
@@ -73,7 +73,7 @@ pipelite-framework/
 │   ├── link-channel-adapter
 │   ├── slf4j-channel-adapter
 │   └── time-channel-adapter
-├── pipelite-spring-starter  # Integrazione Spring Boot
-├── pipelite-examples        # Esempi applicativi
-└── framework-docs           # Questa documentazione
+├── pipelite-spring-starter  # Spring Boot integration
+├── pipelite-examples        # Application examples
+└── framework-docs           # This documentation
 ----

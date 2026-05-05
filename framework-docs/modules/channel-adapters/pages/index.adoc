@@ -1,53 +1,53 @@
-= Channel Adapter
-:description: Panoramica di tutti i channel adapter disponibili in Pipelite
+= Channel Adapters
+:description: Overview of all channel adapters available in Pipelite
 
-I *Channel Adapter* sono i connettori che collegano una pipeline Pipelite ai sistemi esterni.
-Ogni adapter implementa l'interfaccia SPI `ChannelAdapter` e viene scoperto automaticamente a runtime tramite classpath scan.
+*Channel Adapters* are the connectors that link a Pipelite pipeline to external systems.
+Each adapter implements the SPI interface `ChannelAdapter` and is automatically discovered at runtime via classpath scan.
 
-== Adapter disponibili
+== Available adapters
 
 [cols="1,1,1,3"]
 |===
-|Adapter |Schema URL |Modulo |Descrizione
+|Adapter |URL scheme |Module |Description
 
 |xref:http.adoc[HTTP]
 |`http://`
 |`http-channel-adapter`
-|Server HTTP inbound (Undertow) e client HTTP outbound.
+|Inbound HTTP server (Undertow) and outbound HTTP client.
 
 |xref:kafka.adoc[Kafka]
 |`kafka://`
 |`kafka-channel-adapter`
-|Consumer e producer Apache Kafka.
+|Apache Kafka consumer and producer.
 
 |xref:time.adoc[Time]
 |`time://`
 |`default-channel-adapters`
-|Generatore di tick periodici (cron-like).
+|Periodic tick generator (cron-like).
 
 |xref:slf4j.adoc[SLF4J]
 |`slf4j://`
 |`default-channel-adapters`
-|Logging del payload tramite SLF4J (solo sink).
+|Payload logging via SLF4J (sink only).
 
 |xref:link.adoc[Link]
 |`link://`
 |`default-channel-adapters`
-|Collegamento diretto tra due flow interni.
+|Direct link between two internal flows.
 |===
 
-== Scoperta automatica
+== Automatic discovery
 
-Gli adapter sono registrati tramite il file:
+Adapters are registered via the file:
 
 [source]
 ----
 META-INF/pipelite/adapters
 ----
 
-Ogni riga contiene il nome completo della classe che implementa `ChannelAdapter`.
-Il `FactoryComponentClasspathScanner` carica le classi all'avvio del contesto.
+Each line contains the fully qualified name of a class implementing `ChannelAdapter`.
+The `FactoryComponentClasspathScanner` loads the classes at context startup.
 
-== Creare un adapter personalizzato
+== Creating a custom adapter
 
-Vedi xref:custom.adoc[Adapter personalizzato] per la guida all'implementazione della SPI.
+See xref:custom.adoc[Custom Adapter] for the SPI implementation guide.

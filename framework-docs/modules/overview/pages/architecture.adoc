@@ -1,11 +1,11 @@
-= Architettura
-:description: Architettura interna del Pipelite Framework, componenti e loro interazioni
+= Architecture
+:description: Internal architecture of the Pipelite Framework, components and their interactions
 
-== Visione d'insieme
+== Overview
 
-Pipelite si basa su un'architettura a pipeline orientata ai messaggi.
-Ogni *flow* rappresenta un percorso di elaborazione che inizia da una *sorgente* (source), attraversa uno o più *processori* e termina in un *sink*.
-La comunicazione tra i nodi avviene tramite oggetti `Exchange` che incapsulano il messaggio in transito.
+Pipelite is based on a message-oriented pipeline architecture.
+Each *flow* represents a processing path that starts from a *source*, passes through one or more *processors*, and ends at a *sink*.
+Communication between nodes occurs through `Exchange` objects that encapsulate the in-transit message.
 
 [source]
 ----
@@ -24,17 +24,17 @@ Processor Node 2 (transform / filter / route)
 Sink Endpoint
 ----
 
-== Componenti principali
+== Core Components
 
 === PipeliteContext
 
-Il `PipeliteContext` è il contenitore centrale del framework.
-Si occupa di:
+The `PipeliteContext` is the central container of the framework.
+It is responsible for:
 
-* Registrare le `FlowDefinition` prodotte dal DSL.
-* Istanziare i `Flow` a partire dalle definizioni.
-* Gestire il ciclo di vita del framework (start / stop).
-* Fornire il `ChannelAdapterManager` e il `FlowRegistry`.
+* Registering the `FlowDefinition` objects produced by the DSL.
+* Instantiating `Flow` instances from their definitions.
+* Managing the framework lifecycle (start / stop).
+* Providing the `ChannelAdapterManager` and the `FlowRegistry`.
 
 [source,java]
 ----
@@ -45,95 +45,95 @@ context.start();
 
 === Flow
 
-Un `Flow` è l'unità di esecuzione di una pipeline.
-Ogni flow è associato a un `Endpoint` sorgente che produce `Exchange` e a una catena di `FlowNode` che li elaborano sequenzialmente.
+A `Flow` is the execution unit of a pipeline.
+Each flow is associated with a source `Endpoint` that produces `Exchange` objects and a chain of `FlowNode` instances that process them sequentially.
 
 === Exchange
 
-L'`Exchange` è il contenitore di trasporto del messaggio lungo il flow.
-Contiene:
+The `Exchange` is the message transport container along the flow.
+It contains:
 
-* `input` — Il `Message` in ingresso con payload e headers.
-* `output` — Il `Message` di risposta (opzionale).
-* `headers` — Metadati condivisi tra i nodi (`Headers`).
-* `properties` — Proprietà di contesto (routing slip, return address, ecc.).
+* `input` — The incoming `Message` with payload and headers.
+* `output` — The response `Message` (optional).
+* `headers` — Shared metadata across nodes (`Headers`).
+* `properties` — Context properties (routing slip, return address, etc.).
 
 === Message
 
-Un `Message` trasporta il payload applicativo con i propri header.
-Il payload può essere qualsiasi tipo Java serializzabile.
+A `Message` carries the application payload with its own headers.
+The payload can be any serializable Java type.
 
 === Endpoint
 
-Ogni `ChannelAdapter` produce `Endpoint`.
-Un `Endpoint` può esporre:
+Each `ChannelAdapter` produces `Endpoint` instances.
+An `Endpoint` can expose:
 
-* Un `Consumer` (event-driven o polling) per ricevere messaggi dalla sorgente.
-* Un `Producer` per inviare messaggi verso la destinazione.
+* A `Consumer` (event-driven or polling) to receive messages from the source.
+* A `Producer` to send messages to the destination.
 
 === FlowNode
 
-I `FlowNode` sono i nodi della catena di elaborazione.
-Tipi disponibili:
+`FlowNode` instances are the nodes in the processing chain.
+Available types:
 
 [cols="1,3"]
 |===
-|Tipo |Responsabilità
+|Type |Responsibility
 
 |`DefaultProcessorNode`
-|Esecuzione di logica applicativa tramite `Processor`
+|Execution of application logic via `Processor`
 
 |`PayloadTransformerNode`
-|Trasformazione del payload tramite `PayloadTransformer`
+|Payload transformation via `PayloadTransformer`
 
 |`MessageTranslatorNode`
-|Traduzione del tipo di messaggio
+|Message type translation
 
 |`ExpressionFilterNode`
-|Filtraggio basato su espressione
+|Expression-based filtering
 
 |`WireTapProcessorNode`
-|Invio asincrono su canale secondario senza interrompere il flow principale
+|Asynchronous forwarding to a secondary channel without interrupting the main flow
 
 |`RouterNode`
-|Routing content-based con tabella di routing
+|Content-based routing with a routing table
 
 |`RecipientListRouterNode`
-|Invio a più destinatari contemporaneamente
+|Delivery to multiple recipients simultaneously
 
 |`RoutingSlipRouterNode`
-|Routing dinamico tramite routing slip
+|Dynamic routing via routing slip
 
 |`ReturnAddressRouterNode`
-|Routing verso l'indirizzo di ritorno impostato sull'Exchange
+|Routing to the return address set on the Exchange
 |===
 
-== Ciclo di vita
+== Lifecycle
 
 [source]
 ----
-1. Definizione dei flow tramite DSL  (FlowDefinition)
-2. Registrazione nel PipeliteContext
+1. Flow definition via DSL  (FlowDefinition)
+2. Registration in PipeliteContext
 3. context.start()
-   ├── Risoluzione dei ChannelAdapter (classpath scan)
-   ├── Creazione degli Endpoint
-   ├── Costruzione dei FlowNode
-   └── Avvio dei Consumer (EventDriven o Polling)
-4. Elaborazione dei messaggi in runtime
+   ├── ChannelAdapter resolution (classpath scan)
+   ├── Endpoint creation
+   ├── FlowNode construction
+   └── Consumer startup (EventDriven or Polling)
+4. Runtime message processing
 5. context.stop()
-   └── Shutdown ordinato di tutti i service
+   └── Orderly shutdown of all services
 ----
 
-== Modello di threading
+== Threading Model
 
-* I *consumer event-driven* (es. HTTP) reagiscono agli eventi nel thread del server.
-* I *consumer polling* (es. Kafka, Time) vengono eseguiti in thread dedicati gestiti da `ScheduledPollingConsumerService`.
-* I *WireTap* inviano su un canale separato in modo *non bloccante*.
-* Il `RetryService` gestisce i retry su thread separato con accesso al `FlowExecutionDumpRepository`.
+* *Event-driven consumers* (e.g. HTTP) react to events on the server thread.
+* *Polling consumers* (e.g. Kafka, Time) run on dedicated threads managed by `ScheduledPollingConsumerService`.
+* *WireTap* nodes forward to a separate channel in a *non-blocking* manner.
+* The `RetryService` handles retries on a separate thread with access to the `FlowExecutionDumpRepository`.
 
-== SPI — Estensibilità
+== SPI — Extensibility
 
-Per creare un nuovo channel adapter è sufficiente implementare:
+To create a new channel adapter it is sufficient to implement:
 
 [source,java]
 ----
@@ -142,4 +142,4 @@ public interface ChannelAdapter {
 }
 ----
 
-L'adapter viene scoperto automaticamente tramite classpath scan (file `META-INF/pipelite/adapters`).
+The adapter is automatically discovered via classpath scan (file `META-INF/pipelite/adapters`).

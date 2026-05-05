@@ -1,9 +1,9 @@
-= Adapter Personalizzato
-:description: Guida all'implementazione di un ChannelAdapter personalizzato tramite la SPI di Pipelite
+= Custom Adapter
+:description: Guide to implementing a custom ChannelAdapter via the Pipelite SPI
 
-Pipelite espone una SPI aperta che consente di creare adapter personalizzati per qualsiasi sistema esterno.
+Pipelite exposes an open SPI that allows custom adapters to be created for any external system.
 
-== Dipendenza SPI
+== SPI dependency
 
 [source,xml,subs="attributes+"]
 ----
@@ -14,7 +14,7 @@ Pipelite espone una SPI aperta che consente di creare adapter personalizzati per
 </dependency>
 ----
 
-== Implementare ChannelAdapter
+== Implementing ChannelAdapter
 
 [source,java]
 ----
@@ -28,7 +28,7 @@ public class MyCustomChannelAdapter implements ChannelAdapter {
 }
 ----
 
-== Implementare Endpoint
+== Implementing Endpoint
 
 [source,java]
 ----
@@ -40,19 +40,19 @@ public class MyCustomEndpoint extends DefaultEndpoint {
 
     @Override
     public Consumer createConsumer() {
-        return new MyCustomConsumer(this);    // per uso come sorgente
+        return new MyCustomConsumer(this);    // for use as source
     }
 
     @Override
     public Producer createProducer() {
-        return new MyCustomProducer(this);    // per uso come sink
+        return new MyCustomProducer(this);    // for use as sink
     }
 }
 ----
 
-== Implementare Consumer (sorgente)
+== Implementing Consumer (source)
 
-Per consumer *event-driven*:
+For *event-driven* consumers:
 
 [source,java]
 ----
@@ -66,7 +66,7 @@ public class MyCustomConsumer extends AbstractConsumer
 }
 ----
 
-Per consumer *polling*:
+For *polling* consumers:
 
 [source,java]
 ----
@@ -81,7 +81,7 @@ public class MyCustomPollingConsumer extends DefaultPollingConsumer {
 }
 ----
 
-== Implementare Producer (sink)
+== Implementing Producer (sink)
 
 [source,java]
 ----
@@ -95,27 +95,27 @@ public class MyCustomProducer extends AbstractProducer {
 }
 ----
 
-== Registrazione tramite classpath scan
+== Registration via classpath scan
 
-Crea il file di registrazione nella directory `resources` del tuo modulo:
+Create the registration file in the `resources` directory of your module:
 
 [source]
 ----
 src/main/resources/META-INF/pipelite/adapters
 ----
 
-Contenuto del file (una classe per riga):
+File content (one class per line):
 
 [source]
 ----
 com.example.adapters.MyCustomChannelAdapter
 ----
 
-Il `FactoryComponentClasspathScanner` carica automaticamente tutte le classi registrate in questo file all'avvio del `PipeliteContext`.
+The `FactoryComponentClasspathScanner` automatically loads all classes registered in this file at `PipeliteContext` startup.
 
-== Integrazione con il ciclo di vita del contesto
+== Integration with the context lifecycle
 
-Se il tuo adapter ha bisogno di essere notificato dell'avvio e dell'arresto del contesto, implementa `ContextEventListener`:
+If your adapter needs to be notified of context startup and shutdown, implement `ContextEventListener`:
 
 [source,java]
 ----
@@ -124,12 +124,12 @@ public class MyCustomChannelAdapter
 
     @Override
     public void onContextStarted() {
-        // avvio connessione al sistema esterno
+        // start connection to the external system
     }
 
     @Override
     public void onContextStopped() {
-        // chiusura ordinata della connessione
+        // graceful connection shutdown
     }
 }
 ----

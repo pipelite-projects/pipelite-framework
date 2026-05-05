@@ -1,25 +1,25 @@
 = Core
-:description: Documentazione del modulo core di Pipelite
+:description: Documentation for the Pipelite core module
 
-Il modulo `pipelite-core` contiene il motore di esecuzione del framework.
-Questa sezione descrive i concetti fondamentali necessari per comprendere come i messaggi vengono elaborati lungo una pipeline.
+The `pipelite-core` module contains the framework's execution engine.
+This section describes the fundamental concepts required to understand how messages are processed along a pipeline.
 
 [cols="1,3"]
 |===
-|Pagina |Contenuto
+|Page |Content
 
 |xref:exchange.adoc[Exchange]
-|Struttura dell'`Exchange`, accesso a input/output, headers e properties.
+|Structure of the `Exchange`, access to input/output, headers, and properties.
 
-|xref:messages.adoc[Message e Headers]
-|Il `Message`, il payload e l'API degli `Headers`.
+|xref:messages.adoc[Message and Headers]
+|The `Message`, the payload, and the `Headers` API.
 
-|xref:flows.adoc[Flow e PipeliteContext]
-|Ciclo di vita, `FlowRegistry`, `PipeliteContext`, `FlowDefinition`.
+|xref:flows.adoc[Flow and PipeliteContext]
+|Lifecycle, `FlowRegistry`, `PipeliteContext`, `FlowDefinition`.
 
-|xref:processors.adoc[Processori e Trasformatori]
-|`Processor`, `PayloadTransformer`, WireTap e tutti i tipi di nodo.
+|xref:processors.adoc[Processors and Transformers]
+|`Processor`, `PayloadTransformer`, WireTap, and all node types.
 
 |xref:error-handling.adoc[Error Handling]
-|Canale di errore, retry channel, `FlowExecutionDump`.
+|Error channel, retry channel, `FlowExecutionDump`.
 |===

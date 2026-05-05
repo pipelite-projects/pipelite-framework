@@ -1,23 +1,23 @@
 = SLF4J Channel Adapter
-:description: Adapter per il logging del payload tramite SLF4J
+:description: Adapter for logging the payload via SLF4J
 
-L'adapter `slf4j` è un sink che logga il payload del messaggio tramite l'API SLF4J.
-È utile per il debugging, l'audit e il logging di output intermedi.
+The `slf4j` adapter is a sink that logs the message payload through the SLF4J API.
+It is useful for debugging, auditing, and logging intermediate outputs.
 
-== Disponibilità
+== Availability
 
-Incluso in `default-channel-adapters`, transitivamente disponibile con `pipelite-core`.
+Included in `default-channel-adapters`, transitively available with `pipelite-core`.
 
-== Utilizzo come sink
+== Usage as sink
 
 [source,java]
 ----
 .toSink("slf4j://my-logger")
 ----
 
-Il `Slf4jProducer` logga il payload dell'`Exchange` di output a livello `INFO` usando il logger con il nome specificato nell'URL.
+The `Slf4jProducer` logs the output `Exchange` payload at `INFO` level using the logger named after the URL.
 
-=== Formato URL
+=== URL format
 
 [source]
 ----
@@ -26,15 +26,15 @@ slf4j://<logger-name>
 
 [cols="1,3"]
 |===
-|Parametro |Descrizione
+|Parameter |Description
 
 |`logger-name`
-|Nome del logger SLF4J (es. `my-logger` → `LoggerFactory.getLogger("my-logger")`)
+|SLF4J logger name (e.g. `my-logger` → `LoggerFactory.getLogger("my-logger")`)
 |===
 
-== Utilizzo nel WireTap
+== Usage in WireTap
 
-L'adapter SLF4J è particolarmente utile come destinazione di un WireTap per il logging di audit:
+The SLF4J adapter is particularly useful as a WireTap destination for audit logging:
 
 [source,java]
 ----
@@ -42,6 +42,6 @@ L'adapter SLF4J è particolarmente utile come destinazione di un WireTap per il 
 .toSink("kafka://output-topic")
 ----
 
-In questo caso l'Exchange viene loggato da SLF4J e contemporaneamente inviato a Kafka.
+In this case the Exchange is logged by SLF4J while simultaneously being sent to Kafka.
 
-NOTE: L'adapter `slf4j` è esclusivamente un *sink*: non supporta l'uso come sorgente di un flow.
+NOTE: The `slf4j` adapter is exclusively a *sink*: it does not support use as a flow source.

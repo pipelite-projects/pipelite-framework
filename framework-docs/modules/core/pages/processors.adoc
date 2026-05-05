@@ -1,12 +1,12 @@
-= Processori e Trasformatori
-:description: Tipi di nodi di elaborazione disponibili in una pipeline Pipelite
+= Processors and Transformers
+:description: Processing node types available in a Pipelite pipeline
 
-I nodi di elaborazione (`FlowNode`) sono le unità atomiche che compongono la logica di una pipeline.
-Vengono aggiunti tramite il DSL nella fase `ProcessOperations`.
+Processing nodes (`FlowNode`) are the atomic units that compose the logic of a pipeline.
+They are added via the DSL during the `ProcessOperations` phase.
 
 == Processor
 
-L'interfaccia `Processor` rappresenta la logica applicativa generica.
+The `Processor` interface represents generic application logic.
 
 [source,java]
 ----
@@ -16,7 +16,7 @@ public interface Processor {
 }
 ----
 
-Usage nel DSL:
+Usage in DSL:
 
 [source,java]
 ----
@@ -26,11 +26,11 @@ Usage nel DSL:
 })
 ----
 
-Il `Processor` riceve un `IOContext` (superinterface di `Exchange`) che espone l'accesso completo a input, output e headers.
+The `Processor` receives an `IOContext` (superinterface of `Exchange`) that exposes full access to input, output, and headers.
 
 == PayloadTransformer
 
-`PayloadTransformer` è una specializzazione che trasforma il payload senza necessità di gestire esplicitamente l'`Exchange`.
+`PayloadTransformer` is a specialization that transforms the payload without needing to explicitly manage the `Exchange`.
 
 [source,java]
 ----
@@ -40,7 +40,7 @@ public interface PayloadTransformer<I, O> {
 }
 ----
 
-Usage nel DSL:
+Usage in DSL:
 
 [source,java]
 ----
@@ -49,59 +49,59 @@ Usage nel DSL:
 )
 ----
 
-NOTE: `PayloadTransformer` è preferibile a `Processor` quando la logica riguarda solo il payload, senza necessità di accedere agli headers.
+NOTE: `PayloadTransformer` is preferable to `Processor` when the logic only concerns the payload, with no need to access headers.
 
 == Filter (Expression Filter)
 
-Il nodo `filter` blocca il proseguimento del flow se l'espressione è falsa.
+The `filter` node stops the flow from proceeding if the expression evaluates to false.
 
 [source,java]
 ----
 .filter("only-non-empty", "${body} != null && !${body}.isEmpty()")
 ----
 
-L'espressione utilizza il motore del modulo `pipelite-expression`.
-Il placeholder `${body}` si riferisce al payload corrente.
+The expression uses the engine from the `pipelite-expression` module.
+The `${body}` placeholder refers to the current payload.
 
 == WireTap
 
-Il WireTap invia una *copia* del messaggio corrente a un endpoint secondario in modo non bloccante, senza interrompere il flow principale.
+The WireTap sends a *copy* of the current message to a secondary endpoint in a non-blocking manner, without interrupting the main flow.
 
 [source,java]
 ----
 .wireTap("audit-log", "slf4j://audit-logger")
 ----
 
-Il messaggio continua a scorrere normalmente lungo il flow principale mentre la copia viene inviata al canale indicato dall'URL.
+The message continues to flow normally along the main flow while the copy is sent to the channel identified by the URL.
 
 == Message Translator
 
-Il `MessageTranslatorNode` converte il tipo del messaggio da un formato a un altro tramite un `Function<Message, Message>`.
-È configurato internamente dal framework durante la costruzione del flow.
+The `MessageTranslatorNode` converts the message type from one format to another via a `Function<Message, Message>`.
+It is configured internally by the framework during flow construction.
 
-== Riepilogo dei nodi disponibili tramite DSL
+== Summary of nodes available via DSL
 
 [cols="2,3,3"]
 |===
-|Metodo DSL |Nodo creato |Descrizione
+|DSL method |Created node |Description
 
 |`.process(name, processor)`
 |`DefaultProcessorNode`
-|Elaborazione generica tramite `Processor`
+|Generic processing via `Processor`
 
 |`.transformPayload(name, transformer)`
 |`PayloadTransformerNode`
-|Trasformazione pura del payload
+|Pure payload transformation
 
 |`.filter(name, expression)`
 |`ExpressionFilterNode`
-|Filtraggio basato su espressione
+|Expression-based filtering
 
 |`.wireTap(name, url)`
 |`WireTapProcessorNode`
-|Fork non bloccante verso endpoint secondario
+|Non-blocking fork to a secondary endpoint
 
 |`.toRoute(configurator)`
 |`RouterNode` / `RecipientListRouterNode` / `RoutingSlipRouterNode`
-|Routing condizionale o dinamico (vedi xref:dsl:routing.adoc[Routing])
+|Conditional or dynamic routing (see xref:dsl:routing.adoc[Routing])
 |===

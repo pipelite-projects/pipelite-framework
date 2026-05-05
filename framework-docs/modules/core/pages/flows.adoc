@@ -1,58 +1,58 @@
-= Flow e PipeliteContext
-:description: Ciclo di vita dei Flow, FlowRegistry e PipeliteContext
+= Flow and PipeliteContext
+:description: Flow lifecycle, FlowRegistry, and PipeliteContext
 
 == PipeliteContext
 
-Il `PipeliteContext` è il contenitore principale del runtime.
-Gestisce la registrazione delle definizioni di flow, l'istanza degli adapter e il ciclo di vita complessivo.
+The `PipeliteContext` is the main runtime container.
+It manages flow definition registration, adapter instantiation, and the overall lifecycle.
 
-=== Creazione standalone
+=== Standalone creation
 
 [source,java]
 ----
 PipeliteContext context = Pipelite.createContext();
 ----
 
-=== Registrazione e avvio
+=== Registration and startup
 
 [source,java]
 ----
 context.registerFlowDefinition(flowDefinition);
 context.start();
 
-// ... esecuzione dell'applicazione ...
+// ... application execution ...
 
 context.stop();
 ----
 
-=== Componenti interni
+=== Internal components
 
 [cols="1,3"]
 |===
-|Componente |Responsabilità
+|Component |Responsibility
 
 |`FlowRegistry`
-|Mantiene il registro di tutti i `Flow` attivi, indicizzati per nome.
+|Maintains the registry of all active `Flow` instances, indexed by name.
 
 |`ChannelAdapterManager`
-|Risolve i `ChannelAdapter` tramite classpath scan e li associa agli URL degli endpoint.
+|Resolves `ChannelAdapter` instances via classpath scan and associates them with endpoint URLs.
 
 |`EndpointFactory`
-|Crea gli `Endpoint` delegando al `ChannelAdapter` corretto in base allo schema URL.
+|Creates `Endpoint` instances by delegating to the correct `ChannelAdapter` based on the URL scheme.
 
 |`ServiceManager`
-|Avvia e ferma tutti i `Service` registrati (consumer polling, server HTTP, ecc.).
+|Starts and stops all registered `Service` instances (polling consumers, HTTP server, etc.).
 
 |`ExchangeFactory`
-|Crea nuove istanze di `Exchange` e `Message` con identità distribuita.
+|Creates new `Exchange` and `Message` instances with distributed identity.
 |===
 
 == FlowDefinition
 
-La `FlowDefinition` è l'oggetto immutabile prodotto dal DSL.
-Descrive la topologia del flow (source, processori, sink, error channel) senza alcuna logica di esecuzione.
+The `FlowDefinition` is the immutable object produced by the DSL.
+It describes the flow topology (source, processors, sink, error channel) without any execution logic.
 
-Il framework la usa come blueprint per costruire il `Flow` runtime al momento dell'`start()`.
+The framework uses it as a blueprint to build the runtime `Flow` at `start()` time.
 
 [source,java]
 ----
@@ -61,36 +61,36 @@ FlowDefinition definition = Pipelite.defineFlow("my-flow")
     .toSink("slf4j://log")
     .build();
 
-// La definizione è immutabile e riutilizzabile
+// The definition is immutable and reusable
 context.registerFlowDefinition(definition);
 ----
 
 == Flow
 
-Il `Flow` è l'istanza runtime di una `FlowDefinition`.
-Incapsula il `Consumer` della sorgente e la catena di `FlowNode`.
-Viene creato e avviato automaticamente da `PipeliteContext.start()`.
+The `Flow` is the runtime instance of a `FlowDefinition`.
+It encapsulates the source `Consumer` and the chain of `FlowNode` instances.
+It is created and started automatically by `PipeliteContext.start()`.
 
-== Ciclo di vita dettagliato
+== Detailed lifecycle
 
 [source]
 ----
 PipeliteContext.start()
   │
   ├─ ChannelAdapterManager.initialize()
-  │    └─ scan classpath → carica ChannelAdapter
+  │    └─ scan classpath → load ChannelAdapters
   │
-  ├─ Per ogni FlowDefinition registrata:
+  ├─ For each registered FlowDefinition:
   │    ├─ EndpointFactory.createSourceEndpoint()
   │    ├─ EndpointFactory.createSinkEndpoint()
-  │    ├─ Costruzione catena FlowNode (processori, trasformatori, router)
+  │    ├─ Build FlowNode chain (processors, transformers, routers)
   │    └─ FlowRegistry.register(flow)
   │
   └─ ServiceManager.startAll()
-       ├─ Avvia EventDrivenConsumerService (HTTP, Link, ecc.)
-       └─ Avvia ScheduledPollingConsumerService (Time, Kafka, ecc.)
+       ├─ Start EventDrivenConsumerService (HTTP, Link, etc.)
+       └─ Start ScheduledPollingConsumerService (Time, Kafka, etc.)
 
 PipeliteContext.stop()
   └─ ServiceManager.stopAll()
-       └─ Shutdown ordinato di tutti i consumer
+       └─ Orderly shutdown of all consumers
 ----
