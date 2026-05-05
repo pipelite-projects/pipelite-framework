@@ -1,9 +1,9 @@
 = HTTP Channel Adapter
-:description: Adapter HTTP basato su Undertow per inbound e outbound
+:description: Undertow-based HTTP adapter for inbound and outbound communication
 
-Il modulo `http-channel-adapter` implementa un server HTTP inbound basato su *Undertow 2.2.x*.
+The `http-channel-adapter` module implements an inbound HTTP server based on *Undertow 2.2.x*.
 
-== Dipendenza
+== Dependency
 
 [source,xml,subs="attributes+"]
 ----
@@ -14,7 +14,7 @@ Il modulo `http-channel-adapter` implementa un server HTTP inbound basato su *Un
 </dependency>
 ----
 
-== Utilizzo come sorgente (inbound)
+== Usage as source (inbound)
 
 [source,java]
 ----
@@ -27,9 +27,9 @@ Pipelite.defineFlow("http-inbound")
     .toSink("slf4j://log")
     .build();
 ----
-<1> Apre un listener HTTP sulla porta 80 (default) al path `/ingress`.
+<1> Opens an HTTP listener on port 80 (default) at path `/ingress`.
 
-=== Formato URL
+=== URL format
 
 [source]
 ----
@@ -38,32 +38,32 @@ http://<path>
 
 [cols="1,1,3"]
 |===
-|Parametro |Default |Descrizione
+|Parameter |Default |Description
 
 |path
 |(required)
-|Il path HTTP sul quale il server rimane in ascolto (es. `/api/v1/events`)
+|The HTTP path on which the server listens (e.g. `/api/v1/events`)
 |===
 
-Il server Undertow viene avviato automaticamente da `HttpChannelAdapter.onContextStarted()` alla prima registrazione di un consumer HTTP.
+The Undertow server is started automatically by `HttpChannelAdapter.onContextStarted()` upon the first registration of an HTTP consumer.
 
-NOTE: La porta di default è 80.
-La configurazione di porta e host personalizzati sarà disponibile in una versione futura.
+NOTE: The default port is 80.
+Custom port and host configuration will be available in a future release.
 
-== Utilizzo come sink (outbound)
+== Usage as sink (outbound)
 
-Il modulo include un `HttpProducer` per l'invio di messaggi verso endpoint HTTP esterni.
+The module includes an `HttpProducer` for sending messages to external HTTP endpoints.
 
 [source,java]
 ----
 .toSink("http://target-service/api/notify")
 ----
 
-Il `HttpProducer` invia il payload come corpo della richiesta HTTP POST.
+The `HttpProducer` sends the payload as the body of an HTTP POST request.
 
-== Registrazione multipla di path
+== Multiple path registration
 
-È possibile registrare più path sullo stesso server:
+Multiple paths can be registered on the same server:
 
 [source,java]
 ----
@@ -77,6 +77,6 @@ context.registerFlowDefinition(
 );
 ----
 
-`HttpChannelAdapter` mantiene una mappa di consumer per path e condivide un'unica istanza Undertow.
+`HttpChannelAdapter` maintains a per-path consumer map and shares a single Undertow instance.
 
-WARNING: Non è possibile registrare due flow sullo stesso path HTTP: viene lanciata `IllegalStateException`.
+WARNING: Registering two flows on the same HTTP path is not allowed: `IllegalStateException` will be thrown.

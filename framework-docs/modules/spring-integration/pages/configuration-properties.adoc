@@ -1,54 +1,54 @@
 = Configuration Properties
-:description: Proprietà di configurazione Spring Boot per il modulo pipelite-spring-starter
+:description: Spring Boot configuration properties for the pipelite-spring-starter module
 
-Il modulo `pipelite-spring-starter` supporta la configurazione tramite `application.properties` o `application.yml`.
+The `pipelite-spring-starter` module supports configuration via `application.properties` or `application.yml`.
 
-NOTE: Le proprietà di configurazione esternale tramite `application.properties` sono in fase di sviluppo attivo per la versione `0.2.0`.
-La configurazione corrente avviene prevalentemente tramite bean Spring e la SPI `ChannelConfigurer`.
+NOTE: External configuration properties via `application.properties` are under active development for version `0.2.0`.
+Current configuration is primarily done through Spring beans and the `ChannelConfigurer` SPI.
 
-== Proprietà pianificate
+== Planned properties
 
-Le proprietà seguenti sono previste per le prossime versioni:
+The following properties are planned for upcoming releases:
 
 [cols="1,1,3"]
 |===
-|Proprietà |Default |Descrizione
+|Property |Default |Description
 
 |`pipelite.enabled`
 |`true`
-|Abilita o disabilita l'autoconfiguration di Pipelite.
+|Enables or disables Pipelite autoconfiguration.
 
 |`pipelite.context.auto-start`
 |`true`
-|Avvia automaticamente il `PipeliteContext` al bootstrap di Spring.
+|Automatically starts the `PipeliteContext` at Spring bootstrap.
 
 |`pipelite.adapters.http.port`
 |`80`
-|Porta del server HTTP Undertow.
+|Port for the Undertow HTTP server.
 
 |`pipelite.adapters.http.host`
 |`0.0.0.0`
-|Indirizzo di bind del server HTTP.
+|Bind address for the HTTP server.
 
 |`pipelite.adapters.kafka.bootstrap-servers`
 |`localhost:9092`
-|Bootstrap servers Kafka.
+|Kafka bootstrap servers.
 
 |`pipelite.adapters.kafka.group-id`
 |`pipelite-default`
-|Consumer group ID Kafka.
+|Kafka consumer group ID.
 |===
 
-== Configurazione corrente tramite bean
+== Current configuration via beans
 
-Fino alla disponibilità delle properties esternali, usa bean `@Configuration`:
+Until external properties are available, use `@Configuration` beans:
 
 === HTTP
 
 [source,java]
 ----
-// Attualmente la porta è fissa a 80.
-// Supporto per configurazione esterna pianificato.
+// Currently the port is fixed at 80.
+// External configuration support is planned.
 ----
 
 === Kafka
@@ -65,4 +65,4 @@ public KafkaChannelConfigurer kafkaConfigurer() {
 }
 ----
 
-Il bean `KafkaChannelConfigurer` viene rilevato automaticamente dall'autoconfiguration e applicato al `KafkaChannelAdapter`.
+The `KafkaChannelConfigurer` bean is automatically detected by the autoconfiguration and applied to the `KafkaChannelAdapter`.

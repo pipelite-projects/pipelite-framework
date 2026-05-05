@@ -1,43 +1,43 @@
 = Pipelite Framework
-:description: Documentazione di riferimento del Pipelite Framework
+:description: Pipelite Framework Reference Documentation
 
-Pipelite è un framework Java leggero per la creazione di applicazioni di integrazione enterprise (EAI) basate su messaggi.
-Implementa i principali *Enterprise Integration Patterns* (EIP) offrendo un DSL fluente, un motore di esecuzione asincrono e un sistema di channel adapter estensibile.
+Pipelite is a lightweight Java framework for building enterprise application integration (EAI) systems based on message passing.
+It implements the core *Enterprise Integration Patterns* (EIP), providing a fluent DSL, an asynchronous execution engine, and an extensible channel adapter system.
 
 [.card-section]
-== Sezioni principali
+== Main Sections
 
 [.card]
-=== xref:overview:index.adoc[Panoramica]
-Architettura generale, concetti fondamentali e pattern di integrazione adottati dal framework.
+=== xref:overview:index.adoc[Overview]
+General architecture, core concepts, and integration patterns adopted by the framework.
 
 [.card]
-=== xref:getting-started:index.adoc[Primi Passi]
-Guida rapida all'installazione e alla creazione della prima pipeline.
+=== xref:getting-started:index.adoc[Getting Started]
+Quick guide to installation and creating your first pipeline.
 
 [.card]
 === xref:core:index.adoc[Core]
-Documentazione approfondita del motore di esecuzione: Exchange, Message, Flow, Processor, Error Handling.
+In-depth documentation of the execution engine: Exchange, Message, Flow, Processor, Error Handling.
 
 [.card]
 === xref:dsl:index.adoc[DSL]
-Riferimento completo del Domain Specific Language per la definizione dichiarativa dei flow.
+Complete reference for the Domain Specific Language for declarative flow definition.
 
 [.card]
-=== xref:channel-adapters:index.adoc[Channel Adapter]
-Tutti gli adapter disponibili: HTTP, Kafka, Time, SLF4J, Link e creazione di adapter personalizzati.
+=== xref:channel-adapters:index.adoc[Channel Adapters]
+All available adapters: HTTP, Kafka, Time, SLF4J, Link, and creating custom adapters.
 
 [.card]
 === xref:spring-integration:index.adoc[Spring Boot Integration]
-Autoconfiguration, `@EnablePipelite` e tutte le proprietà di configurazione Spring.
+Autoconfiguration, `@EnablePipelite`, and all Spring configuration properties.
 
-== Informazioni sul progetto
+== Project Information
 
 [cols="1,3"]
 |===
-|Versione | {project-version}
+|Version | {project-version}
 |GroupId  | `{project-group-id}`
-|Licenza  | Apache License 2.0
+|License  | Apache License 2.0
 |Java     | {java-version}+
 |Repository | https://github.com/pipelite-projects/pipelite-framework
 |===

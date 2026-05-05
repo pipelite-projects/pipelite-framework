@@ -1,9 +1,9 @@
 = Kafka Channel Adapter
-:description: Adapter Apache Kafka per consumer e producer
+:description: Apache Kafka adapter for consumer and producer
 
-Il modulo `kafka-channel-adapter` fornisce integrazione con *Apache Kafka 3.6.x*.
+The `kafka-channel-adapter` module provides integration with *Apache Kafka 3.6.x*.
 
-== Dipendenza
+== Dependency
 
 [source,xml,subs="attributes+"]
 ----
@@ -14,7 +14,7 @@ Il modulo `kafka-channel-adapter` fornisce integrazione con *Apache Kafka 3.6.x*
 </dependency>
 ----
 
-== Utilizzo come sorgente (consumer)
+== Usage as source (consumer)
 
 [source,java]
 ----
@@ -22,33 +22,33 @@ Pipelite.defineFlow("kafka-consumer")
     .fromSource("kafka://my-topic")
     .process("handle", exchange -> {
         String record = exchange.getInputPayloadAs(String.class);
-        // elaborazione del record Kafka
+        // process the Kafka record
     })
     .toSink("slf4j://log")
     .build();
 ----
 
-Il `KafkaPollingConsumer` esegue il polling in un thread dedicato tramite `KafkaConsumerService`.
+The `KafkaPollingConsumer` polls on a dedicated thread via `KafkaConsumerService`.
 
-=== Formato URL
+=== URL format
 
 [source]
 ----
 kafka://<topic-name>[?<params>]
 ----
 
-== Utilizzo come sink (producer)
+== Usage as sink (producer)
 
 [source,java]
 ----
 .toSink("kafka://output-topic")
 ----
 
-Il `DefaultKafkaProducer` invia il payload serializzato come valore del record Kafka.
+The `DefaultKafkaProducer` sends the serialized payload as the Kafka record value.
 
-== Configurazione
+== Configuration
 
-La configurazione Kafka viene fornita tramite `KafkaChannelConfigurer`:
+Kafka configuration is provided via `KafkaChannelConfigurer`:
 
 [source,java]
 ----
@@ -59,17 +59,17 @@ KafkaChannelConfigurer configurer = (config) -> {
 };
 ----
 
-Con Spring Boot è possibile definire il configurer come `@Bean`.
+With Spring Boot, the configurer can be defined as a `@Bean`.
 
-=== Proprietà disponibili di KafkaChannelConfiguration
+=== Available KafkaChannelConfiguration properties
 
 [cols="1,1,3"]
 |===
-|Proprietà |Default |Descrizione
+|Property |Default |Description
 
 |`bootstrapServers`
 |`localhost:9092`
-|Indirizzo del broker Kafka
+|Kafka broker address
 
 |`groupId`
 |`pipelite-default`
@@ -77,13 +77,13 @@ Con Spring Boot è possibile definire il configurer come `@Bean`.
 
 |`autoOffsetReset`
 |`latest`
-|Policy di reset dell'offset (`earliest` / `latest`)
+|Offset reset policy (`earliest` / `latest`)
 |===
 
-== Serializzazione
+== Serialization
 
-Il modulo include:
+The module includes:
 
-* `JsonSerializer` — Serializzazione del payload Java in JSON tramite Jackson.
-* `JsonDeserializer` — Deserializzazione da JSON al tipo target.
-* `TypeConverterRegistry` — Registro dei converter disponibili.
+* `JsonSerializer` — Serialization of Java payload to JSON via Jackson.
+* `JsonDeserializer` — Deserialization from JSON to the target type.
+* `TypeConverterRegistry` — Registry of available converters.

@@ -1,11 +1,11 @@
 = Routing
-:description: Pattern di routing disponibili nel DSL di Pipelite
+:description: Routing patterns available in the Pipelite DSL
 
-Pipelite supporta tre tipologie di routing, accessibili tramite il metodo `.toRoute()` del DSL.
+Pipelite supports three routing types, accessible via the `.toRoute()` method of the DSL.
 
 == Content-Based Router
 
-Il *Content-Based Router* instrada il messaggio verso uno dei flow elencati nella routing table in base al contenuto.
+The *Content-Based Router* routes the message to one of the flows listed in the routing table based on content.
 
 [source,java]
 ----
@@ -18,24 +18,24 @@ Il *Content-Based Router* instrada il messaggio verso uno dei flow elencati nell
     .build()
 )
 ----
-<1> Seleziona la modalità content-based.
-<2> Ogni `.when(condition, flowName)` aggiunge una voce alla routing table.
-<3> `.otherwise` definisce il flow di fallback se nessuna condizione è soddisfatta.
+<1> Selects content-based mode.
+<2> Each `.when(condition, flowName)` adds an entry to the routing table.
+<3> `.otherwise` defines the fallback flow if no condition is satisfied.
 
-=== Condizioni disponibili
+=== Available conditions
 
 [cols="1,3"]
 |===
-|Classe |Descrizione
+|Class |Description
 
 |`PayloadTypeCondition`
-|Verifica che il payload sia istanza del tipo specificato.
+|Checks that the payload is an instance of the specified type.
 
 |`ExpressionCondition`
-|Valuta un'espressione testuale (vedi xref:expressions.adoc[Espressioni]).
+|Evaluates a textual expression (see xref:expressions.adoc[Expressions]).
 |===
 
-Per creare condizioni personalizzate implementa l'interfaccia `Condition`:
+To create custom conditions, implement the `Condition` interface:
 
 [source,java]
 ----
@@ -46,7 +46,7 @@ public interface Condition {
 
 == Recipient List
 
-Il pattern *Recipient List* invia il messaggio a *più flow* contemporaneamente.
+The *Recipient List* pattern sends the message to *multiple flows* simultaneously.
 
 [source,java]
 ----
@@ -59,13 +59,13 @@ Il pattern *Recipient List* invia il messaggio a *più flow* contemporaneamente.
 )
 ----
 
-NOTE: L'API `toRecipientList` tramite `ProcessOperations` è deprecata.
-Preferire la variante tramite `toRoute(route -> route.dynamic())`.
+NOTE: The `toRecipientList` API via `ProcessOperations` is deprecated.
+Prefer the variant via `toRoute(route -> route.dynamic())`.
 
 == Routing Slip
 
-Il *Routing Slip* specifica dinamicamente la sequenza di flow da attraversare.
-La lista di destinazioni viene letta dalla property `routing-slip` dell'`Exchange`.
+The *Routing Slip* dynamically specifies the sequence of flows to traverse.
+The list of destinations is read from the `routing-slip` property of the `Exchange`.
 
 [source,java]
 ----
@@ -74,23 +74,23 @@ La lista di destinazioni viene letta dalla property `routing-slip` dell'`Exchang
 )
 ----
 
-Impostazione del routing slip sull'Exchange:
+Setting the routing slip on the Exchange:
 
 [source,java]
 ----
 exchange.setRoutingSlip(RoutingSlip.of("flow-a", "flow-b", "flow-c"));
 ----
 
-Il framework elabora i flow nell'ordine indicato, usando il `RoutingSlipRouterNode`.
+The framework processes the flows in the specified order, using the `RoutingSlipRouterNode`.
 
 == Return Address
 
-Il pattern *Return Address* instrada la risposta verso il flow indicato nell'header `return-address`.
+The *Return Address* pattern routes the response to the flow indicated in the `return-address` header.
 
 [source,java]
 ----
-// Impostato dal chiamante prima di inviare il messaggio
+// Set by the caller before sending the message
 exchange.setReturnAddress("reply-handler-flow");
 ----
 
-Il `ReturnAddressRouterNode` legge l'header e instrada l'Exchange verso il flow corrispondente nel registry.
+The `ReturnAddressRouterNode` reads the header and routes the Exchange to the corresponding flow in the registry.

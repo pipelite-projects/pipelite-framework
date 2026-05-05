@@ -1,19 +1,19 @@
-= Definizione del Flow
-:description: Riferimento completo del DSL per la definizione di una pipeline Pipelite
+= Flow Definition
+:description: Complete DSL reference for defining a Pipelite pipeline
 
-== Punto di ingresso
+== Entry point
 
 [source,java]
 ----
 FlowDefinitionBuilder builder = Pipelite.defineFlow("flow-name");
 ----
 
-Il nome del flow deve essere univoco all'interno del `PipeliteContext`.
+The flow name must be unique within the `PipeliteContext`.
 
 == fromSource
 
-Definisce l'endpoint sorgente del flow.
-Accetta un URL con lo schema del channel adapter.
+Defines the source endpoint of the flow.
+Accepts a URL with the channel adapter scheme.
 
 [source,java]
 ----
@@ -24,7 +24,7 @@ Accetta un URL con lo schema del channel adapter.
 
 == process
 
-Aggiunge un nodo di elaborazione generico.
+Adds a generic processing node.
 
 [source,java]
 ----
@@ -34,12 +34,12 @@ Aggiunge un nodo di elaborazione generico.
 })
 ----
 
-Il secondo argomento è un `Processor` (interfaccia funzionale).
-Il nome (`"step-name"`) è usato per il logging e il tracing.
+The second argument is a `Processor` (functional interface).
+The name (`"step-name"`) is used for logging and tracing.
 
 == transformPayload
 
-Trasformazione pura del payload, senza accesso diretto all'`Exchange`.
+Pure payload transformation, without direct access to the `Exchange`.
 
 [source,java]
 ----
@@ -50,8 +50,8 @@ Trasformazione pura del payload, senza accesso diretto all'`Exchange`.
 
 == filter
 
-Blocca il flow se l'espressione restituisce `false`.
-Vedi xref:expressions.adoc[Espressioni] per la sintassi.
+Stops the flow if the expression evaluates to `false`.
+See xref:expressions.adoc[Expressions] for the syntax.
 
 [source,java]
 ----
@@ -60,7 +60,7 @@ Vedi xref:expressions.adoc[Espressioni] per la sintassi.
 
 == wireTap
 
-Invia una copia del messaggio a un endpoint secondario senza bloccare il flow.
+Sends a copy of the message to a secondary endpoint without blocking the flow.
 
 [source,java]
 ----
@@ -69,8 +69,8 @@ Invia una copia del messaggio a un endpoint secondario senza bloccare il flow.
 
 == toSink
 
-Definisce l'endpoint destinazione del flow.
-Dopo `toSink` sono disponibili solo `withRetryChannel`, `withErrorChannel` e `build`.
+Defines the destination endpoint of the flow.
+After `toSink`, only `withRetryChannel`, `withErrorChannel`, and `build` are available.
 
 [source,java]
 ----
@@ -80,8 +80,8 @@ Dopo `toSink` sono disponibili solo `withRetryChannel`, `withErrorChannel` e `bu
 
 == toRoute
 
-Aggiunge un nodo di routing.
-Vedi xref:routing.adoc[Routing] per la documentazione completa.
+Adds a routing node.
+See xref:routing.adoc[Routing] for complete documentation.
 
 [source,java]
 ----
@@ -94,8 +94,8 @@ Vedi xref:routing.adoc[Routing] per la documentazione completa.
 
 == withRetryChannel
 
-Abilita il retry automatico in caso di eccezione.
-Disponibile dopo `toSink` o come terminazione alternativa dopo un processore.
+Enables automatic retry on exception.
+Available after `toSink` or as an alternative termination after a processor.
 
 [source,java]
 ----
@@ -105,7 +105,7 @@ Disponibile dopo `toSink` o come terminazione alternativa dopo un processore.
 
 == withErrorChannel
 
-Configura un error channel personalizzato.
+Configures a custom error channel.
 
 [source,java]
 ----
@@ -117,7 +117,7 @@ Configura un error channel personalizzato.
 
 == build
 
-Finalizza la definizione e restituisce una `FlowDefinition` immutabile.
+Finalizes the definition and returns an immutable `FlowDefinition`.
 
 [source,java]
 ----
@@ -127,5 +127,5 @@ FlowDefinition definition = Pipelite.defineFlow("my-flow")
     .build();
 ----
 
-NOTE: `build()` non avvia il flow.
-Il flow viene attivato solo dopo `PipeliteContext.start()`.
+NOTE: `build()` does not start the flow.
+The flow is activated only after `PipeliteContext.start()`.

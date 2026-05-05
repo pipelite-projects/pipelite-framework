@@ -1,56 +1,56 @@
-= Espressioni
-:description: Sintassi del motore di espressioni di Pipelite per filter e routing condizionale
+= Expressions
+:description: Expression engine syntax for Pipelite filter and conditional routing
 
-Il modulo `pipelite-expression` fornisce un motore di valutazione di espressioni testuali usato da `filter` e `ExpressionCondition`.
+The `pipelite-expression` module provides a textual expression evaluation engine used by `filter` and `ExpressionCondition`.
 
-== Sintassi
+== Syntax
 
-Le espressioni sono stringhe Java valutate a runtime.
-Il placeholder centrale è `${body}`, che si riferisce al payload corrente dell'Exchange.
+Expressions are Java strings evaluated at runtime.
+The central placeholder is `${body}`, which refers to the current payload of the Exchange.
 
-=== Placeholder disponibili
+=== Available placeholders
 
 [cols="1,3"]
 |===
-|Placeholder |Risolve
+|Placeholder |Resolves to
 
 |`${body}`
-|Il payload di input dell'`Exchange` (equivalente a `exchange.getInputPayload()`)
+|The input payload of the `Exchange` (equivalent to `exchange.getInputPayload()`)
 
 |`${header.<name>}`
-|Il valore dell'header con il nome specificato
+|The value of the header with the specified name
 |===
 
-=== Esempi di espressioni
+=== Expression examples
 
 [source]
 ----
-// Filtraggio: continua solo se il body non è null
+// Filter: continue only if body is not null
 ${body} != null
 
-// Filtraggio su stringa non vuota
+// Filter on non-empty string
 ${body} != null && !${body}.isEmpty()
 
-// Routing condizionale su header
+// Conditional routing on header
 ${header.type} == 'ORDER'
 
-// Confronto numerico
+// Numeric comparison
 ${header.priority} > 5
 ----
 
-== Utilizzo nel DSL
+== Usage in DSL
 
-=== Nel filter
+=== In filter
 
 [source,java]
 ----
 .filter("only-valid", "${body} != null && !${body}.isEmpty()")
 ----
 
-Il nodo `ExpressionFilterNode` valuta l'espressione su ogni `Exchange`.
-Se la valutazione restituisce `false`, l'elaborazione del messaggio si interrompe.
+The `ExpressionFilterNode` evaluates the expression on each `Exchange`.
+If the evaluation returns `false`, message processing stops.
 
-=== Nell'ExpressionCondition
+=== In ExpressionCondition
 
 [source,java]
 ----
@@ -61,12 +61,12 @@ Se la valutazione restituisce `false`, l'elaborazione del messaggio si interromp
 )
 ----
 
-== Implementazione
+== Implementation
 
-Il motore di espressioni è implementato in `TextExpressionEvaluator` (modulo `pipelite-core`).
-Risolve i placeholder sull'`ExpressionVariables` popolato a partire dall'`Exchange` corrente.
+The expression engine is implemented in `TextExpressionEvaluator` (module `pipelite-core`).
+It resolves placeholders on the `ExpressionVariables` populated from the current `Exchange`.
 
-L'`ExpressionUtils` (package `io.pipelite.core.support.expression`) fornisce metodi helper per la valutazione programmatica delle espressioni.
+The `ExpressionUtils` (package `io.pipelite.core.support.expression`) provides helper methods for programmatic expression evaluation.
 
-NOTE: Il motore di espressioni è volutamente semplice.
-Per logiche condizionali complesse è preferibile usare un `Processor` con logica Java standard.
+NOTE: The expression engine is intentionally simple.
+For complex conditional logic, prefer using a `Processor` with standard Java code.

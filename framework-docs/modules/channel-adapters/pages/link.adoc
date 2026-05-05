@@ -1,34 +1,34 @@
 = Link Channel Adapter
-:description: Adapter per il collegamento diretto tra due flow interni
+:description: Adapter for direct linking between two internal flows
 
-L'adapter `link` permette di collegare due flow interni allo stesso `PipeliteContext`, inviando l'`Exchange` da un flow al consumer di un altro.
+The `link` adapter allows two internal flows within the same `PipeliteContext` to be connected, forwarding the `Exchange` from one flow to the consumer of another.
 
-== Disponibilità
+== Availability
 
-Incluso in `default-channel-adapters`, transitivamente disponibile con `pipelite-core`.
+Included in `default-channel-adapters`, transitively available with `pipelite-core`.
 
-== Utilizzo
+== Usage
 
 [source,java]
 ----
-// Flow principale
+// Main flow
 Pipelite.defineFlow("main-flow")
     .fromSource("http://ingest")
-    .process("enrich", exchange -> { /* arricchimento */ })
+    .process("enrich", exchange -> { /* enrichment */ })
     .toSink("link://secondary-flow")          // <1>
     .build();
 
-// Flow secondario collegato
+// Linked secondary flow
 Pipelite.defineFlow("secondary-flow")
     .fromSource("link://secondary-flow")      // <2>
     .process("finalize", exchange -> { /* ... */ })
     .toSink("slf4j://output")
     .build();
 ----
-<1> Il sink `link://secondary-flow` invia l'Exchange direttamente al consumer del flow secondario.
-<2> Il source `link://secondary-flow` riceve gli Exchange dal flow principale.
+<1> The `link://secondary-flow` sink sends the Exchange directly to the secondary flow consumer.
+<2> The `link://secondary-flow` source receives Exchanges from the main flow.
 
-== Formato URL
+== URL format
 
 [source]
 ----
@@ -37,16 +37,16 @@ link://<flow-name>
 
 [cols="1,3"]
 |===
-|Parametro |Descrizione
+|Parameter |Description
 
 |`flow-name`
-|Nome del flow destinatario (deve corrispondere al nome usato in `.fromSource`)
+|Name of the target flow (must match the name used in `.fromSource`)
 |===
 
-== Caratteristiche
+== Characteristics
 
-* Il passaggio dell'Exchange è *sincrono* nel thread del flow mittente.
-* Non implica serializzazione: l'`Exchange` viene passato per riferimento.
-* Utile per suddividere pipeline complesse in flow modulari riutilizzabili.
+* Exchange handoff is *synchronous* in the sender flow thread.
+* No serialization is involved: the `Exchange` is passed by reference.
+* Useful for splitting complex pipelines into modular, reusable flows.
 
-WARNING: Assicurarsi che il flow destinatario sia registrato nel contesto prima dell'avvio, altrimenti il `LinkProducer` non riuscirà a risolvere il `Consumer` di destinazione.
+WARNING: Ensure the target flow is registered in the context before startup; otherwise the `LinkProducer` will fail to resolve the target `Consumer`.

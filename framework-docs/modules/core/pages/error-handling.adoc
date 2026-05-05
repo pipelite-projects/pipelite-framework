@@ -1,38 +1,38 @@
 = Error Handling
-:description: Gestione degli errori, retry channel e flow execution dump in Pipelite
+:description: Error management, retry channel, and flow execution dump in Pipelite
 
-Pipelite offre due modalità di gestione degli errori a livello di flow: il *retry channel* e l'*error channel personalizzato*.
-Entrambi si configurano tramite il DSL al termine della definizione del flow.
+Pipelite offers two error handling modes at the flow level: the *retry channel* and the *custom error channel*.
+Both are configured via the DSL at the end of the flow definition.
 
 == Retry Channel
 
-Il retry channel è la modalità più semplice.
-Quando un'eccezione si propaga attraverso il flow, il framework serializza l'`Exchange` in un `FlowExecutionDump` e lo rimette in coda per un tentativo successivo.
+The retry channel is the simplest mode.
+When an exception propagates through the flow, the framework serializes the `Exchange` into a `FlowExecutionDump` and re-queues it for a subsequent attempt.
 
 [source,java]
 ----
 FlowDefinition flow = Pipelite.defineFlow("resilient-flow")
     .fromSource("kafka://my-topic")
     .process("parse", exchange -> {
-        // può lanciare eccezioni
+        // may throw exceptions
     })
     .toSink("slf4j://output")
     .withRetryChannel()    // <1>
     .build();
 ----
-<1> Abilita il retry automatico con la strategia di default.
+<1> Enables automatic retry with the default strategy.
 
-=== Meccanismo interno
+=== Internal mechanism
 
-. L'eccezione viene catturata da `RetryChannelExceptionHandler`.
-. L'`Exchange` viene serializzato in un `FlowExecutionDump` tramite `FlowExecutionDumpFactory`.
-. Il dump viene persistito in `FlowExecutionDumpRepository` (implementazione in-memory di default: `FlowExecutionDumpInMemoryRepository`).
-. Il `RetryPollingConsumer` recupera periodicamente i dump e riprova l'esecuzione.
-. `RetryStrategyFilter` determina se il tentativo deve essere effettuato in base alla strategia configurata.
+. The exception is caught by `RetryChannelExceptionHandler`.
+. The `Exchange` is serialized into a `FlowExecutionDump` via `FlowExecutionDumpFactory`.
+. The dump is persisted in `FlowExecutionDumpRepository` (default in-memory implementation: `FlowExecutionDumpInMemoryRepository`).
+. The `RetryPollingConsumer` periodically retrieves the dumps and retries execution.
+. `RetryStrategyFilter` determines whether the attempt should be made based on the configured strategy.
 
-== Error Channel Personalizzato
+== Custom Error Channel
 
-Per una gestione degli errori più flessibile usa `withErrorChannel`:
+For more flexible error handling, use `withErrorChannel`:
 
 [source,java]
 ----
@@ -46,40 +46,40 @@ FlowDefinition flow = Pipelite.defineFlow("flow-with-error-channel")
     )
     .build();
 ----
-<1> L'error channel invia il messaggio di errore verso il sink configurato.
+<1> The error channel sends the error message to the configured sink.
 
-L'`ErrorChannelOperations` espone:
+`ErrorChannelOperations` exposes:
 
 [source,java]
 ----
-builder.toSink(String url)   // destinazione del messaggio in errore
-       .build()              // produce ErrorChannelDefinition
+builder.toSink(String url)   // destination for the error message
+       .build()              // produces ErrorChannelDefinition
 ----
 
-== Gestore di default
+== Default handler
 
-Se nessun error channel è configurato, l'eccezione viene gestita da `GlobalDefaultExceptionHandler`, che logga l'errore e interrompe l'elaborazione senza propagare l'eccezione al chiamante.
+If no error channel is configured, the exception is handled by `GlobalDefaultExceptionHandler`, which logs the error and stops processing without propagating the exception to the caller.
 
 == FlowExecutionDump
 
-Il `FlowExecutionDump` è la serializzazione dell'`Exchange` al momento del fallimento.
-Contiene il payload serializzato, gli headers e le properties necessarie al retry.
+The `FlowExecutionDump` is the serialization of the `Exchange` at the time of failure.
+It contains the serialized payload, headers, and properties required for the retry.
 
 [cols="1,3"]
 |===
-|Classe |Descrizione
+|Class |Description
 
-|`FlowExecutionDump` (interfaccia)
-|Contratto per il dump di esecuzione
+|`FlowExecutionDump` (interface)
+|Contract for the execution dump
 
 |`DefaultFlowExecutionDump`
-|Implementazione standard in-memory
+|Standard in-memory implementation
 
 |`SerializedFlowExecutionDump`
-|Versione serializzata Base64 per persistenza
+|Base64-serialized version for persistence
 
 |`FlowExecutionDumpInMemoryRepository`
-|Repository in-memory (non persistente tra riavvii)
+|In-memory repository (not persistent across restarts)
 |===
 
-TIP: Per ambienti di produzione con requisiti di durabilità, si può implementare `FlowExecutionDumpRepository` con backend persistente (es. database, Redis).
+TIP: For production environments with durability requirements, `FlowExecutionDumpRepository` can be implemented with a persistent backend (e.g. database, Redis).
