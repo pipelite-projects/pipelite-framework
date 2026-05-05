@@ -13,7 +13,7 @@ content:
 
 ui:
   bundle:
-    url: https://github.com/pipelite-projects/pipelite-antora-ui/releases/download/v1.0.0/ui-bundle.zip
+    url: ./ui-bundle.zip
     snapshot: true
 
 asciidoc:
