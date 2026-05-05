@@ -1,0 +1,56 @@
+name: Framework docs deploy
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+    - 'framework-docs/**'
+
+jobs:
+  deploy-docs:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: framework-docs
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'framework-docs/package-lock.json'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Download UI Bundle
+        run: |
+          ASSET_URL=$(curl -s -H "Authorization: Bearer ${{ secrets.ANTORA_UI_BUNDLE_TOKEN }}" \
+            https://api.github.com/repos/pipelite-projects/pipelite-antora-ui/releases/tags/v1.0.0 \
+            | jq -r '.assets[] | select(.name=="ui-bundle.zip") | .url')
+          
+          curl -L -H "Authorization: Bearer ${{ secrets.ANTORA_UI_BUNDLE_TOKEN }}" \
+            -H "Accept: application/octet-stream" \
+            "$ASSET_URL" \
+            -o ui-bundle.zip
+        working-directory: framework-docs
+
+      - name: Build Antora Site
+        # Antora cercherà il playbook dentro framework-docs
+        run: npx antora antora-playbook.yml
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # Il percorso locale ora deve includere la cartella di build dentro framework-docs
+          local-dir: ./framework-docs/build/site/
+          server-dir: ${{ secrets.FTP_DEST_PATH }}
