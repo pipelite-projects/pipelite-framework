@@ -72,14 +72,21 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Test URL Connectivity
-        run: "curl -I -H 'Authorization: Bearer ${{ secrets.ANTORA_UI_BUNDLE_TOKEN }}' https://github.com/pipelite-projects/pipelite-antora-ui/releases/download/v1.0.0/ui-bundle.zip"
+      - name: Download UI Bundle
+        run: |
+          ASSET_URL=$(curl -s -H "Authorization: Bearer ${{ secrets.ANTORA_UI_BUNDLE_TOKEN }}" \
+            https://api.github.com/repos/pipelite-projects/pipelite-antora-ui/releases/tags/v1.0.0 \
+            | jq -r '.assets[] | select(.name=="ui-bundle.zip") | .url')
+          
+          curl -L -H "Authorization: Bearer ${{ secrets.ANTORA_UI_BUNDLE_TOKEN }}" \
+            -H "Accept: application/octet-stream" \
+            "$ASSET_URL" \
+            -o ui-bundle.zip
+        working-directory: framework-docs
 
       - name: Build Antora Site
         # Antora cercherà il playbook dentro framework-docs
         run: npx antora antora-playbook.yml
-        env:
-          GITHUB_TOKEN: ${{ secrets.ANTORA_UI_BUNDLE_TOKEN }}
 
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
