@@ -32,6 +32,9 @@ jobs:
           OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
+      - name: Add execution permission to Maven Wrapper script
+        run: chmod +x ./mvnw
+        
       - name: Build and Test
         run: ./mvnw -B package
 
