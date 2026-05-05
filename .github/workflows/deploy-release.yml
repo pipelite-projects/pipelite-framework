@@ -34,7 +34,7 @@ jobs:
 
       - name: Add execution permission to Maven Wrapper script
         run: chmod +x ./mvnw
-        
+
       - name: Build and Test
         run: ./mvnw -B package
 
@@ -75,7 +75,9 @@ jobs:
       - name: Build Antora Site
         # Antora cercherà il playbook dentro framework-docs
         run: npx antora antora-playbook.yml
-
+        env:
+          GITHUB_TOKEN: ${{ secrets.ANTORA_UI_BUNDLE_TOKEN }}
+          
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
