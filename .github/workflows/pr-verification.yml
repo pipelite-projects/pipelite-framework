@@ -1,0 +1,28 @@
+name: PR Verification
+
+on:
+  pull_request:
+    branches: [ main, release/** ]
+    types: [ opened, synchronize, reopened ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Build and Test with Maven
+        run: mvn clean verify
+
+      - name: Check Style / Linter (Optional)
+        # Se usi Checkstyle o Spotless per mantenere pulito il codice Java
+        run: mvn checkstyle:check
