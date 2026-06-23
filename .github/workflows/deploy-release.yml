@@ -8,10 +8,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write # Necessario per creare la release e caricare note su GitHub
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Recupera la cronologia per generare i changelog delle PR
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -20,29 +23,36 @@ jobs:
           distribution: 'temurin'
           cache: maven
           server-id: ossrh
-          server-username: OSSRH_USERNAME
-          server-password: OSSRH_TOKEN
+          # Qui mappiamo correttamente i tuoi secret all'interno del settings.xml generato
+          server-username: ${{ secrets.OSSRH_USERNAME }}
+          server-password: ${{ secrets.OSSRH_TOKEN }}
           gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
-          gpg-passphrase: MAVEN_GPG_PASSPHRASE
-        env:
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_TOKEN: ${{ secrets.OSSRH_TOKEN }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+          gpg-passphrase: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
       - name: Add execution permission to Maven Wrapper script
         run: chmod +x ./mvnw
 
       - name: Build and Test
-        run: ./mvnw -B package
+        run: ./mvnw -B clean package
 
-      - name: Release and Deploy
-        if: github.event_name != 'pull_request' && startsWith(github.ref, 'refs/tags/v')
+      - name: Release and Deploy to OSSRH (Maven Central)
         run: |
           git config --global user.email "builds@pipelite.io"
           git config --global user.name "pipelite-builds"
-          # Maven userà il settings.xml generato da setup-java
+          # Esegue il deploy usando il profilo di release configurato nel tuo pom.xml
           ./mvnw -B -DskipTests -Pdeploy deploy
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+
+      - name: Create GitHub Release and Changelog
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Pipelite Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true # Sincronizza i titoli delle PR chiuse nel Quarter
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
