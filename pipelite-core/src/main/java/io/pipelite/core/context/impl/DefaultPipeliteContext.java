@@ -15,6 +15,9 @@
  */
 package io.pipelite.core.context.impl;
 
+import io.pipelite.core.config.DefaultDependencyRegistry;
+import io.pipelite.core.config.DependencyRegistry;
+import io.pipelite.core.config.FlowConfigurationScanner;
 import io.pipelite.core.context.*;
 import io.pipelite.core.flow.FlowFactory;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
@@ -55,6 +58,9 @@ public class DefaultPipeliteContext implements PipeliteContext {
 
     private final Collection<FlowDefinition> flowDefinitions;
 
+    private final DependencyRegistry dependencyRegistry;
+    private final FlowConfigurationScanner flowConfigurationScanner;
+
     private final FlowRegistry flowRegistry;
     private final ServiceManager serviceManager;
     private final ChannelAdapterManager channelAdapterManager;
@@ -70,6 +76,9 @@ public class DefaultPipeliteContext implements PipeliteContext {
     public DefaultPipeliteContext() {
 
         flowDefinitions = new ArrayList<>();
+
+        dependencyRegistry = new DefaultDependencyRegistry();
+        flowConfigurationScanner = new FlowConfigurationScanner();
 
         final MessageFactory messageFactory = new DefaultMessageFactory(new DistributedIdentityGeneratorImpl());
         exchangeFactory = new DefaultExchangeFactory(messageFactory);
@@ -103,9 +112,29 @@ public class DefaultPipeliteContext implements PipeliteContext {
 
     @Override
     public void registerFlowDefinition(FlowDefinition flowDefinition) {
-        if(!flowDefinitions.contains(flowDefinition)){
-            flowDefinitions.add(flowDefinition);
+        if(isRegistered(flowDefinition.getFlowName())){
+            throw new DuplicateFlowDefinitionException(flowDefinition.getFlowName());
         }
+        flowDefinitions.add(flowDefinition);
+    }
+
+    @Override
+    public void registerFlowConfigurationClass(Class<?> configurationClass) {
+        flowConfigurationScanner.scan(configurationClass, dependencyRegistry)
+            .forEach(this::registerFlowDefinition);
+    }
+
+    @Override
+    public void registerDependency(String name, Object instance) {
+        dependencyRegistry.register(name, instance);
+    }
+
+    @Override
+    public Optional<FlowDefinition> getFlowDefinition(String flowName) {
+        return flowDefinitions
+            .stream()
+            .filter(fd -> fd.getFlowName().equals(flowName))
+            .findFirst();
     }
 
     @Override

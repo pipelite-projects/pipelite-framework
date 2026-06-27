@@ -13,18 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.examples.springboot;
+package io.pipelite.dsl.annotation;
 
-import io.pipelite.spring.EnablePipelite;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-@SpringBootApplication
-@EnablePipelite(flowConfigurations = AcquireFlowConfiguration.class)
-public class Application {
-
-    public static void main(String[] args){
-        SpringApplication.run(Application.class, args);
-    }
-
+/**
+ * Marks a class as a container of {@link DefineFlow} factory methods, discoverable
+ * either by the native plain-Java scanner ({@code FlowConfigurationScanner} in
+ * pipelite-core) or by {@code pipelite-spring-starter} when the class is a Spring bean.
+ */
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface FlowConfiguration {
 }
