@@ -13,21 +13,27 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.spring;
-
-import io.pipelite.spring.context.FlowConfigurationRegistrar;
-import io.pipelite.spring.context.PipeliteConfigurationImportSelector;
-import org.springframework.context.annotation.Import;
+package io.pipelite.dsl.annotation;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Target(ElementType.TYPE)
+/**
+ * Marks a method, declared on a class annotated with
+ * {@link FlowConfiguration}, as a factory of a single
+ * {@code FlowDefinition}. The method must return a
+ * {@code FlowDefinition} (typically built via
+ * {@code Pipelite.defineFlow(name)...build()}).
+ *
+ * <p>Method parameters represent the dependencies required to build
+ * the flow: under the native plain-Java scanner they are resolved
+ * against the registry's {@code DependencyRegistry}; under
+ * {@code pipelite-spring-starter} they are resolved via Spring
+ * autowiring.
+ */
+@Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-@Import({PipeliteConfigurationImportSelector.class, FlowConfigurationRegistrar.class})
-public @interface EnablePipelite {
-
-    Class<?>[] flowConfigurations() default {};
+public @interface DefineFlow {
 }

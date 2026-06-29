@@ -17,13 +17,23 @@ package io.pipelite.spring.context;
 
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.core.Ordered;
 import org.springframework.core.PriorityOrdered;
 import org.springframework.util.Assert;
 
+/**
+ * @deprecated Use {@code @FlowConfiguration} / {@code @DefineFlow} with
+ *             {@code @EnablePipelite(flowConfigurations = ...)} instead. This registrar will be
+ *             removed in a future major release.
+ */
+@Deprecated
 public class FlowDefinitionRegistrar implements BeanPostProcessor, PriorityOrdered {
+
+    private static final Logger log = LoggerFactory.getLogger(FlowDefinitionRegistrar.class);
 
     private final PipeliteContext pipeliteContext;
 
@@ -36,6 +46,9 @@ public class FlowDefinitionRegistrar implements BeanPostProcessor, PriorityOrder
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
 
         if(bean instanceof FlowDefinition){
+            log.warn("Registering FlowDefinition bean '{}' via the deprecated FlowDefinitionRegistrar. " +
+                "Migrate to @FlowConfiguration / @DefineFlow with @EnablePipelite(flowConfigurations = ...) instead.",
+                beanName);
             final FlowDefinition flowDefinition = (FlowDefinition) bean;
             pipeliteContext.registerFlowDefinition(flowDefinition);
         }

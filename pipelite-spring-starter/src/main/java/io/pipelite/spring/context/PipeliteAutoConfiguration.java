@@ -45,4 +45,9 @@ public class PipeliteAutoConfiguration {
         return new PipeliteContextInitializerBeanPostProcessor(pipeliteContext);
     }
 
+    @Bean
+    public FlowConfigurationBeanPostProcessor flowConfigurationBeanPostProcessor(PipeliteContext pipeliteContext){
+        return new FlowConfigurationBeanPostProcessor(pipeliteContext);
+    }
+
 }
