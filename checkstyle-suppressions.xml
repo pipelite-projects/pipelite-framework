@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+    "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+    "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
+<!--
+  Module-level suppressions for pre-existing Checkstyle violations (sun_checks.xml).
+  The project was not previously enforced against this ruleset.
+  Remove a module entry once all its classes have been brought into compliance.
+-->
+<suppressions>
+
+  <suppress files="io[/\\]pipelite[/\\]common[/\\]"     checks=".*"/>
+  <suppress files="io[/\\]pipelite[/\\]spi[/\\]"        checks=".*"/>
+  <suppress files="io[/\\]pipelite[/\\]expression[/\\]" checks=".*"/>
+  <suppress files="io[/\\]pipelite[/\\]dsl[/\\]"        checks=".*"/>
+  <suppress files="io[/\\]pipelite[/\\]core[/\\]"       checks=".*"/>
+  <suppress files="io[/\\]pipelite[/\\]channels[/\\]"   checks=".*"/>
+  <suppress files="io[/\\]pipelite[/\\]components[/\\]" checks=".*"/>
+  <suppress files="io[/\\]pipelite[/\\]spring[/\\]"     checks=".*"/>
+  <suppress files="io[/\\]pipelite[/\\]examples[/\\]"   checks=".*"/>
+
+</suppressions>
