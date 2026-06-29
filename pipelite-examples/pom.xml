@@ -24,6 +24,7 @@
 
     <modules>
         <module>pipelite-springboot-application</module>
+        <module>pipelite-simple-application</module>
     </modules>
 
     <dependencies>

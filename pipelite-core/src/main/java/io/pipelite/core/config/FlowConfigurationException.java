@@ -13,18 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.examples.springboot;
+package io.pipelite.core.config;
 
-import io.pipelite.spring.EnablePipelite;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+/**
+ * Thrown for structural errors found while scanning a {@code @FlowConfiguration} class:
+ * the class is not annotated, cannot be instantiated via its default constructor, or a
+ * {@code @DefineFlow} method does not return a {@code FlowDefinition}.
+ */
+public class FlowConfigurationException extends RuntimeException {
 
-@SpringBootApplication
-@EnablePipelite(flowConfigurations = AcquireFlowConfiguration.class)
-public class Application {
+    public FlowConfigurationException(String message) {
+        super(message);
+    }
 
-    public static void main(String[] args){
-        SpringApplication.run(Application.class, args);
+    public FlowConfigurationException(String message, Throwable cause) {
+        super(message, cause);
     }
 
 }

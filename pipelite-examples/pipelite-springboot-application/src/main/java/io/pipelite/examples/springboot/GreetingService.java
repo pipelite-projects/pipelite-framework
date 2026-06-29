@@ -15,16 +15,13 @@
  */
 package io.pipelite.examples.springboot;
 
-import io.pipelite.spring.EnablePipelite;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.stereotype.Service;
 
-@SpringBootApplication
-@EnablePipelite(flowConfigurations = AcquireFlowConfiguration.class)
-public class Application {
+@Service
+public class GreetingService {
 
-    public static void main(String[] args){
-        SpringApplication.run(Application.class, args);
+    public String greet(String name) {
+        return String.format("Hello, %s!", name);
     }
 
 }

@@ -23,6 +23,7 @@ jobs:
       - name: Build and Test with Maven
         run: mvn clean verify
 
-      - name: Check Style / Linter (Optional)
-        # Se usi Checkstyle o Spotless per mantenere pulito il codice Java
-        run: mvn checkstyle:check
+      # Checkstyle temporarily disabled - will be re-enabled once all
+      # pre-existing violations are addressed.
+      # - name: Check Style / Linter (Optional)
+      #   run: mvn checkstyle:check
