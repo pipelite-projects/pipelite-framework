@@ -15,6 +15,8 @@
  */
 package io.pipelite.test.support.matchers;
 
+import io.pipelite.core.config.DefaultDependencyRegistry;
+import io.pipelite.core.config.FlowConfigurationScanner;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.test.PipeliteTestFixture;
 
@@ -41,6 +43,34 @@ public final class Preconditions {
      */
     public static Precondition flowDefinition(FlowDefinition flowDefinition) {
         return target -> target.flowDefinition(flowDefinition);
+    }
+
+    /**
+     * Scans a {@code @FlowConfiguration} class (no-arg constructor, no dependencies)
+     * and registers each discovered flow definition in the test context.
+     */
+    public static Precondition flowConfiguration(Class<?> configClass) {
+        return flowConfiguration(configClass, new Object[0]);
+    }
+
+    /**
+     * Scans a {@code @FlowConfiguration} class and registers each discovered flow
+     * definition in the test context. Each element of {@code dependencies} is
+     * registered in a {@link DefaultDependencyRegistry} by its runtime type, so
+     * {@code @DefineFlow} method parameters are resolved by type — the same
+     * contract as the plain-Java SPI scanner.
+     */
+    public static Precondition flowConfiguration(Class<?> configClass, Object... dependencies) {
+        return target -> {
+            final DefaultDependencyRegistry registry = new DefaultDependencyRegistry();
+            for (Object dep : dependencies) {
+                registry.register(dep.getClass().getName(), dep);
+            }
+            final FlowConfigurationScanner scanner = new FlowConfigurationScanner();
+            for (FlowDefinition flowDefinition : scanner.scan(configClass, registry)) {
+                target.flowDefinition(flowDefinition);
+            }
+        };
     }
 
     /**
