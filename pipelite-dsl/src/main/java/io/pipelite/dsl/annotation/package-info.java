@@ -13,18 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.examples.springboot;
-
-import io.pipelite.spring.EnablePipelite;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-@SpringBootApplication
-@EnablePipelite(flowConfigurations = AcquireFlowConfiguration.class)
-public class Application {
-
-    public static void main(String[] args){
-        SpringApplication.run(Application.class, args);
-    }
-
-}
+/**
+ * Annotations for declaring Pipelite flow configurations.
+ */
+package io.pipelite.dsl.annotation;

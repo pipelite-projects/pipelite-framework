@@ -13,18 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.examples.springboot;
+package io.pipelite.examples.simple;
 
-import io.pipelite.spring.EnablePipelite;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+/**
+ * A plain dependency with no Pipelite-specific contract, standing in for any external
+ * collaborator (HTTP client, repository, etc.) a flow might need. Registered into the
+ * native {@code DependencyRegistry} and resolved as a {@code @DefineFlow} method parameter.
+ */
+public class GreetingService {
 
-@SpringBootApplication
-@EnablePipelite(flowConfigurations = AcquireFlowConfiguration.class)
-public class Application {
-
-    public static void main(String[] args){
-        SpringApplication.run(Application.class, args);
+    public String greet(String name) {
+        return String.format("Hello, %s!", name);
     }
 
 }

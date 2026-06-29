@@ -20,9 +20,33 @@ import io.pipelite.spi.channel.ChannelConfigurer;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 
+import java.util.Optional;
+
 public interface PipeliteContext {
 
+    /**
+     * @throws DuplicateFlowDefinitionException if a flow with the same name is already registered.
+     */
     void registerFlowDefinition(FlowDefinition flowDefinition);
+
+    /**
+     * Scans {@code configurationClass} (must be annotated {@code @FlowConfiguration}) via the
+     * native {@code FlowConfigurationScanner}, resolving {@code @DefineFlow} method parameters
+     * against this context's {@code DependencyRegistry}, and registers every resulting
+     * {@code FlowDefinition} (see {@link #registerFlowDefinition}).
+     */
+    void registerFlowConfigurationClass(Class<?> configurationClass);
+
+    /**
+     * Registers an instance in this context's native {@code DependencyRegistry}, under the
+     * given qualifier name, for resolution of {@code @DefineFlow} method parameters.
+     */
+    void registerDependency(String name, Object instance);
+
+    /**
+     * Looks up a registered {@code FlowDefinition} by name.
+     */
+    Optional<FlowDefinition> getFlowDefinition(String flowName);
 
     void addChannelConfigurer(ChannelConfigurer<?> configurer);
 

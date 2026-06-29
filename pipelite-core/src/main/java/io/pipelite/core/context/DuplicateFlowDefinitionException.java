@@ -13,18 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.examples.springboot;
+package io.pipelite.core.context;
 
-import io.pipelite.spring.EnablePipelite;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+/**
+ * Thrown by {@link PipeliteContext#registerFlowDefinition} when a flow with the same
+ * {@code flowName} is already registered. {@code registerFlowDefinition} is the single
+ * point of convergence for both the native scanner and the Spring-aware registration path,
+ * so a duplicate name is never silently ignored here.
+ */
+public class DuplicateFlowDefinitionException extends RuntimeException {
 
-@SpringBootApplication
-@EnablePipelite(flowConfigurations = AcquireFlowConfiguration.class)
-public class Application {
-
-    public static void main(String[] args){
-        SpringApplication.run(Application.class, args);
+    public DuplicateFlowDefinitionException(String flowName) {
+        super(String.format("A FlowDefinition named '%s' is already registered", flowName));
     }
 
 }
