@@ -13,20 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.dsl.annotation;
-
-import java.lang.annotation.ElementType;
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.lang.annotation.Target;
-
 /**
- * Marks a class as a container of {@link DefineFlow} factory methods,
- * discoverable either by the native plain-Java scanner
- * ({@code FlowConfigurationScanner} in pipelite-core) or by
- * {@code pipelite-spring-starter} when the class is a Spring bean.
+ * Annotations for declaring Pipelite flow configurations.
  */
-@Target(ElementType.TYPE)
-@Retention(RetentionPolicy.RUNTIME)
-public @interface FlowConfiguration {
-}
+package io.pipelite.dsl.annotation;

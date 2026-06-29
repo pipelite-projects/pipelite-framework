@@ -21,13 +21,17 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a method, declared on a class annotated with {@link FlowConfiguration}, as a
- * factory of a single {@code FlowDefinition}. The method must return a {@code FlowDefinition}
- * (typically built via {@code Pipelite.defineFlow(name)...build()}).
+ * Marks a method, declared on a class annotated with
+ * {@link FlowConfiguration}, as a factory of a single
+ * {@code FlowDefinition}. The method must return a
+ * {@code FlowDefinition} (typically built via
+ * {@code Pipelite.defineFlow(name)...build()}).
  *
- * <p>Method parameters represent the dependencies required to build the flow: under the
- * native plain-Java scanner they are resolved against the registry's {@code DependencyRegistry};
- * under {@code pipelite-spring-starter} they are resolved via standard Spring autowiring.
+ * <p>Method parameters represent the dependencies required to build
+ * the flow: under the native plain-Java scanner they are resolved
+ * against the registry's {@code DependencyRegistry}; under
+ * {@code pipelite-spring-starter} they are resolved via Spring
+ * autowiring.
  */
 @Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
