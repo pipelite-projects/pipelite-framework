@@ -20,9 +20,7 @@ import io.pipelite.core.config.FlowConfigurationException;
 import io.pipelite.dsl.annotation.DefineFlow;
 import io.pipelite.dsl.annotation.FlowConfiguration;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.test.support.matchers.Actions;
-import io.pipelite.test.support.matchers.Expectations;
-import io.pipelite.test.support.matchers.Preconditions;
+import static io.pipelite.test.PipeliteTest.*;
 import org.junit.Test;
 
 public class PipeliteTestFixtureFlowConfigurationTest {
@@ -47,21 +45,22 @@ public class PipeliteTestFixtureFlowConfigurationTest {
 
     @Test
     public void givenFlowConfiguration_whenSupplyTo_thenFlowIsDiscoveredAndExecuted() {
-        PipeliteTestFixture.given(
-                Preconditions.flowConfiguration(UppercaseFlowConfiguration.class),
-                Preconditions.inputPayload("hello"))
-            .when(Actions.supplyTo("words-in"))
-            .then(Expectations.isExecutionCompleted(), Expectations.payloadEquals("HELLO"));
+        given(
+                flowConfiguration(UppercaseFlowConfiguration.class),
+                inputPayload("hello"))
+            .when(supplyTo("words-in"))
+            .then(isExecutionCompleted(), payloadEquals("HELLO"));
     }
 
     @Test
     public void givenFlowConfigurationWithMultipleFlows_whenSupplyTo_thenAllFlowsAreAvailable() {
-        PipeliteTestFixture.given(
-                Preconditions.flowConfiguration(UppercaseFlowConfiguration.class),
-                Preconditions.inputPayload("world"))
-            .when(Actions.supplyTo("words-in"))
-            .then(Expectations.isExecutionCompleted())
-            .inspectStep("uppercase", Expectations.payloadEquals("WORLD"));
+        given(
+                flowConfiguration(UppercaseFlowConfiguration.class),
+                inputPayload("world"))
+            .when(supplyTo("words-in"))
+            .then(
+                output(isExecutionCompleted()),
+                step("uppercase", payloadEquals("WORLD")));
     }
 
     // -------------------------------------------------------------------------
@@ -90,11 +89,11 @@ public class PipeliteTestFixtureFlowConfigurationTest {
 
     @Test
     public void givenFlowConfigurationWithDependency_whenSupplyTo_thenDependencyIsInjectedAndFlowExecutes() {
-        PipeliteTestFixture.given(
-                Preconditions.flowConfiguration(GreetingFlowConfiguration.class, new GreetingService()),
-                Preconditions.inputPayload("Alice"))
-            .when(Actions.supplyTo("names-in"))
-            .then(Expectations.isExecutionCompleted(), Expectations.payloadEquals("Hello, Alice!"));
+        given(
+                flowConfiguration(GreetingFlowConfiguration.class, new GreetingService()),
+                inputPayload("Alice"))
+            .when(supplyTo("names-in"))
+            .then(isExecutionCompleted(), payloadEquals("Hello, Alice!"));
     }
 
     // -------------------------------------------------------------------------
@@ -131,14 +130,15 @@ public class PipeliteTestFixtureFlowConfigurationTest {
 
     @Test
     public void givenTwoFlowConfigurations_whenSupplyTo_thenBothAreDeployedAndFlowsChainCorrectly() {
-        PipeliteTestFixture.given(
-                Preconditions.flowConfiguration(NormalizationFlowConfiguration.class),
-                Preconditions.flowConfiguration(EnrichmentFlowConfiguration.class, new GreetingService()),
-                Preconditions.inputPayload("  ALICE  "))
-            .when(Actions.supplyTo("raw-in"))
-            .then(Expectations.isExecutionCompleted(), Expectations.payloadEquals("Hello, alice!"))
-            .inspectStep("normalize", Expectations.payloadEquals("alice"))
-            .inspectStep("enrich", Expectations.payloadEquals("Hello, alice!"));
+        given(
+                flowConfiguration(NormalizationFlowConfiguration.class),
+                flowConfiguration(EnrichmentFlowConfiguration.class, new GreetingService()),
+                inputPayload("  ALICE  "))
+            .when(supplyTo("raw-in"))
+            .then(
+                output(isExecutionCompleted(), payloadEquals("Hello, alice!")),
+                step("normalize", payloadEquals("alice")),
+                step("enrich", payloadEquals("Hello, alice!")));
     }
 
     // -------------------------------------------------------------------------
@@ -154,9 +154,9 @@ public class PipeliteTestFixtureFlowConfigurationTest {
 
     @Test(expected = FlowConfigurationException.class)
     public void givenClassWithoutAnnotation_whenFlowConfiguration_thenThrowsFlowConfigurationException() {
-        PipeliteTestFixture.given(
-                Preconditions.flowConfiguration(NotAFlowConfiguration.class),
-                Preconditions.inputPayload("x"))
-            .when(Actions.supplyTo("x"));
+        given(
+                flowConfiguration(NotAFlowConfiguration.class),
+                inputPayload("x"))
+            .when(supplyTo("x"));
     }
 }

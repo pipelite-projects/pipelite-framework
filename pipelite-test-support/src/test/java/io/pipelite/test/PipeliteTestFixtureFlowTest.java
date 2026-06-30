@@ -17,9 +17,7 @@ package io.pipelite.test;
 
 import io.pipelite.core.Pipelite;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.test.support.matchers.Actions;
-import io.pipelite.test.support.matchers.Expectations;
-import io.pipelite.test.support.matchers.Preconditions;
+import static io.pipelite.test.PipeliteTest.*;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -43,11 +41,11 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("kafka://orders-out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.inputPayload("order"))
-            .when(Actions.supplyTo("in"))
-            .then(Expectations.isExecutionCompleted(), Expectations.payloadEquals("order-enriched"));
+        given(
+                flowDefinition(flow),
+                inputPayload("order"))
+            .when(supplyTo("in"))
+            .then(isExecutionCompleted(), payloadEquals("order-enriched"));
     }
 
     // -------------------------------------------------------------------------
@@ -61,11 +59,11 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.inputPayload("hello"))
-            .when(Actions.supplyTo("in"))
-            .then(Expectations.isExecutionCompleted());
+        given(
+                flowDefinition(flow),
+                inputPayload("hello"))
+            .when(supplyTo("in"))
+            .then(isExecutionCompleted());
     }
 
     @Test
@@ -75,11 +73,11 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.inputPayload("original"))
-            .when(Actions.supplyTo("in"))
-            .then(Expectations.payloadEquals("original"));
+        given(
+                flowDefinition(flow),
+                inputPayload("original"))
+            .when(supplyTo("in"))
+            .then(payloadEquals("original"));
     }
 
     // -------------------------------------------------------------------------
@@ -95,11 +93,11 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.inputPayload("hello"))
-            .when(Actions.supplyTo("in"))
-            .then(Expectations.isExecutionCompleted(), Expectations.payloadEquals("HELLO"));
+        given(
+                flowDefinition(flow),
+                inputPayload("hello"))
+            .when(supplyTo("in"))
+            .then(isExecutionCompleted(), payloadEquals("HELLO"));
     }
 
     @Test
@@ -113,11 +111,11 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.inputPayload(5))
-            .when(Actions.supplyTo("in"))
-            .then(Expectations.isExecutionCompleted(), Expectations.payloadEquals(20)); // (5*2)+10
+        given(
+                flowDefinition(flow),
+                inputPayload(5))
+            .when(supplyTo("in"))
+            .then(isExecutionCompleted(), payloadEquals(20)); // (5*2)+10
     }
 
     @Test
@@ -131,11 +129,11 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        ThenOperations then = PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.inputPayload(Map.of("price", 100)))
-            .when(Actions.supplyTo("in"))
-            .then(Expectations.payloadEquals(transformed));
+        ThenOperations then = given(
+                flowDefinition(flow),
+                inputPayload(Map.of("price", 100)))
+            .when(supplyTo("in"))
+            .then(payloadEquals(transformed));
 
         then.getOutputPayloadAs(Map.class);
     }
@@ -152,16 +150,16 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.header("X-Tenant", "acme"),
-                Preconditions.header("X-Correlation-Id", "abc-123"),
-                Preconditions.inputPayload("data"))
-            .when(Actions.supplyTo("in"))
+        given(
+                flowDefinition(flow),
+                header("X-Tenant", "acme"),
+                header("X-Correlation-Id", "abc-123"),
+                inputPayload("data"))
+            .when(supplyTo("in"))
             .then(
-                Expectations.isExecutionCompleted(),
-                Expectations.headerEquals("X-Tenant", "acme"),
-                Expectations.headerEquals("X-Correlation-Id", "abc-123"));
+                isExecutionCompleted(),
+                headerEquals("X-Tenant", "acme"),
+                headerEquals("X-Correlation-Id", "abc-123"));
     }
 
     @Test
@@ -172,11 +170,11 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.inputPayload("data"))
-            .when(Actions.supplyTo("in"))
-            .then(Expectations.headerEquals("X-Processed-By", "test-engine"));
+        given(
+                flowDefinition(flow),
+                inputPayload("data"))
+            .when(supplyTo("in"))
+            .then(headerEquals("X-Processed-By", "test-engine"));
     }
 
     @Test
@@ -186,12 +184,12 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.header("Retry-Count", 3),
-                Preconditions.inputPayload("data"))
-            .when(Actions.supplyTo("in"))
-            .then(Expectations.headerEquals("Retry-Count", 3));
+        given(
+                flowDefinition(flow),
+                header("Retry-Count", 3),
+                inputPayload("data"))
+            .when(supplyTo("in"))
+            .then(headerEquals("Retry-Count", 3));
     }
 
     @Test
@@ -201,11 +199,11 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.inputPayload("data"))
-            .when(Actions.supplyTo("in"))
-            .then(Expectations.noHeader("X-Missing"));
+        given(
+                flowDefinition(flow),
+                inputPayload("data"))
+            .when(supplyTo("in"))
+            .then(noHeader("X-Missing"));
     }
 
     // -------------------------------------------------------------------------
@@ -220,12 +218,12 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.timeout(1),
-                Preconditions.inputPayload("filtered-message"))
-            .when(Actions.supplyTo("in"))
-            .then(Expectations.isNotExecutionCompleted());
+        given(
+                flowDefinition(flow),
+                timeout(1),
+                inputPayload("filtered-message"))
+            .when(supplyTo("in"))
+            .then(isNotExecutionCompleted());
     }
 
     @Test(expected = IllegalStateException.class)
@@ -236,11 +234,11 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        ThenOperations then = PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.timeout(1),
-                Preconditions.inputPayload("x"))
-            .when(Actions.supplyTo("in"));
+        ThenOperations then = given(
+                flowDefinition(flow),
+                timeout(1),
+                inputPayload("x"))
+            .when(supplyTo("in"));
 
         then.getOutputPayload();
     }
@@ -265,20 +263,20 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(originFlow),
-                Preconditions.flowDefinition(destinationFlow),
-                Preconditions.inputPayload("msg"))
-            .when(Actions.supplyTo("entry"))
-            .then(Expectations.isExecutionCompleted(), Expectations.payloadEquals("msg-enriched-finalized"));
+        given(
+                flowDefinition(originFlow),
+                flowDefinition(destinationFlow),
+                inputPayload("msg"))
+            .when(supplyTo("entry"))
+            .then(isExecutionCompleted(), payloadEquals("msg-enriched-finalized"));
     }
 
     @Test
     public void givenTwoLinkedFlowsWithRealSinkOnDestination_whenSupplyTo_thenLinkHopIsPreservedAndRealSinkIsCaptured() {
         // The link:// hop between the two flows must be left untouched (otherwise the destination
         // flow would never receive the exchange), while only destinationFlow's real, unconfigured
-        // "kafka://" sink gets transparently redirected to capture. inspectStep is also exercised on
-        // a step from EACH flow, proving step snapshots are captured across the whole chain.
+        // "kafka://" sink gets transparently redirected to capture. step(...) assertions are also
+        // verified on a step from EACH flow, proving step snapshots are captured across the whole chain.
         FlowDefinition originFlow = Pipelite.defineFlow("origin-flow-2")
             .fromSource("entry-2")
             .process("enrich", (io, c) -> io.setOutputPayload(
@@ -293,18 +291,16 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("kafka://orders-out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(originFlow),
-                Preconditions.flowDefinition(destinationFlow),
-                Preconditions.header("X-Trace-Id", "trace-42"),
-                Preconditions.inputPayload("msg"))
-            .when(Actions.supplyTo("entry-2"))
+        given(
+                flowDefinition(originFlow),
+                flowDefinition(destinationFlow),
+                header("X-Trace-Id", "trace-42"),
+                inputPayload("msg"))
+            .when(supplyTo("entry-2"))
             .then(
-                Expectations.isExecutionCompleted(),
-                Expectations.payloadEquals("msg-enriched-finalized"),
-                Expectations.headerEquals("X-Trace-Id", "trace-42"))
-            .inspectStep("enrich", Expectations.payloadEquals("msg-enriched"))
-            .inspectStep("finalize", Expectations.payloadEquals("msg-enriched-finalized"));
+                output(isExecutionCompleted(), payloadEquals("msg-enriched-finalized"), headerEquals("X-Trace-Id", "trace-42")),
+                step("enrich", payloadEquals("msg-enriched")),
+                step("finalize", payloadEquals("msg-enriched-finalized")));
     }
 
     // -------------------------------------------------------------------------
@@ -320,11 +316,11 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.inputPayload(21))
-            .when(Actions.supplyTo("in"))
-            .then(Expectations.isExecutionCompleted(), Expectations.payloadEquals(42));
+        given(
+                flowDefinition(flow),
+                inputPayload(21))
+            .when(supplyTo("in"))
+            .then(isExecutionCompleted(), payloadEquals(42));
     }
 
     // -------------------------------------------------------------------------
@@ -340,13 +336,14 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.inputPayload(5))
-            .when(Actions.supplyTo("in"))
-            .then(Expectations.isExecutionCompleted())
-            .inspectStep("step1", Expectations.payloadEquals(10))
-            .inspectStep("step2", Expectations.payloadEquals(20));
+        given(
+                flowDefinition(flow),
+                inputPayload(5))
+            .when(supplyTo("in"))
+            .then(
+                output(isExecutionCompleted()),
+                step("step1", payloadEquals(10)),
+                step("step2", payloadEquals(20)));
     }
 
     @Test(expected = AssertionError.class)
@@ -358,11 +355,11 @@ public class PipeliteTestFixtureFlowTest {
             .toSink("out")
             .build();
 
-        PipeliteTestFixture.given(
-                Preconditions.flowDefinition(flow),
-                Preconditions.timeout(1),
-                Preconditions.inputPayload("x"))
-            .when(Actions.supplyTo("in"))
-            .inspectStep("never-reached", Expectations.hasHeader("anything"));
+        given(
+                flowDefinition(flow),
+                timeout(1),
+                inputPayload("x"))
+            .when(supplyTo("in"))
+            .then(step("never-reached", hasHeader("anything")));
     }
 }

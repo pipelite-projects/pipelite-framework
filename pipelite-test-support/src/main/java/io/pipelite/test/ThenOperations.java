@@ -25,21 +25,24 @@ import io.pipelite.test.support.matchers.Expectation;
 public interface ThenOperations {
 
     /**
-     * Evaluates one or more {@link Expectation}s against the final exchange
-     * (and, in processor mode, the {@link TestProcessContribution}).
+     * Evaluates one or more {@link Expectation}s. Plain expectations are
+     * applied to the final exchange (and, in processor mode, to the
+     * {@link TestProcessContribution}). {@link io.pipelite.test.support.matchers.StepExpectation}s
+     * — produced by {@link io.pipelite.test.support.matchers.Expectations#step} —
+     * are routed to the named intermediate step snapshot instead.
      *
-     * @throws AssertionError if any expectation fails
+     * <p>Use {@link io.pipelite.test.support.matchers.Expectations#output} to
+     * group final-output assertions explicitly when mixing them with step assertions:
+     * <pre>{@code
+     * .then(
+     *     output(isExecutionCompleted(), payloadEquals("ok")),
+     *     step("enrich", hasHeader("X-Enriched-By")));
+     * }</pre>
+     *
+     * @throws AssertionError if any expectation fails, or if a named step was
+     *                        never reached
      */
     ThenOperations then(Expectation... expectations);
-
-    /**
-     * Verifies expectations against the exchange snapshot captured right
-     * after the named step executed during {@code Actions.supplyTo(...)}.
-     *
-     * @throws AssertionError if the named step was never reached, or if any
-     *                        expectation fails
-     */
-    ThenOperations inspectStep(String stepName, Expectation... expectations);
 
     /**
      * Returns the output payload produced by the last executed step.

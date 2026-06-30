@@ -15,9 +15,7 @@
  */
 package io.pipelite.test;
 
-import io.pipelite.test.support.matchers.Actions;
-import io.pipelite.test.support.matchers.Expectations;
-import io.pipelite.test.support.matchers.Preconditions;
+import static io.pipelite.test.PipeliteTest.*;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -32,27 +30,27 @@ public class PipeliteTestFixtureBaseTest {
 
     @Test
     public void givenProcessor_whenCompletesNormally_thenContributionIsSuccess() {
-        PipeliteTestFixture.given(Preconditions.inputPayload("hello"))
-            .when(Actions.process((ioContext, c) -> ioContext.setOutputPayload("world")))
-            .then(Expectations.isSuccess());
+        given(inputPayload("hello"))
+            .when(process((ioContext, c) -> ioContext.setOutputPayload("world")))
+            .then(isSuccess());
     }
 
     @Test
     public void givenProcessor_whenThrowsRuntimeException_thenContributionIsFailure() {
         RuntimeException expected = new RuntimeException("boom");
 
-        PipeliteTestFixture.given(Preconditions.inputPayload("input"))
-            .when(Actions.process((ioContext, c) -> {
+        given(inputPayload("input"))
+            .when(process((ioContext, c) -> {
                 throw expected;
             }))
-            .then(Expectations.isFailure(), Expectations.failureCauseEquals(expected));
+            .then(isFailure(), failureCauseEquals(expected));
     }
 
     @Test
     public void givenProcessor_whenCallsStopExecution_thenIsExecutionStoppedAndStillSuccess() {
-        PipeliteTestFixture.given(Preconditions.inputPayload("filter-me"))
-            .when(Actions.process((ioContext, c) -> c.stopExecution()))
-            .then(Expectations.isExecutionStopped(), Expectations.isSuccess());
+        given(inputPayload("filter-me"))
+            .when(process((ioContext, c) -> c.stopExecution()))
+            .then(isExecutionStopped(), isSuccess());
     }
 
     // -------------------------------------------------------------------------
@@ -61,16 +59,16 @@ public class PipeliteTestFixtureBaseTest {
 
     @Test
     public void givenProcessor_whenSetsOutputPayload_thenGetOutputPayloadReturnsIt() {
-        PipeliteTestFixture.given(Preconditions.inputPayload(100))
-            .when(Actions.process((ioContext, c) -> ioContext.setOutputPayload(200)))
-            .then(Expectations.payloadEquals(200));
+        given(inputPayload(100))
+            .when(process((ioContext, c) -> ioContext.setOutputPayload(200)))
+            .then(payloadEquals(200));
     }
 
     @Test
     public void givenProcessor_whenDoesNotSetOutput_thenInputPayloadIsForwarded() {
-        PipeliteTestFixture.given(Preconditions.inputPayload("original"))
-            .when(Actions.process((ioContext, c) -> { /* no output set */ }))
-            .then(Expectations.payloadEquals("original"));
+        given(inputPayload("original"))
+            .when(process((ioContext, c) -> { /* no output set */ }))
+            .then(payloadEquals("original"));
     }
 
     @Test
@@ -78,26 +76,26 @@ public class PipeliteTestFixtureBaseTest {
         Map<String, Object> transformed = new HashMap<>();
         transformed.put("price", 122.0);
 
-        ThenOperations then = PipeliteTestFixture.given(Preconditions.inputPayload(Map.of("price", 100)))
-            .when(Actions.process((ioContext, c) -> ioContext.setOutputPayload(transformed)))
-            .then(Expectations.payloadEquals(transformed));
+        ThenOperations then = given(inputPayload(Map.of("price", 100)))
+            .when(process((ioContext, c) -> ioContext.setOutputPayload(transformed)))
+            .then(payloadEquals(transformed));
 
         then.getOutputPayloadAs(Map.class);
     }
 
     @Test(expected = ClassCastException.class)
     public void givenProcessor_whenGetOutputPayloadAsWrongType_thenThrowsClassCastException() {
-        ThenOperations then = PipeliteTestFixture.given(Preconditions.inputPayload("text"))
-            .when(Actions.process((ioContext, c) -> ioContext.setOutputPayload("result")));
+        ThenOperations then = given(inputPayload("text"))
+            .when(process((ioContext, c) -> ioContext.setOutputPayload("result")));
 
         then.getOutputPayloadAs(Integer.class);
     }
 
     @Test
     public void givenNoPayload_whenExecuteProcessor_thenOutputPayloadIsNull() {
-        PipeliteTestFixture.given()
-            .when(Actions.process((ioContext, c) -> { /* nothing */ }))
-            .then(Expectations.payloadEquals(null));
+        given()
+            .when(process((ioContext, c) -> { /* nothing */ }))
+            .then(payloadEquals(null));
     }
 
     // -------------------------------------------------------------------------
@@ -108,10 +106,10 @@ public class PipeliteTestFixtureBaseTest {
     public void givenHeader_whenProcessorReadsIt_thenValueIsCorrect() {
         String[] capturedValue = new String[1];
 
-        PipeliteTestFixture.given(
-                Preconditions.header("Source-System", "Legacy-API"),
-                Preconditions.inputPayload("data"))
-            .when(Actions.process((ioContext, c) -> capturedValue[0] = ioContext.tryGetHeader("Source-System").orElse(null)))
+        given(
+                header("Source-System", "Legacy-API"),
+                inputPayload("data"))
+            .when(process((ioContext, c) -> capturedValue[0] = ioContext.tryGetHeader("Source-System").orElse(null)))
             .then((exchange, contribution) -> {
                 if (!"Legacy-API".equals(capturedValue[0])) {
                     throw new AssertionError(String.format(
@@ -122,37 +120,37 @@ public class PipeliteTestFixtureBaseTest {
 
     @Test
     public void givenMultipleHeaders_whenExecuteProcessor_thenAllHeadersAvailableAfterExecution() {
-        PipeliteTestFixture.given(
-                Preconditions.header("X-Tenant", "acme"),
-                Preconditions.header("X-Correlation-Id", "abc-123"),
-                Preconditions.inputPayload("data"))
-            .when(Actions.process((ioContext, c) -> { /* nothing */ }))
+        given(
+                header("X-Tenant", "acme"),
+                header("X-Correlation-Id", "abc-123"),
+                inputPayload("data"))
+            .when(process((ioContext, c) -> { /* nothing */ }))
             .then(
-                Expectations.headerEquals("X-Tenant", "acme"),
-                Expectations.headerEquals("X-Correlation-Id", "abc-123"));
+                headerEquals("X-Tenant", "acme"),
+                headerEquals("X-Correlation-Id", "abc-123"));
     }
 
     @Test
     public void givenProcessor_whenAddsHeader_thenNewHeaderIsVisibleAfterExecution() {
-        PipeliteTestFixture.given(Preconditions.inputPayload("data"))
-            .when(Actions.process((ioContext, c) -> ioContext.putHeader("X-Processed-By", "unit-test")))
-            .then(Expectations.headerEquals("X-Processed-By", "unit-test"));
+        given(inputPayload("data"))
+            .when(process((ioContext, c) -> ioContext.putHeader("X-Processed-By", "unit-test")))
+            .then(headerEquals("X-Processed-By", "unit-test"));
     }
 
     @Test
     public void givenAbsentHeader_whenGetHeaderAs_thenReturnsNull() {
-        PipeliteTestFixture.given(Preconditions.inputPayload("data"))
-            .when(Actions.process((ioContext, c) -> { /* nothing */ }))
-            .then(Expectations.noHeader("X-Missing"));
+        given(inputPayload("data"))
+            .when(process((ioContext, c) -> { /* nothing */ }))
+            .then(noHeader("X-Missing"));
     }
 
     @Test
     public void givenIntegerHeader_whenGetHeaderAs_thenReturnsTypedValue() {
-        PipeliteTestFixture.given(
-                Preconditions.header("Retry-Count", 3),
-                Preconditions.inputPayload("data"))
-            .when(Actions.process((ioContext, c) -> { /* nothing */ }))
-            .then(Expectations.headerEquals("Retry-Count", 3));
+        given(
+                header("Retry-Count", 3),
+                inputPayload("data"))
+            .when(process((ioContext, c) -> { /* nothing */ }))
+            .then(headerEquals("Retry-Count", 3));
     }
 
     // -------------------------------------------------------------------------
@@ -161,9 +159,9 @@ public class PipeliteTestFixtureBaseTest {
 
     @Test
     public void givenProcessor_whenAssertingPayloadAs_thenCustomAssertionsRun() {
-        PipeliteTestFixture.given(Preconditions.inputPayload(21))
-            .when(Actions.process((ioContext, c) -> ioContext.setOutputPayload(ioContext.getInputPayloadAs(Integer.class) * 2)))
-            .then(Expectations.payloadAs(Integer.class, value -> Assert.assertEquals(Integer.valueOf(42), value)));
+        given(inputPayload(21))
+            .when(process((ioContext, c) -> ioContext.setOutputPayload(ioContext.getInputPayloadAs(Integer.class) * 2)))
+            .then(payloadAs(Integer.class, value -> Assert.assertEquals(Integer.valueOf(42), value)));
     }
 
     // -------------------------------------------------------------------------
@@ -172,11 +170,11 @@ public class PipeliteTestFixtureBaseTest {
 
     @Test(expected = IllegalStateException.class)
     public void whenGetOutputPayloadCalledBeforeProcess_thenThrowsIllegalStateException() {
-        ((ThenOperations) PipeliteTestFixture.given(Preconditions.inputPayload("data"))).getOutputPayload();
+        ((ThenOperations) given(inputPayload("data"))).getOutputPayload();
     }
 
     @Test(expected = IllegalStateException.class)
     public void whenGetHeaderAsCalledBeforeProcess_thenThrowsIllegalStateException() {
-        ((ThenOperations) PipeliteTestFixture.given()).getHeaderAs("X-Anything", String.class);
+        ((ThenOperations) given()).getHeaderAs("X-Anything", String.class);
     }
 }

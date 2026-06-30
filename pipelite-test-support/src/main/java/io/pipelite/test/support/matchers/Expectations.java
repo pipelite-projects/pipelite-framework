@@ -26,8 +26,7 @@ import java.util.function.Consumer;
 
 /**
  * Factory for the built-in {@link Expectation}s usable with
- * {@link ThenOperations#then(Expectation...)} and
- * {@link ThenOperations#inspectStep(String, Expectation...)}.
+ * {@link ThenOperations#then(Expectation...)}.
  */
 public final class Expectations {
 
@@ -189,6 +188,58 @@ public final class Expectations {
                     type.getName(), payload.getClass().getName()));
             }
             assertions.accept(type.cast(payload));
+        };
+    }
+
+    /**
+     * Groups one or more expectations that apply to the <em>final</em> exchange —
+     * i.e. the output captured at the flow sink (flow mode) or the exchange
+     * produced by the processor (processor mode). Use alongside {@link #step}
+     * inside a single {@code then(...)} call to make the target of each
+     * assertion explicit.
+     *
+     * <pre>{@code
+     * .then(
+     *     output(isExecutionCompleted(), payloadEquals("ok")),
+     *     step("enrich", hasHeader("X-Enriched-By")));
+     * }</pre>
+     */
+    public static Expectation output(Expectation... expectations) {
+        return (exchange, contribution) -> {
+            for (Expectation expectation : expectations) {
+                expectation.verify(exchange, contribution);
+            }
+        };
+    }
+
+    /**
+     * Creates a {@link StepExpectation} that evaluates {@code expectations}
+     * against the exchange snapshot captured right after the named step
+     * executed during {@code Actions.supplyTo(...)}. Pass it to
+     * {@code then(...)} alongside {@link #output} assertions (or plain
+     * expectations) to verify intermediate pipeline state in one call.
+     *
+     * <pre>{@code
+     * .then(
+     *     output(isExecutionCompleted(), payloadEquals("final")),
+     *     step("transform", payloadEquals("intermediate")));
+     * }</pre>
+     *
+     * @throws AssertionError if the named step was never reached
+     */
+    public static StepExpectation step(String stepName, Expectation... expectations) {
+        return new StepExpectation() {
+            @Override
+            public String stepName() {
+                return stepName;
+            }
+
+            @Override
+            public void verify(Exchange exchange, TestProcessContribution contribution) {
+                for (Expectation expectation : expectations) {
+                    expectation.verify(exchange, contribution);
+                }
+            }
         };
     }
 

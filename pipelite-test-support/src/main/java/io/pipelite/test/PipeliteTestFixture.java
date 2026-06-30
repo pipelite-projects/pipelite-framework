@@ -36,7 +36,10 @@ import io.pipelite.spi.flow.exchange.Message;
 import io.pipelite.spi.flow.exchange.MessageFactory;
 import io.pipelite.test.support.impl.CaptureChannelAdapter;
 import io.pipelite.test.support.impl.StepSnapshotCapture;
-import io.pipelite.test.support.matchers.*;
+import io.pipelite.test.support.matchers.Action;
+import io.pipelite.test.support.matchers.Expectation;
+import io.pipelite.test.support.matchers.Precondition;
+import io.pipelite.test.support.matchers.StepExpectation;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -93,8 +96,9 @@ import java.util.concurrent.TimeoutException;
  *         Preconditions.header("X-Order-Id", "ORD-001"),
  *         Preconditions.inputPayload(order))
  *     .when(Actions.supplyTo("orders-in"))
- *     .then(Expectations.isExecutionCompleted())
- *     .inspectStep("enrich", Expectations.hasHeader("X-Enriched-By"));
+ *     .then(
+ *         output(Expectations.isExecutionCompleted()),
+ *         step("enrich", Expectations.hasHeader("X-Enriched-By")));
  * }</pre>
  *
  * <p>{@link ThenOperations#getHeaderAs(String, Class)} is kept alongside
@@ -276,20 +280,18 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
     public ThenOperations then(Expectation... expectations) {
         final Exchange exchangeUnderInspection = isFlowMode() ? capturedFlowExchange : exchange;
         for (Expectation expectation : expectations) {
-            expectation.verify(exchangeUnderInspection, contribution);
-        }
-        return this;
-    }
-
-    @Override
-    public ThenOperations inspectStep(String stepName, Expectation... expectations) {
-        final Exchange snapshot = stepSnapshots.get(stepName);
-        if (snapshot == null) {
-            throw new AssertionError(String.format(
-                "Step '%s' was not reached during flow execution", stepName));
-        }
-        for (Expectation expectation : expectations) {
-            expectation.verify(snapshot, null);
+            if (expectation instanceof StepExpectation) {
+                final StepExpectation stepExpectation = (StepExpectation) expectation;
+                final String stepName = stepExpectation.stepName();
+                final Exchange snapshot = stepSnapshots.get(stepName);
+                if (snapshot == null) {
+                    throw new AssertionError(String.format(
+                        "Step '%s' was not reached during flow execution", stepName));
+                }
+                stepExpectation.verify(snapshot, null);
+            } else {
+                expectation.verify(exchangeUnderInspection, contribution);
+            }
         }
         return this;
     }
