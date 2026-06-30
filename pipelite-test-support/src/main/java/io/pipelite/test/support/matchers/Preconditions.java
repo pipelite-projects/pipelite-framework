@@ -77,8 +77,14 @@ public final class Preconditions {
      * Overrides the default capture timeout (5 s) used by {@code Actions.supplyTo(...)}.
      * Reduce this when testing flows that intentionally stop or filter messages
      * before reaching the {@code test://} sink.
+     *
+     * @throws IllegalArgumentException if {@code seconds} is not positive
      */
     public static Precondition timeout(long seconds) {
+        if (seconds <= 0) {
+            throw new IllegalArgumentException(
+                "timeout must be a positive number of seconds, got: " + seconds);
+        }
         return target -> target.timeout(seconds);
     }
 }

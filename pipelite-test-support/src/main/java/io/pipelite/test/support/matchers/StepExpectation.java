@@ -22,11 +22,27 @@ package io.pipelite.test.support.matchers;
  * routes it to the step snapshot identified by {@link #stepName()} instead
  * of the final exchange.
  *
- * <p>If multiple registered flows contain a step with the same name,
- * the fixture throws an {@link AssertionError} explaining the ambiguity.
- * Implement {@link #flowName()} (or use
- * {@link Expectations#step(String, String, Expectation...)}) to
- * pin the expectation to a specific flow and resolve the ambiguity.
+ * <p>If multiple registered flows contain a step with the same name, the
+ * fixture throws an {@link AssertionError} explaining the ambiguity. Implement
+ * {@link #flowName()} (or use
+ * {@link Expectations#step(String, String, Expectation...)}) to pin the
+ * expectation to a specific flow and resolve the ambiguity.
+ *
+ * <h3>Why this is not {@code @FunctionalInterface}</h3>
+ * <p>{@link Expectation} is {@code @FunctionalInterface} and can be written as
+ * a lambda. {@code StepExpectation} cannot be, because it adds a second
+ * abstract method ({@link #stepName()}) that makes the interface non-functional.
+ * To create a custom step expectation, use an anonymous class or, preferably,
+ * delegate to {@link Expectations#step(String, Expectation...)} and pass a
+ * lambda as the inner {@code Expectation}.
+ *
+ * <h3>Direct use as {@code Expectation}</h3>
+ * <p>Because {@code StepExpectation extends Expectation}, a {@code StepExpectation}
+ * instance can be passed anywhere an {@code Expectation} is expected (e.g. inside
+ * {@link Expectations#output(Expectation...)}). In that context {@link #stepName()}
+ * and {@link #flowName()} are ignored — the expectation is verified against
+ * whichever exchange the caller supplies. This is intentional: the step-routing
+ * logic lives in {@code then(...)}, not in the expectation itself.
  */
 public interface StepExpectation extends Expectation {
 

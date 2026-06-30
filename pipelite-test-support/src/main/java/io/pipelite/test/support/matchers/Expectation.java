@@ -20,12 +20,13 @@ import io.pipelite.test.TestProcessContribution;
 import io.pipelite.test.ThenOperations;
 
 /**
- * A single, composable assertion evaluated by {@link ThenOperations#then(Expectation...)}
- * or {@link ThenOperations#inspectStep(String, Expectation...)}.
+ * A single, composable assertion evaluated by {@link ThenOperations#then(Expectation...)}.
  *
  * <p>{@code contribution} is {@code null} when verifying a flow-mode exchange
- * (via {@code supplyTo} or {@code inspectStep}), since contributions only
- * exist for isolated processor executions.
+ * (captured via {@code supplyTo} or a step snapshot), since contributions only
+ * exist for isolated processor executions. Expectations that require a
+ * contribution (e.g. {@link Expectations#isSuccess()}) throw
+ * {@link AssertionError} with a clear message when invoked in flow mode.
  */
 @FunctionalInterface
 public interface Expectation {

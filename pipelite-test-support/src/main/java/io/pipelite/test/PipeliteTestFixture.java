@@ -118,6 +118,13 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
     private Object inputPayload;
 
     // --- processor mode ---
+    // This factory is used in processor mode (process()). In flow mode the
+    // context creates its own DefaultExchangeFactory (context.getExchangeFactory()).
+    // Both are DefaultExchangeFactory instances with the same configuration, so
+    // behaviour is symmetric across modes. If the two factories ever diverged
+    // (e.g. via custom MessageFactory), flow-mode snapshots could differ from
+    // processor-mode assertions — the field below is the authoritative source for
+    // processor mode.
     private final ExchangeFactory exchangeFactory;
     private Exchange exchange;
     private TestProcessContribution contribution;
@@ -126,7 +133,9 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
     private final List<FlowDefinition> flowDefinitions;
     private long timeoutSeconds = DEFAULT_TIMEOUT_SECONDS;
     private Exchange capturedFlowExchange;
-    private boolean flowExecuted;
+    // True once supplyTo() is called, regardless of whether the flow completed
+    // before timeout. Signals "flow mode is active" not "flow executed successfully".
+    private boolean flowMode;
     private final Map<String, Exchange> stepSnapshots;
 
     private PipeliteTestFixture() {
@@ -202,7 +211,7 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
     @Override
     public ThenOperations supplyTo(String entryPointEndpoint) {
         stepSnapshots.clear();
-        flowExecuted = true;
+        flowMode = true;
 
         final String testId = UUID.randomUUID().toString();
         final CompletableFuture<Exchange> captureFuture = CaptureChannelAdapter.register(testId);
@@ -234,7 +243,7 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
         Exchange captured = null;
         try {
             final Exchange flowExchange = context.getExchangeFactory().createExchange(headers, inputPayload);
-            flowExchange.setProperty(CaptureChannelAdapter.TEST_ID_PROPERTY, testId);
+            CaptureChannelAdapter.attachTestId(flowExchange, testId);
             context.supplyExchange(entryPointEndpoint, flowExchange);
             captured = captureFuture.get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (TimeoutException ignored) {
@@ -400,7 +409,7 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
     // -------------------------------------------------------------------------
 
     private boolean isFlowMode() {
-        return flowExecuted;
+        return flowMode;
     }
 
     private Exchange requireExchangeAvailable() {

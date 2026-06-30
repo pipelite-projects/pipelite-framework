@@ -165,6 +165,39 @@ public class PipeliteTestFixtureBaseTest {
     }
 
     // -------------------------------------------------------------------------
+    // payloadAs — null payload edge case (Finding #15)
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void givenNullPayload_whenPayloadAs_thenConsumerReceivesNull() {
+        // Regression test for Finding #15: payloadAs(Class, Consumer) must not throw
+        // when both input and output payloads are null — the consumer should receive null.
+        given()
+            .when(process((ioContext, c) -> { /* no payload set */ }))
+            .then(payloadAs(String.class, value -> Assert.assertNull(value)));
+    }
+
+    // -------------------------------------------------------------------------
+    // Processor-mode expectation used in flow mode (Finding #12)
+    // -------------------------------------------------------------------------
+
+    @Test(expected = AssertionError.class)
+    public void givenFlowMode_whenProcessorModeExpectationUsed_thenClearAssertionError() {
+        // Regression test for Finding #12: isSuccess() / isFailure() / isExecutionStopped()
+        // require a TestProcessContribution that does not exist in flow mode.
+        // The error must be a clear AssertionError, not a NullPointerException.
+        io.pipelite.dsl.definition.FlowDefinition flow = io.pipelite.core.Pipelite.defineFlow("pm-in-fm")
+            .fromSource("pm-in")
+            .process("step", (io, c) -> {})
+            .toSink("pm-out")
+            .build();
+
+        given(flowDefinition(flow), inputPayload("x"))
+            .when(supplyTo("pm-in"))
+            .then(isSuccess());
+    }
+
+    // -------------------------------------------------------------------------
     // Guard clause: when(...) must be called before inspection methods
     // -------------------------------------------------------------------------
 

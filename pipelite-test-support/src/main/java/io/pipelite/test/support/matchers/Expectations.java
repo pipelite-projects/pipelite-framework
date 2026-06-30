@@ -205,6 +205,11 @@ public final class Expectations {
      * }</pre>
      */
     public static Expectation output(Expectation... expectations) {
+        if (expectations.length == 0) {
+            throw new IllegalArgumentException(
+                "output() requires at least one Expectation — an empty output() is a silent no-op "
+                    + "that can mask a test written by mistake");
+        }
         return (exchange, contribution) -> {
             for (Expectation expectation : expectations) {
                 expectation.verify(exchange, contribution);
@@ -298,8 +303,9 @@ public final class Expectations {
     private static void requireContribution(TestProcessContribution contribution) {
         if (contribution == null) {
             throw new AssertionError(
-                "This expectation requires a TestProcessContribution, which is only available in processor mode "
-                    + "(after ExecutionTarget#process) — it cannot be used with supplyTo() or inspectStep()");
+                "This expectation is only valid in processor mode (after ExecutionTarget#process). "
+                    + "It cannot be used in flow mode (after supplyTo()) because TestProcessContribution "
+                    + "is not available — use isExecutionCompleted() / isNotExecutionCompleted() instead.");
         }
     }
 }

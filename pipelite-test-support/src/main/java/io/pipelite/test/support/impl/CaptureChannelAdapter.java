@@ -58,7 +58,9 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class CaptureChannelAdapter implements ChannelAdapter {
 
-    public static final String TEST_ID_PROPERTY = "__pipelite_test_id__";
+    // Package-private: production flows must never reference this property key directly.
+    // Use attachTestId(Exchange, String) from PipeliteTestFixture instead.
+    static final String TEST_ID_PROPERTY = "io.pipelite.test.internal.capture.id";
 
     /**
      * The single {@code test://} endpoint every non-{@code link://} sink is
@@ -79,6 +81,16 @@ public class CaptureChannelAdapter implements ChannelAdapter {
 
     public static void deregister(String testId) {
         PENDING.remove(testId);
+    }
+
+    /**
+     * Stamps {@code testId} onto the exchange so that {@link CaptureProducer}
+     * can route it to the correct pending future. Called by
+     * {@link io.pipelite.test.PipeliteTestFixture} only — not part of the
+     * public API and must not be called from production flow code.
+     */
+    public static void attachTestId(Exchange exchange, String testId) {
+        exchange.setProperty(TEST_ID_PROPERTY, testId);
     }
 
     @Override
