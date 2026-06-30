@@ -24,6 +24,7 @@ import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.test.PipeliteTestFixture;
 
+import java.lang.ref.WeakReference;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -37,8 +38,20 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>Because Pipelite's {@code EventDrivenConsumer} processes exchanges on a
  * dedicated background thread, the capture is coordinated through a
- * {@link CompletableFuture} keyed by a per-invocation test ID that the fixture
- * stores as an internal exchange property.
+ * {@link CompletableFuture} keyed by a per-invocation UUID that the fixture
+ * stores as an internal exchange property. Each {@code supplyTo()} invocation
+ * generates a fresh UUID, so concurrent test executions are fully isolated
+ * even when tests run in parallel within the same JVM.
+ *
+ * <h3>Memory safety</h3>
+ * <p>{@code PENDING} stores {@link WeakReference}s to the futures rather than
+ * strong references. {@link PipeliteTestFixture#supplyTo(String)} holds the
+ * only strong reference to each future for the duration of the test call and
+ * always calls {@link #deregister(String)} in its {@code finally} block to
+ * remove the entry explicitly. If the JVM is abnormally terminated (e.g.
+ * {@code System.exit()}, JVM crash) before {@code deregister} runs, the weak
+ * references allow the futures (and the captured exchanges they may hold)
+ * to be collected without being pinned by this map.
  *
  * <p>Registered automatically via {@code META-INF/pipelite.factories} whenever
  * {@code pipelite-test-support} is on the classpath.
@@ -55,12 +68,12 @@ public class CaptureChannelAdapter implements ChannelAdapter {
      */
     public static final String CAPTURE_ENDPOINT_URL = "test://capture";
 
-    private static final ConcurrentHashMap<String, CompletableFuture<Exchange>> PENDING =
+    private static final ConcurrentHashMap<String, WeakReference<CompletableFuture<Exchange>>> PENDING =
         new ConcurrentHashMap<>();
 
     public static CompletableFuture<Exchange> register(String testId) {
-        CompletableFuture<Exchange> future = new CompletableFuture<>();
-        PENDING.put(testId, future);
+        final CompletableFuture<Exchange> future = new CompletableFuture<>();
+        PENDING.put(testId, new WeakReference<>(future));
         return future;
     }
 
@@ -95,9 +108,12 @@ public class CaptureChannelAdapter implements ChannelAdapter {
         public void process(Exchange exchange) {
             final String testId = exchange.getProperty(TEST_ID_PROPERTY, String.class);
             if (testId != null) {
-                final CompletableFuture<Exchange> future = PENDING.get(testId);
-                if (future != null) {
-                    future.complete(exchange);
+                final WeakReference<CompletableFuture<Exchange>> ref = PENDING.get(testId);
+                if (ref != null) {
+                    final CompletableFuture<Exchange> future = ref.get();
+                    if (future != null) {
+                        future.complete(exchange);
+                    }
                 }
             }
         }
