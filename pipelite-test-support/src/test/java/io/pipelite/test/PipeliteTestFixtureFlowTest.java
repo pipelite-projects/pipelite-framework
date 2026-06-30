@@ -346,6 +346,45 @@ public class PipeliteTestFixtureFlowTest {
                 step("step2", payloadEquals(20)));
     }
 
+    @Test
+    public void givenReusedFlowDefinition_whenSupplyToTwice_thenStepSnapshotReflectsCurrentRun() {
+        // Regression test for Finding #9: reusing the same FlowDefinition object across
+        // multiple supplyTo() calls accumulates StepSnapshotCapture instances on the shared
+        // FlowNode. The deactivate() mechanism ensures earlier captures become no-ops so
+        // only the current run's snapshot is visible.
+        FlowDefinition flow = Pipelite.defineFlow("reused-flow")
+            .fromSource("reused-in")
+            .process("double", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(Integer.class) * 2))
+            .toSink("reused-out")
+            .build();
+
+        given(flowDefinition(flow), inputPayload(5))
+            .when(supplyTo("reused-in"))
+            .then(output(isExecutionCompleted()), step("double", payloadEquals(10)));
+
+        given(flowDefinition(flow), inputPayload(7))
+            .when(supplyTo("reused-in"))
+            .then(output(isExecutionCompleted()), step("double", payloadEquals(14)));
+    }
+
+    @Test(expected = AssertionError.class)
+    public void givenProcessorThatThrows_whenSupplyTo_thenAssertionErrorWithCause() {
+        // Regression test for Finding #8: a RuntimeException thrown inside a processor
+        // previously caused the CompletableFuture to time out silently, giving no diagnostic.
+        // The injected ExceptionHandler now records the exception so the timeout catch can
+        // rethrow it as an AssertionError with the original message as cause.
+        FlowDefinition flow = Pipelite.defineFlow("exception-flow")
+            .fromSource("exc-in")
+            .process("fail", (io, c) -> { throw new RuntimeException("simulated processor failure"); })
+            .toSink("exc-out")
+            .build();
+
+        given(
+                flowDefinition(flow),
+                inputPayload("trigger"))
+            .when(supplyTo("exc-in"));
+    }
+
     @Test(expected = AssertionError.class)
     public void givenStepNotReached_whenInspectStep_thenThrowsAssertionError() {
         FlowDefinition flow = Pipelite.defineFlow("unreached-step-flow")

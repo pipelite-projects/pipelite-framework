@@ -51,6 +51,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 /**
  * Single entry-point, BDD-style test fixture for Pipelite components.
@@ -206,8 +208,27 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
         final CompletableFuture<Exchange> captureFuture = CaptureChannelAdapter.register(testId);
 
         final DefaultPipeliteContext context = new DefaultPipeliteContext();
-        flowDefinitions.stream().map(this::redirectSinkToCapture).forEach(context::registerFlowDefinition);
-        registerStepSnapshotCapture(context.getExchangeFactory());
+        final List<FlowDefinition> copies = flowDefinitions.stream()
+            .map(this::redirectSinkToCapture)
+            .collect(Collectors.toList());
+
+        // Finding 8 fix: capture any exception thrown by a processor so we can report
+        // it as a clear AssertionError instead of letting the test time out silently.
+        // We inject a wrapping ExceptionHandler on each copy (not the originals) so
+        // that FlowFactory wires it onto every FlowNode when context.start() runs.
+        final AtomicReference<Throwable> flowFailure = new AtomicReference<>();
+        for (FlowDefinition copy : copies) {
+            final ExceptionHandler original = copy.getExceptionHandler(ExceptionHandler.class);
+            ((FlowDefinitionImpl) copy).setExceptionHandler((exception, exchange) -> {
+                flowFailure.compareAndSet(null, exception);
+                if (original != null) {
+                    original.handleException(exception, exchange);
+                }
+            });
+        }
+
+        copies.forEach(context::registerFlowDefinition);
+        final StepSnapshotCapture snapshotCapture = registerStepSnapshotCapture(copies, context.getExchangeFactory());
         context.start();
 
         Exchange captured = null;
@@ -217,12 +238,18 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
             context.supplyExchange(entryPointEndpoint, flowExchange);
             captured = captureFuture.get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (TimeoutException ignored) {
-            // flow did not reach the test sink within the timeout
+            final Throwable failure = flowFailure.get();
+            if (failure != null) {
+                throw new AssertionError(
+                    "Flow execution failed with an unhandled exception: " + failure.getMessage(), failure);
+            }
+            // genuine timeout: flow was filtered, stopped, or too slow
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (ExecutionException e) {
             throw new RuntimeException("Unexpected error waiting for flow capture", e);
         } finally {
+            snapshotCapture.deactivate();
             CaptureChannelAdapter.deregister(testId);
             context.stop();
         }
@@ -233,13 +260,20 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
 
     /**
      * Returns a copy of {@code original} with the same flow name, source,
-     * processor steps (the very same {@link FlowNode} instances, so
-     * {@link #registerStepSnapshotCapture} keeps working) and exception
-     * handler, but with its terminal sink redirected to an internal
-     * {@code test://} capture endpoint — unless that sink is a {@code link://}
-     * hop to another registered flow, which must be left untouched so
-     * multi-flow chaining keeps working. A flow with no sink (e.g. a
-     * recipient-list sub-flow) is copied with no sink either.
+     * processor steps and exception handler, but with its terminal sink
+     * redirected to an internal {@code test://} capture endpoint — unless
+     * that sink is a {@code link://} hop to another registered flow, which
+     * must be left untouched so multi-flow chaining keeps working. A flow
+     * with no sink (e.g. a recipient-list sub-flow) is copied with no sink.
+     *
+     * <p><strong>Note on shared {@code FlowNode} instances:</strong> the copy
+     * reuses the same {@link ProcessorDefinition} (and thus the same
+     * {@link FlowNode}) instances as the original. {@link #registerStepSnapshotCapture}
+     * therefore registers post-processors on nodes that are also owned by the
+     * caller's {@code FlowDefinition}. This is a known limitation: those
+     * post-processors are always {@link StepSnapshotCapture#deactivate() deactivated}
+     * after each run so that accumulated captures on reused definitions become
+     * no-ops and do not interfere with subsequent tests.
      */
     private FlowDefinition redirectSinkToCapture(FlowDefinition original) {
         final FlowDefinitionImpl copy = new FlowDefinitionImpl(original.getFlowName());
@@ -261,15 +295,24 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
         return copy;
     }
 
-    private void registerStepSnapshotCapture(ExchangeFactory contextExchangeFactory) {
+    /**
+     * Registers a single {@link StepSnapshotCapture} on every {@link FlowNode}
+     * of every flow in {@code copiedFlows} and returns it. The caller is
+     * responsible for calling {@link StepSnapshotCapture#deactivate()} after
+     * the context stops, so that accumulated captures on shared (reused)
+     * {@code FlowNode} instances become no-ops in future test runs.
+     */
+    private StepSnapshotCapture registerStepSnapshotCapture(
+            List<FlowDefinition> copiedFlows, ExchangeFactory contextExchangeFactory) {
         final StepSnapshotCapture capture = new StepSnapshotCapture(stepSnapshots, contextExchangeFactory);
-        for (FlowDefinition flowDefinition : flowDefinitions) {
+        for (FlowDefinition flowDefinition : copiedFlows) {
             final Iterator<ProcessorDefinition> processorDefinitions = flowDefinition.iterateProcessorDefinitions();
             while (processorDefinitions.hasNext()) {
                 final ProcessorDefinition processorDefinition = processorDefinitions.next();
                 processorDefinition.getProcessor(FlowNode.class).addExchangePostProcessor(capture);
             }
         }
+        return capture;
     }
 
     // -------------------------------------------------------------------------
