@@ -227,8 +227,52 @@ public final class Expectations {
      *
      * @throws AssertionError if the named step was never reached
      */
+    /**
+     * Creates a {@link StepExpectation} that evaluates {@code expectations}
+     * against the exchange snapshot captured right after the named step
+     * executed. Pass it to {@code then(...)} alongside {@link #output}
+     * assertions (or plain expectations) to verify intermediate pipeline
+     * state in one call.
+     *
+     * <p>If multiple registered flows contain a step with the same name,
+     * {@code then(...)} throws an {@link AssertionError} reporting the
+     * ambiguity. Use {@link #step(String, String, Expectation...)} to pin
+     * the expectation to a specific flow.
+     *
+     * @throws AssertionError if the named step was never reached, or if the
+     *     name is ambiguous across registered flows
+     */
     public static StepExpectation step(String stepName, Expectation... expectations) {
         return new StepExpectation() {
+            @Override
+            public String stepName() {
+                return stepName;
+            }
+
+            @Override
+            public void verify(Exchange exchange, TestProcessContribution contribution) {
+                for (Expectation expectation : expectations) {
+                    expectation.verify(exchange, contribution);
+                }
+            }
+        };
+    }
+
+    /**
+     * Creates a {@link StepExpectation} pinned to {@code flowName}, for use
+     * when multiple registered flows contain a step with the same name. The
+     * expectation is evaluated against the snapshot captured after step
+     * {@code stepName} ran inside {@code flowName}.
+     *
+     * @throws AssertionError if the named step in the named flow was never reached
+     */
+    public static StepExpectation step(String flowName, String stepName, Expectation... expectations) {
+        return new StepExpectation() {
+            @Override
+            public String flowName() {
+                return flowName;
+            }
+
             @Override
             public String stepName() {
                 return stepName;

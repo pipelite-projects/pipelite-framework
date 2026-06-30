@@ -24,9 +24,11 @@ import io.pipelite.test.PipeliteTestFixture;
 import java.util.Map;
 
 /**
- * Snapshots the exchange right after each step executes, keyed by step name,
- * so {@code step(...)} assertions inside {@code then(...)} can verify
- * intermediate state of an otherwise asynchronous flow.
+ * Snapshots the exchange right after each step executes, keyed by
+ * {@code "flowName::stepName"}, so {@code step(...)} assertions inside
+ * {@code then(...)} can verify intermediate state of an otherwise
+ * asynchronous flow. The composite key prevents name collisions when
+ * multiple linked flows contain steps with the same name.
  *
  * <p>Registered on every {@code FlowNode} of every flow definition copy
  * before the context is started — see {@link PipeliteTestFixture#supplyTo(String)}.
@@ -64,6 +66,6 @@ public class StepSnapshotCapture implements ExchangePostProcessor {
         if (!active) {
             return;
         }
-        snapshots.put(ctx.getProcessorName(), exchangeFactory.copyExchange(exchange));
+        snapshots.put(ctx.getFlowName() + "::" + ctx.getProcessorName(), exchangeFactory.copyExchange(exchange));
     }
 }

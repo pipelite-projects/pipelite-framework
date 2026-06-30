@@ -21,8 +21,23 @@ package io.pipelite.test.support.matchers;
  * When passed to {@link io.pipelite.test.ThenOperations#then}, the fixture
  * routes it to the step snapshot identified by {@link #stepName()} instead
  * of the final exchange.
+ *
+ * <p>If multiple registered flows contain a step with the same name,
+ * the fixture throws an {@link AssertionError} explaining the ambiguity.
+ * Implement {@link #flowName()} (or use
+ * {@link Expectations#step(String, String, Expectation...)}) to
+ * pin the expectation to a specific flow and resolve the ambiguity.
  */
 public interface StepExpectation extends Expectation {
 
     String stepName();
+
+    /**
+     * Optional flow name for disambiguation. When {@code null} (the default),
+     * {@code then(...)} resolves the snapshot by step name alone and throws
+     * if the name matches steps in more than one registered flow.
+     */
+    default String flowName() {
+        return null;
+    }
 }

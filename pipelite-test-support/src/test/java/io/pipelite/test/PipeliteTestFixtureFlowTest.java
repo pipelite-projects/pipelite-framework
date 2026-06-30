@@ -401,4 +401,60 @@ public class PipeliteTestFixtureFlowTest {
             .when(supplyTo("in"))
             .then(step("never-reached", hasHeader("anything")));
     }
+
+    // -------------------------------------------------------------------------
+    // Finding #11 — duplicate step names across linked flows
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void givenTwoFlowsWithSameStepName_whenDisambiguatedByFlowName_thenCorrectSnapshotUsed() {
+        // Regression test for Finding #11: two flows sharing a step name "transform"
+        // previously overwrote each other's snapshot silently. Disambiguation via
+        // step(flowName, stepName) must route to the correct snapshot.
+        FlowDefinition flowA = Pipelite.defineFlow("flow-a")
+            .fromSource("a-in")
+            .process("transform", (io, c) -> io.setOutputPayload("A"))
+            .toSink("link://b-in")
+            .build();
+
+        FlowDefinition flowB = Pipelite.defineFlow("flow-b")
+            .fromSource("b-in")
+            .process("transform", (io, c) -> io.setOutputPayload("B"))
+            .toSink("b-out")
+            .build();
+
+        given(
+                flowDefinition(flowA),
+                flowDefinition(flowB),
+                inputPayload("start"))
+            .when(supplyTo("a-in"))
+            .then(
+                output(isExecutionCompleted()),
+                step("flow-a", "transform", payloadEquals("A")),
+                step("flow-b", "transform", payloadEquals("B")));
+    }
+
+    @Test(expected = AssertionError.class)
+    public void givenTwoFlowsWithSameStepName_whenStepReferenceIsAmbiguous_thenAssertionError() {
+        // step("transform") without a flow name is ambiguous when two flows each
+        // have a step named "transform" — must throw AssertionError.
+        FlowDefinition flowA = Pipelite.defineFlow("flow-amb-a")
+            .fromSource("amb-a-in")
+            .process("transform", (io, c) -> io.setOutputPayload("A"))
+            .toSink("link://amb-b-in")
+            .build();
+
+        FlowDefinition flowB = Pipelite.defineFlow("flow-amb-b")
+            .fromSource("amb-b-in")
+            .process("transform", (io, c) -> io.setOutputPayload("B"))
+            .toSink("amb-b-out")
+            .build();
+
+        given(
+                flowDefinition(flowA),
+                flowDefinition(flowB),
+                inputPayload("start"))
+            .when(supplyTo("amb-a-in"))
+            .then(step("transform", payloadEquals("A")));
+    }
 }

@@ -325,18 +325,45 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
         for (Expectation expectation : expectations) {
             if (expectation instanceof StepExpectation) {
                 final StepExpectation stepExpectation = (StepExpectation) expectation;
-                final String stepName = stepExpectation.stepName();
-                final Exchange snapshot = stepSnapshots.get(stepName);
-                if (snapshot == null) {
-                    throw new AssertionError(String.format(
-                        "Step '%s' was not reached during flow execution", stepName));
-                }
+                final Exchange snapshot = resolveStepSnapshot(stepExpectation);
                 stepExpectation.verify(snapshot, null);
             } else {
                 expectation.verify(exchangeUnderInspection, contribution);
             }
         }
         return this;
+    }
+
+    private Exchange resolveStepSnapshot(StepExpectation stepExpectation) {
+        final String stepName = stepExpectation.stepName();
+        final String flowName = stepExpectation.flowName();
+        if (flowName != null) {
+            final Exchange snapshot = stepSnapshots.get(flowName + "::" + stepName);
+            if (snapshot == null) {
+                throw new AssertionError(String.format(
+                    "Step '%s' in flow '%s' was not reached during flow execution", stepName, flowName));
+            }
+            return snapshot;
+        }
+        final String suffix = "::" + stepName;
+        final List<String> matches = stepSnapshots.keySet().stream()
+            .filter(key -> key.endsWith(suffix))
+            .sorted()
+            .collect(Collectors.toList());
+        if (matches.isEmpty()) {
+            throw new AssertionError(String.format(
+                "Step '%s' was not reached during flow execution", stepName));
+        }
+        if (matches.size() > 1) {
+            final List<String> flowNames = matches.stream()
+                .map(key -> key.substring(0, key.length() - suffix.length()))
+                .collect(Collectors.toList());
+            throw new AssertionError(String.format(
+                "Step name '%s' is ambiguous: found in flows %s. "
+                    + "Use step(flowName, stepName, ...) to disambiguate.",
+                stepName, flowNames));
+        }
+        return stepSnapshots.get(matches.get(0));
     }
 
     @Override

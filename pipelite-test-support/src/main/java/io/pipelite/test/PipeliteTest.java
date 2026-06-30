@@ -171,8 +171,21 @@ public final class PipeliteTest {
      * Creates a step-level expectation that verifies {@code expectations}
      * against the exchange snapshot captured after the named step ran.
      * Pass it to {@code then(...)} alongside {@link #output} assertions.
+     * Throws {@link AssertionError} if the step name is ambiguous across
+     * registered flows — use {@link #step(String, String, Expectation...)}
+     * in that case.
      */
     public static StepExpectation step(String stepName, Expectation... expectations) {
         return Expectations.step(stepName, expectations);
+    }
+
+    /**
+     * Creates a step-level expectation pinned to {@code flowName}, for use
+     * when multiple registered flows share a step name. Verifies
+     * {@code expectations} against the snapshot captured after step
+     * {@code stepName} inside {@code flowName}.
+     */
+    public static StepExpectation step(String flowName, String stepName, Expectation... expectations) {
+        return Expectations.step(flowName, stepName, expectations);
     }
 }
