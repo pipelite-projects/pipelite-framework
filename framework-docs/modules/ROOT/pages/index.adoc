@@ -31,6 +31,10 @@ All available adapters: HTTP, Kafka, Time, SLF4J, Link, and creating custom adap
 === xref:spring-integration:index.adoc[Spring Boot Integration]
 Autoconfiguration, `@EnablePipelite`, and all Spring configuration properties.
 
+[.card]
+=== xref:testing:index.adoc[Testing]
+BDD-style test kit (`pipelite-test-support`): processor-mode unit tests, end-to-end flow tests, and step-by-step assertion.
+
 == Project Information
 
 [cols="1,3"]
