@@ -43,7 +43,7 @@ public class PipeliteTestFixtureBaseTest {
             .when(process((ioContext, c) -> {
                 throw expected;
             }))
-            .then(isFailure(), failureCauseEquals(expected));
+            .then(isFailure(), failureCause(expected));
     }
 
     @Test

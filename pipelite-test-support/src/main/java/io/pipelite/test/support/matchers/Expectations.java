@@ -160,7 +160,7 @@ public final class Expectations {
      * as its failure cause. Only meaningful in processor mode (after
      * {@link ExecutionTarget#process}).
      */
-    public static Expectation failureCauseEquals(Throwable expected) {
+    public static Expectation failureCause(Throwable expected) {
         return (exchange, contribution) -> {
             requireContribution(contribution);
             if (contribution.getFailureCause() != expected) {

@@ -150,8 +150,8 @@ public final class PipeliteTest {
         return Expectations.payloadEquals(expected);
     }
 
-    public static Expectation failureCauseEquals(Throwable expected) {
-        return Expectations.failureCauseEquals(expected);
+    public static Expectation failureCause(Throwable expected) {
+        return Expectations.failureCause(expected);
     }
 
     public static <T> Expectation payloadAs(Class<T> type, Consumer<T> assertions) {
