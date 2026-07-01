@@ -40,17 +40,12 @@ jobs:
             echo "is_snapshot=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build and Test
-        if: steps.check-version.outputs.is_snapshot == 'true'
-        run: ./mvnw -B clean package
-
-      - name: Release and Deploy Snapshot to OSSRH (Maven Central)
+      - name: Build, Test and Deploy Snapshot to OSSRH (Maven Central)
         if: steps.check-version.outputs.is_snapshot == 'true'
         run: |
           git config --global user.email "builds@pipelite.io"
           git config --global user.name "pipelite-builds"
-          # 👇 Usiamo -Pdeploy ma diciamo al gpg-plugin di non firmare i file snapshot
-          ./mvnw -B -DskipTests -Pdeploy -Dgpg.skip=true deploy
+          ./mvnw -B clean -Pdeploy -Dgpg.skip=true deploy
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
