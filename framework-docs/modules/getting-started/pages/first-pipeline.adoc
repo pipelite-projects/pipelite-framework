@@ -39,39 +39,44 @@ public class HelloPipelite {
 
 == Spring Boot example
 
-With the Spring Boot starter, the configuration reduces to:
+With the Spring Boot starter, flows are declared in a `@FlowConfiguration` class and activated via `@EnablePipelite`:
 
 [source,java]
 ----
 @SpringBootApplication
+@EnablePipelite(flowConfigurations = IngressFlowConfiguration.class)   // <1>
 public class Application {
 
     public static void main(String[] args) {
-        SpringApplication.run(ApplicationConfiguration.class);
-    }
-
-    @Configuration
-    @EnablePipelite                                            // <1>
-    public static class ApplicationConfiguration {
-
-        @Bean
-        public FlowDefinition ingressFlow() {
-            return Pipelite.defineFlow("ingress-flow")
-                .fromSource("http://ingress")                 // <2>
-                .wireTap("audit-log", "slf4j://audit")        // <3>
-                .process("validate", exchange -> {
-                    // validation logic
-                    exchange.setOutputPayload(exchange.getInputPayload());
-                })
-                .toSink("slf4j://main-log")
-                .build();
-        }
+        SpringApplication.run(Application.class, args);
     }
 }
 ----
-<1> `@EnablePipelite` enables the framework autoconfiguration.
-<2> The `http://ingress` source opens an HTTP listener on port 80 at path `/ingress`.
-<3> `wireTap` sends a copy of the message to the audit channel without blocking the main flow.
+<1> `flowConfigurations` lists the classes containing `@DefineFlow` methods.
+
+[source,java]
+----
+@FlowConfiguration
+public class IngressFlowConfiguration {
+
+    @DefineFlow
+    public FlowDefinition ingressFlow() {
+        return Pipelite.defineFlow("ingress-flow")
+            .fromSource("http://ingress")                 // <1>
+            .wireTap("audit-log", "slf4j://audit")        // <2>
+            .process("validate", exchange -> {
+                // validation logic
+                exchange.setOutputPayload(exchange.getInputPayload());
+            })
+            .toSink("slf4j://main-log")
+            .build();
+    }
+}
+----
+<1> The `http://ingress` source opens an HTTP listener on port 80 at path `/ingress`.
+<2> `wireTap` sends a copy of the message to the audit channel without blocking the main flow.
+
+For full details on the FlowConfiguration SPI — including dependency injection and multiple flow classes — see xref:core:flow-configuration.adoc[FlowConfiguration SPI].
 
 == Adding error handling
 

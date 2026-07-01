@@ -15,6 +15,21 @@ PipeliteContext context = Pipelite.createContext();
 
 === Registration and startup
 
+The recommended approach is via the xref:flow-configuration.adoc[FlowConfiguration SPI], using `@FlowConfiguration` and `@DefineFlow` annotations:
+
+[source,java]
+----
+context.registerDependency("myService", new MyServiceImpl());
+context.registerFlowConfigurationClass(MyFlowConfiguration.class);
+context.start();
+
+// ... application execution ...
+
+context.stop();
+----
+
+For simple inline definitions, direct registration is also supported:
+
 [source,java]
 ----
 context.registerFlowDefinition(flowDefinition);
@@ -60,10 +75,10 @@ FlowDefinition definition = Pipelite.defineFlow("my-flow")
     .fromSource("time://ticker?period=5000")
     .toSink("slf4j://log")
     .build();
-
-// The definition is immutable and reusable
-context.registerFlowDefinition(definition);
 ----
+
+`FlowDefinition` instances are registered in the context either directly via `registerFlowDefinition` or — preferably — through `@FlowConfiguration` classes.
+See xref:flow-configuration.adoc[FlowConfiguration SPI] for the recommended registration pattern.
 
 == Flow
 
