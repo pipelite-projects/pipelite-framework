@@ -1,0 +1,31 @@
+site:
+  title: Pipelite Framework
+  url: https://docs.pipelite.io
+  start_page: pipelite::index.adoc
+  keys:
+    repo_url: https://github.com/pipelite-projects/pipelite-framework
+
+content:
+  sources:
+  - url: ..
+    branches: HEAD
+    start_path: framework-docs
+
+ui:
+  bundle:
+    url: https://gitlab.com/antora/antora-ui-default/-/jobs/artifacts/HEAD/raw/build/ui-bundle.zip?job=bundle-stable
+
+asciidoc:
+  attributes:
+    attribute-missing: warn
+    chomp: all
+    page-pagination: ''
+    source-highlighter: highlight.js
+    highlightjs-languages: java,xml,yaml
+    project-version: '1.0.0-SNAPSHOT'
+    project-group-id: io.pipelite
+    spring-boot-version: '3.1.1'
+    java-version: '17'
+
+output:
+  dir: ./build/site
