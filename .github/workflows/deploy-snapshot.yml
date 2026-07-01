@@ -49,7 +49,8 @@ jobs:
         run: |
           git config --global user.email "builds@pipelite.io"
           git config --global user.name "pipelite-builds"
-          ./mvnw -B -DskipTests deploy
+          # 👇 Usiamo -Pdeploy ma diciamo al gpg-plugin di non firmare i file snapshot
+          ./mvnw -B -DskipTests -Pdeploy -Dgpg.skip=true deploy
         env:
           MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
