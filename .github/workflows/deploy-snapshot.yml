@@ -29,10 +29,23 @@ jobs:
       - name: Add execution permission to Maven Wrapper script
         run: chmod +x ./mvnw
 
+      - name: Check if Version is SNAPSHOT
+        id: check-version
+        run: |
+          CURRENT_VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "Current POM version: $CURRENT_VERSION"
+          if [[ "$CURRENT_VERSION" == *"-SNAPSHOT"* ]]; then
+            echo "is_snapshot=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_snapshot=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build and Test
+        if: steps.check-version.outputs.is_snapshot == 'true'
         run: ./mvnw -B clean package
 
       - name: Release and Deploy Snapshot to OSSRH (Maven Central)
+        if: steps.check-version.outputs.is_snapshot == 'true'
         run: |
           git config --global user.email "builds@pipelite.io"
           git config --global user.name "pipelite-builds"
