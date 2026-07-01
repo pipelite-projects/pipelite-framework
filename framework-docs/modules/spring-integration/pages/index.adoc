@@ -6,16 +6,16 @@ The `pipelite-spring-starter` module provides native integration with Spring Boo
 == Features
 
 * Automatic autoconfiguration of the `PipeliteContext`.
-* Automatic registration of `FlowDefinition` beans exposed as `@Bean`.
+* Declarative flow definition via `@FlowConfiguration` and `@DefineFlow` annotations.
 * Lifecycle management via Spring's `SmartLifecycle`.
-* `@EnablePipelite` annotation to activate the integration.
+* `@EnablePipelite(flowConfigurations = ...)` annotation to activate the integration.
 
 [cols="1,3"]
 |===
 |Page |Content
 
 |xref:autoconfiguration.adoc[Autoconfiguration]
-|How autoconfiguration works, `@EnablePipelite`, `FlowDefinitionRegistrar`.
+|How autoconfiguration works, `@EnablePipelite`, `FlowConfigurationBeanPostProcessor`.
 
 |xref:configuration-properties.adoc[Configuration Properties]
 |All supported `application.properties` / `application.yml` properties.

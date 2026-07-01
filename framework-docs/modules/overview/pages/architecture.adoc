@@ -39,9 +39,11 @@ It is responsible for:
 [source,java]
 ----
 PipeliteContext context = Pipelite.createContext();
-context.registerFlowDefinition(flowDefinition);
+context.registerFlowConfigurationClass(MyFlowConfiguration.class);
 context.start();
 ----
+
+For simple inline definitions, direct registration via `registerFlowDefinition` is also supported.
 
 === Flow
 
