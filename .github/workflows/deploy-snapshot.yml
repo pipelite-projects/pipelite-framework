@@ -1,0 +1,42 @@
+name: Deploy-Snapshot
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - 'framework-docs/**'
+
+jobs:
+  deploy-snapshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+          server-id: ossrh
+          server-username: ${{ secrets.OSSRH_USERNAME }}
+          server-password: ${{ secrets.OSSRH_TOKEN }}
+
+      - name: Add execution permission to Maven Wrapper script
+        run: chmod +x ./mvnw
+
+      - name: Build and Test
+        run: ./mvnw -B clean package
+
+      - name: Release and Deploy Snapshot to OSSRH (Maven Central)
+        run: |
+          git config --global user.email "builds@pipelite.io"
+          git config --global user.name "pipelite-builds"
+          ./mvnw -B -DskipTests deploy
+        env:
+          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
