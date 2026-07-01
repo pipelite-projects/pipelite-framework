@@ -1,15 +1,20 @@
-name: Framework docs deploy
+name: Deploy-Framework-Docs
 
 on:
+  # 1. When SNAPSHOT deploy ends with success
+  workflow_run:
+    workflows: ["Deploy-Snapshot"]
+    types:
+      - completed
+
+  # 2. When a new release tag is pushed
   push:
-    branches: [ "main" ]
-    paths:
-    - 'framework-docs/**'
+    tags:
+      - 'v*'
 
 jobs:
   deploy-docs:
-    #needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     defaults:
@@ -17,7 +22,10 @@ jobs:
         working-directory: framework-docs
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -42,7 +50,6 @@ jobs:
         working-directory: framework-docs
 
       - name: Build Antora Site
-        # Antora cercherà il playbook dentro framework-docs
         run: npx antora antora-playbook.yml
 
       - name: Deploy via FTP
@@ -51,6 +58,5 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          # Il percorso locale ora deve includere la cartella di build dentro framework-docs
           local-dir: ./framework-docs/build/site/
           server-dir: ${{ secrets.FTP_DEST_PATH }}
