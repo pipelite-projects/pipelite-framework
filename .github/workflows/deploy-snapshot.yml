@@ -22,9 +22,9 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-          server-id: ossrh
-          server-username: ${{ secrets.OSSRH_USERNAME }}
-          server-password: ${{ secrets.OSSRH_TOKEN }}
+          server-id: central-snapshots
+          server-username: ${{ secrets.CENTRAL_USERNAME }}
+          server-password: ${{ secrets.CENTRAL_TOKEN }}
 
       - name: Add execution permission to Maven Wrapper script
         run: chmod +x ./mvnw
@@ -40,12 +40,17 @@ jobs:
             echo "is_snapshot=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build, Test and Deploy Snapshot to OSSRH (Maven Central)
+      - name: Build, Test and Deploy Snapshot to OSSRH
         if: steps.check-version.outputs.is_snapshot == 'true'
-        run: |
-          git config --global user.email "builds@pipelite.io"
-          git config --global user.name "pipelite-builds"
-          ./mvnw -B clean -Pdeploy -Dgpg.skip=true deploy
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            git config --global user.email "builds@pipelite.io"
+            git config --global user.name "pipelite-builds"
+            ./mvnw -B clean -Pdeploy -Dgpg.skip=true deploy
         env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+          MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN }}
