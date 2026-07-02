@@ -10,6 +10,9 @@ content:
   - url: ..
     branches: HEAD
     start_path: framework-docs
+  - url: https://github.com/pipelite-projects/pipelite-framework.git
+    tags: v*
+    start_path: framework-docs
 
 ui:
   bundle:
