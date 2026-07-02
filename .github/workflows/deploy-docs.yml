@@ -34,14 +34,20 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Read Maven Project Version
+      - name: Read Maven Project Properties
         id: pom-version
         working-directory: .
         run: |
           chmod +x ./mvnw
           POM_VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+          SPRING_BOOT_VERSION=$(./mvnw help:evaluate -Dexpression=version.springboot -q -DforceStdout)
+          JAVA_VERSION=$(./mvnw help:evaluate -Dexpression=maven.compiler.target -q -DforceStdout)
           echo "Maven project version: $POM_VERSION"
+          echo "Spring Boot version:   $SPRING_BOOT_VERSION"
+          echo "Java version:          $JAVA_VERSION"
           echo "version=$POM_VERSION" >> "$GITHUB_OUTPUT"
+          echo "spring-boot-version=$SPRING_BOOT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "java-version=$JAVA_VERSION" >> "$GITHUB_OUTPUT"
 
       # Runs only on release tags (push v*). On main the Antora version is
       # pinned to the fixed "main" placeholder (see framework-docs/antora.yml),
@@ -86,7 +92,12 @@ jobs:
         working-directory: framework-docs
 
       - name: Build Antora Site
-        run: npx antora --attribute project-version=${{ steps.pom-version.outputs.version }} antora-playbook.yml
+        run: |
+          npx antora \
+            --attribute project-version=${{ steps.pom-version.outputs.version }} \
+            --attribute spring-boot-version=${{ steps.pom-version.outputs.spring-boot-version }} \
+            --attribute java-version=${{ steps.pom-version.outputs.java-version }} \
+            antora-playbook.yml
 
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5

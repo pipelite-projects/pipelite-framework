@@ -26,10 +26,7 @@ asciidoc:
     page-pagination: ''
     source-highlighter: highlight.js
     highlightjs-languages: java,xml,yaml
-    project-version: '0.1.0'
     project-group-id: io.pipelite
-    spring-boot-version: '3.1.1'
-    java-version: '17'
 
 output:
   dir: ./build/site
