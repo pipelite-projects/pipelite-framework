@@ -86,6 +86,12 @@
                                         <argument>antora-playbook.yml</argument>
                                         <argument>--to-dir</argument>
                                         <argument>${docs.output.dir}</argument>
+                                        <argument>--attribute</argument>
+                                        <argument>project-version=${project.version}</argument>
+                                        <argument>--attribute</argument>
+                                        <argument>spring-boot-version=${version.springboot}</argument>
+                                        <argument>--attribute</argument>
+                                        <argument>java-version=${maven.compiler.target}</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
@@ -129,6 +135,12 @@
                                     <arguments>
                                         <argument>antora</argument>
                                         <argument>antora-playbook-local.yml</argument>
+                                        <argument>--attribute</argument>
+                                        <argument>project-version=${project.version}</argument>
+                                        <argument>--attribute</argument>
+                                        <argument>spring-boot-version=${version.springboot}</argument>
+                                        <argument>--attribute</argument>
+                                        <argument>java-version=${maven.compiler.target}</argument>
                                     </arguments>
                                 </configuration>
                             </execution>
