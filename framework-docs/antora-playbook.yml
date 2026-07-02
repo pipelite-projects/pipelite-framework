@@ -10,6 +10,9 @@ content:
   - url: ..
     branches: HEAD
     start_path: framework-docs
+  - url: https://github.com/pipelite-projects/pipelite-framework.git
+    tags: v*
+    start_path: framework-docs
 
 ui:
   bundle:
@@ -23,10 +26,7 @@ asciidoc:
     page-pagination: ''
     source-highlighter: highlight.js
     highlightjs-languages: java,xml,yaml
-    project-version: '1.0.0-SNAPSHOT'
     project-group-id: io.pipelite
-    spring-boot-version: '3.1.1'
-    java-version: '17'
 
 output:
   dir: ./build/site

@@ -17,6 +17,9 @@ This section describes the fundamental concepts required to understand how messa
 |xref:flows.adoc[Flow and PipeliteContext]
 |Lifecycle, `FlowRegistry`, `PipeliteContext`, `FlowDefinition`.
 
+|xref:flow-configuration.adoc[FlowConfiguration SPI]
+|Declarative flow registration via `@FlowConfiguration` and `@DefineFlow`: plain-Java and Spring Boot usage.
+
 |xref:processors.adoc[Processors and Transformers]
 |`Processor`, `PayloadTransformer`, WireTap, and all node types.
 

@@ -1,15 +1,20 @@
-name: Framework docs deploy
+name: Deploy-Framework-Docs
 
 on:
+  # 1. When SNAPSHOT deploy ends with success
+  workflow_run:
+    workflows: ["Deploy-Snapshot"]
+    types:
+      - completed
+
+  # 2. When a new release tag is pushed
   push:
-    branches: [ "main" ]
-    paths:
-    - 'framework-docs/**'
+    tags:
+      - 'v*'
 
 jobs:
   deploy-docs:
-    #needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: ${{ github.event_name == 'push' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     defaults:
@@ -17,7 +22,52 @@ jobs:
         working-directory: framework-docs
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
+
+      - name: Set up JDK 17 (required to read Maven project version)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Read Maven Project Properties
+        id: pom-version
+        working-directory: .
+        run: |
+          chmod +x ./mvnw
+          POM_VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+          SPRING_BOOT_VERSION=$(./mvnw help:evaluate -Dexpression=version.springboot -q -DforceStdout)
+          JAVA_VERSION=$(./mvnw help:evaluate -Dexpression=maven.compiler.target -q -DforceStdout)
+          echo "Maven project version: $POM_VERSION"
+          echo "Spring Boot version:   $SPRING_BOOT_VERSION"
+          echo "Java version:          $JAVA_VERSION"
+          echo "version=$POM_VERSION" >> "$GITHUB_OUTPUT"
+          echo "spring-boot-version=$SPRING_BOOT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "java-version=$JAVA_VERSION" >> "$GITHUB_OUTPUT"
+
+      # Runs only on release tags (push v*). On main the Antora version is
+      # pinned to the fixed "main" placeholder (see framework-docs/antora.yml),
+      # so there is nothing to compare against until a release is tagged.
+      - name: Verify Release Version Alignment (tag, POM, Antora)
+        if: github.event_name == 'push'
+        working-directory: .
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          POM_VERSION="${{ steps.pom-version.outputs.version }}"
+          ANTORA_VERSION=$(yq eval '.version' framework-docs/antora.yml)
+
+          echo "Tag version:    $TAG_VERSION"
+          echo "POM version:    $POM_VERSION"
+          echo "Antora version: $ANTORA_VERSION"
+
+          if [ "$POM_VERSION" != "$TAG_VERSION" ] || [ "$ANTORA_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::Version mismatch - tag=$TAG_VERSION pom=$POM_VERSION antora=$ANTORA_VERSION. Align framework-docs/antora.yml and pom.xml (remove -SNAPSHOT) before tagging a release."
+            exit 1
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -42,8 +92,12 @@ jobs:
         working-directory: framework-docs
 
       - name: Build Antora Site
-        # Antora cercherà il playbook dentro framework-docs
-        run: npx antora antora-playbook.yml
+        run: |
+          npx antora \
+            --attribute project-version=${{ steps.pom-version.outputs.version }} \
+            --attribute spring-boot-version=${{ steps.pom-version.outputs.spring-boot-version }} \
+            --attribute java-version=${{ steps.pom-version.outputs.java-version }} \
+            antora-playbook.yml
 
       - name: Deploy via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -51,6 +105,5 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
-          # Il percorso locale ora deve includere la cartella di build dentro framework-docs
           local-dir: ./framework-docs/build/site/
           server-dir: ${{ secrets.FTP_DEST_PATH }}

@@ -1,0 +1,56 @@
+name: Deploy-Snapshot
+
+on:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - 'framework-docs/**'
+
+jobs:
+  deploy-snapshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+          server-id: central-snapshots
+          server-username: ${{ secrets.CENTRAL_USERNAME }}
+          server-password: ${{ secrets.CENTRAL_TOKEN }}
+
+      - name: Add execution permission to Maven Wrapper script
+        run: chmod +x ./mvnw
+
+      - name: Check if Version is SNAPSHOT
+        id: check-version
+        run: |
+          CURRENT_VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "Current POM version: $CURRENT_VERSION"
+          if [[ "$CURRENT_VERSION" == *"-SNAPSHOT"* ]]; then
+            echo "is_snapshot=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_snapshot=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build, Test and Deploy Snapshot to OSSRH
+        if: steps.check-version.outputs.is_snapshot == 'true'
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 10
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            git config --global user.email "builds@pipelite.io"
+            git config --global user.name "pipelite-builds"
+            ./mvnw -B clean -Pdeploy -Dgpg.skip=true deploy
+        env:
+          MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN }}

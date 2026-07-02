@@ -1,4 +1,4 @@
-name: Deploy release
+name: Deploy-Release
 
 on:
   push:
@@ -8,13 +8,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Necessario per creare la release e caricare note su GitHub
+      contents: write # Necessary to create the release and upload the notes on GitHub
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Recupera la cronologia per generare i changelog delle PR
+          fetch-depth: 0 # Get the chronology to generate the changelog of the PR
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -23,7 +23,6 @@ jobs:
           distribution: 'temurin'
           cache: maven
           server-id: ossrh
-          # Qui mappiamo correttamente i tuoi secret all'interno del settings.xml generato
           server-username: ${{ secrets.OSSRH_USERNAME }}
           server-password: ${{ secrets.OSSRH_TOKEN }}
           gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
@@ -46,13 +45,13 @@ jobs:
           MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
-      - name: Create GitHub Release and Changelog
+      - name: Create GitHub Release and Draft Changelog
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Pipelite Release ${{ github.ref_name }}
-          draft: false
+          draft: true
           prerelease: false
-          generate_release_notes: true # Sincronizza i titoli delle PR chiuse nel Quarter
+          generate_release_notes: true # Sync the title of closed PR in the Quarter
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
