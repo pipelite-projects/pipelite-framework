@@ -243,6 +243,36 @@ public class PipeliteTestFixtureFlowTest {
         then.getOutputPayload();
     }
 
+    @Test(expected = AssertionError.class)
+    public void givenFilteredFlow_whenIsExecutionCompletedAsserted_thenAssertionError() {
+        FlowDefinition flow = Pipelite.defineFlow("filter-flow-wrong-assertion")
+            .fromSource("in-wrong-1")
+            .process("gate", (io, c) -> c.stopExecution())
+            .toSink("out")
+            .build();
+
+        given(
+                flowDefinition(flow),
+                timeout(1),
+                inputPayload("filtered-message"))
+            .when(supplyTo("in-wrong-1"))
+            .then(isExecutionCompleted());
+    }
+
+    @Test(expected = AssertionError.class)
+    public void givenCompletedFlow_whenIsNotExecutionCompletedAsserted_thenAssertionError() {
+        FlowDefinition flow = Pipelite.defineFlow("completed-flow-wrong-assertion")
+            .fromSource("in-wrong-2")
+            .toSink("out")
+            .build();
+
+        given(
+                flowDefinition(flow),
+                inputPayload("hello"))
+            .when(supplyTo("in-wrong-2"))
+            .then(isNotExecutionCompleted());
+    }
+
     // -------------------------------------------------------------------------
     // Multi-flow (link://)
     // -------------------------------------------------------------------------

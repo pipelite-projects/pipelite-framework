@@ -210,4 +210,124 @@ public class PipeliteTestFixtureBaseTest {
     public void whenGetHeaderAsCalledBeforeProcess_thenThrowsIllegalStateException() {
         ((ThenOperations) given()).getHeaderAs("X-Anything", String.class);
     }
+
+    // -------------------------------------------------------------------------
+    // getOutputPayload() / getHeaderAs() — direct access after a real execution
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void givenProcessor_whenGetOutputPayloadCalledAfterProcess_thenReturnsEffectivePayload() {
+        ThenOperations then = given(inputPayload("in"))
+            .when(process((io, c) -> io.setOutputPayload("out")));
+
+        Assert.assertEquals("out", then.getOutputPayload());
+    }
+
+    @Test
+    public void givenHeader_whenGetHeaderAsCalledAfterProcess_thenReturnsTypedValue() {
+        ThenOperations then = given(header("X-Tenant", "acme"), inputPayload("data"))
+            .when(process((io, c) -> { /* nothing */ }));
+
+        Assert.assertEquals("acme", then.getHeaderAs("X-Tenant", String.class));
+    }
+
+    @Test
+    public void givenAbsentHeader_whenGetHeaderAsCalledAfterProcess_thenReturnsNull() {
+        ThenOperations then = given(inputPayload("data"))
+            .when(process((io, c) -> { /* nothing */ }));
+
+        Assert.assertNull(then.getHeaderAs("X-Missing", String.class));
+    }
+
+    // -------------------------------------------------------------------------
+    // Expectations verified on their failing branch, not just the happy path
+    // -------------------------------------------------------------------------
+
+    @Test(expected = AssertionError.class)
+    public void givenProcessorFails_whenIsSuccessAsserted_thenAssertionError() {
+        given(inputPayload("x"))
+            .when(process((io, c) -> {
+                throw new RuntimeException("boom");
+            }))
+            .then(isSuccess());
+    }
+
+    @Test(expected = AssertionError.class)
+    public void givenProcessorSucceeds_whenIsFailureAsserted_thenAssertionError() {
+        given(inputPayload("x"))
+            .when(process((io, c) -> { /* completes normally */ }))
+            .then(isFailure());
+    }
+
+    @Test(expected = AssertionError.class)
+    public void givenProcessorDoesNotStop_whenIsExecutionStoppedAsserted_thenAssertionError() {
+        given(inputPayload("x"))
+            .when(process((io, c) -> { /* does not call stopExecution() */ }))
+            .then(isExecutionStopped());
+    }
+
+    @Test(expected = AssertionError.class)
+    public void givenDifferentFailureCauseInstance_whenFailureCauseAsserted_thenAssertionError() {
+        // failureCause() compares by reference, not by equals() — two exceptions with
+        // the same message but different identity must NOT be considered equal.
+        given(inputPayload("x"))
+            .when(process((io, c) -> {
+                throw new RuntimeException("boom");
+            }))
+            .then(failureCause(new RuntimeException("boom")));
+    }
+
+    @Test
+    public void givenHeader_whenHasHeaderAsserted_thenPasses() {
+        given(header("X-Tenant", "acme"), inputPayload("data"))
+            .when(process((io, c) -> { /* nothing */ }))
+            .then(hasHeader("X-Tenant"));
+    }
+
+    @Test(expected = AssertionError.class)
+    public void givenAbsentHeader_whenHasHeaderAsserted_thenAssertionError() {
+        given(inputPayload("data"))
+            .when(process((io, c) -> { /* nothing */ }))
+            .then(hasHeader("X-Missing"));
+    }
+
+    @Test(expected = AssertionError.class)
+    public void givenHeaderWithDifferentValue_whenHeaderEqualsAsserted_thenAssertionError() {
+        given(header("X-Tenant", "acme"), inputPayload("data"))
+            .when(process((io, c) -> { /* nothing */ }))
+            .then(headerEquals("X-Tenant", "other-tenant"));
+    }
+
+    @Test
+    public void givenHeaderSetToNullValue_whenHeaderEqualsNullAsserted_thenPasses() {
+        given(header("X-Nullable", null), inputPayload("data"))
+            .when(process((io, c) -> { /* nothing */ }))
+            .then(headerEquals("X-Nullable", null));
+    }
+
+    @Test(expected = AssertionError.class)
+    public void givenPresentHeader_whenNoHeaderAsserted_thenAssertionError() {
+        given(header("X-Tenant", "acme"), inputPayload("data"))
+            .when(process((io, c) -> { /* nothing */ }))
+            .then(noHeader("X-Tenant"));
+    }
+
+    @Test(expected = AssertionError.class)
+    public void givenDifferentPayload_whenPayloadEqualsAsserted_thenAssertionError() {
+        given(inputPayload("actual"))
+            .when(process((io, c) -> { /* no output set */ }))
+            .then(payloadEquals("expected"));
+    }
+
+    @Test(expected = AssertionError.class)
+    public void givenPayloadOfWrongType_whenPayloadAsAsserted_thenAssertionError() {
+        given(inputPayload("a string"))
+            .when(process((io, c) -> { /* no output set */ }))
+            .then(payloadAs(Integer.class, value -> Assert.fail("should not be reached")));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void whenOutputCalledWithNoExpectations_thenThrowsIllegalArgumentException() {
+        output();
+    }
 }
