@@ -17,6 +17,7 @@ package io.pipelite.test;
 
 import io.pipelite.core.Pipelite;
 import io.pipelite.core.config.FlowConfigurationException;
+import io.pipelite.core.config.UnresolvableDependencyException;
 import io.pipelite.dsl.annotation.DefineFlow;
 import io.pipelite.dsl.annotation.FlowConfiguration;
 import io.pipelite.dsl.definition.FlowDefinition;
@@ -94,6 +95,13 @@ public class PipeliteTestFixtureFlowConfigurationTest {
                 inputPayload("Alice"))
             .when(supplyTo("names-in"))
             .then(isExecutionCompleted(), payloadEquals("Hello, Alice!"));
+    }
+
+    @Test(expected = UnresolvableDependencyException.class)
+    public void givenFlowConfigurationMissingRequiredDependency_whenScanned_thenThrowsUnresolvableDependencyException() {
+        // GreetingFlowConfiguration.greetingFlow(GreetingService) requires a dependency
+        // that is never registered here — the scanner must fail fast, not with a bare NPE.
+        given(flowConfiguration(GreetingFlowConfiguration.class), inputPayload("Alice"));
     }
 
     // -------------------------------------------------------------------------

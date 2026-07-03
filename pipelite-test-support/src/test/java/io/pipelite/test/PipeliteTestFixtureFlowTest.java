@@ -16,12 +16,18 @@
 package io.pipelite.test;
 
 import io.pipelite.core.Pipelite;
+import io.pipelite.core.context.DuplicateFlowDefinitionException;
 import io.pipelite.dsl.definition.FlowDefinition;
 import static io.pipelite.test.PipeliteTest.*;
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 public class PipeliteTestFixtureFlowTest {
 
@@ -486,5 +492,99 @@ public class PipeliteTestFixtureFlowTest {
                 inputPayload("start"))
             .when(supplyTo("amb-a-in"))
             .then(step("transform", payloadEquals("A")));
+    }
+
+    // -------------------------------------------------------------------------
+    // Unknown entry-point endpoint
+    // -------------------------------------------------------------------------
+
+    @Test(expected = IllegalArgumentException.class)
+    public void givenNoFlowMatchesEntryPoint_whenSupplyTo_thenThrowsIllegalArgumentException() {
+        FlowDefinition flow = Pipelite.defineFlow("known-flow")
+            .fromSource("known-in")
+            .toSink("known-out")
+            .build();
+
+        given(flowDefinition(flow), inputPayload("x"))
+            .when(supplyTo("totally-unknown-endpoint"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Flow with no sink (e.g. a recipient-list sub-flow)
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void givenFlowWithNoSink_whenSupplyTo_thenNeverCompletesAndIsNotExecutionCompleted() {
+        FlowDefinition flow = Pipelite.defineFlow("no-sink-flow")
+            .fromSource("no-sink-in")
+            .process("step", (io, c) -> io.setOutputPayload("processed"))
+            .build();
+
+        given(flowDefinition(flow), timeout(1), inputPayload("x"))
+            .when(supplyTo("no-sink-in"))
+            .then(isNotExecutionCompleted());
+    }
+
+    // -------------------------------------------------------------------------
+    // Duplicate flow names across two registered FlowDefinitions
+    // -------------------------------------------------------------------------
+
+    @Test(expected = DuplicateFlowDefinitionException.class)
+    public void givenTwoFlowDefinitionsWithSameName_whenSupplyTo_thenThrowsDuplicateFlowDefinitionException() {
+        FlowDefinition flowOne = Pipelite.defineFlow("duplicate-name-flow")
+            .fromSource("dup-in-1")
+            .toSink("dup-out-1")
+            .build();
+
+        FlowDefinition flowTwo = Pipelite.defineFlow("duplicate-name-flow")
+            .fromSource("dup-in-2")
+            .toSink("dup-out-2")
+            .build();
+
+        given(
+                flowDefinition(flowOne),
+                flowDefinition(flowTwo),
+                inputPayload("x"))
+            .when(supplyTo("dup-in-1"));
+    }
+
+    // -------------------------------------------------------------------------
+    // Concurrency — two supplyTo() calls in parallel threads stay isolated
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void givenTwoIndependentFlows_whenSuppliedFromParallelThreads_thenEachCaptureStaysIsolated() throws Exception {
+        FlowDefinition flowOne = Pipelite.defineFlow("concurrent-flow-1")
+            .fromSource("concurrent-in-1")
+            .process("tag", (io, c) -> io.setOutputPayload("one-" + io.getInputPayloadAs(String.class)))
+            .toSink("concurrent-out-1")
+            .build();
+
+        FlowDefinition flowTwo = Pipelite.defineFlow("concurrent-flow-2")
+            .fromSource("concurrent-in-2")
+            .process("tag", (io, c) -> io.setOutputPayload("two-" + io.getInputPayloadAs(String.class)))
+            .toSink("concurrent-out-2")
+            .build();
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<String> resultOne = executor.submit(() -> {
+                ThenOperations then = given(flowDefinition(flowOne), inputPayload("payload"))
+                    .when(supplyTo("concurrent-in-1"))
+                    .then(isExecutionCompleted());
+                return then.getOutputPayloadAs(String.class);
+            });
+            Future<String> resultTwo = executor.submit(() -> {
+                ThenOperations then = given(flowDefinition(flowTwo), inputPayload("payload"))
+                    .when(supplyTo("concurrent-in-2"))
+                    .then(isExecutionCompleted());
+                return then.getOutputPayloadAs(String.class);
+            });
+
+            Assert.assertEquals("one-payload", resultOne.get(10, TimeUnit.SECONDS));
+            Assert.assertEquals("two-payload", resultTwo.get(10, TimeUnit.SECONDS));
+        } finally {
+            executor.shutdownNow();
+        }
     }
 }

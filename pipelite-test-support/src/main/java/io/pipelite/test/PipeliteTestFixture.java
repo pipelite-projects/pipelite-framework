@@ -215,33 +215,37 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
 
         final String testId = UUID.randomUUID().toString();
         final CompletableFuture<Exchange> captureFuture = CaptureChannelAdapter.register(testId);
-
         final DefaultPipeliteContext context = new DefaultPipeliteContext();
-        final List<FlowDefinition> copies = flowDefinitions.stream()
-            .map(this::redirectSinkToCapture)
-            .collect(Collectors.toList());
-
-        // Finding 8 fix: capture any exception thrown by a processor so we can report
-        // it as a clear AssertionError instead of letting the test time out silently.
-        // We inject a wrapping ExceptionHandler on each copy (not the originals) so
-        // that FlowFactory wires it onto every FlowNode when context.start() runs.
         final AtomicReference<Throwable> flowFailure = new AtomicReference<>();
-        for (FlowDefinition copy : copies) {
-            final ExceptionHandler original = copy.getExceptionHandler(ExceptionHandler.class);
-            ((FlowDefinitionImpl) copy).setExceptionHandler((exception, exchange) -> {
-                flowFailure.compareAndSet(null, exception);
-                if (original != null) {
-                    original.handleException(exception, exchange);
-                }
-            });
-        }
 
-        copies.forEach(context::registerFlowDefinition);
-        final StepSnapshotCapture snapshotCapture = registerStepSnapshotCapture(copies, context.getExchangeFactory());
-        context.start();
-
+        StepSnapshotCapture snapshotCapture = null;
         Exchange captured = null;
         try {
+            final List<FlowDefinition> copies = flowDefinitions.stream()
+                .map(this::redirectSinkToCapture)
+                .collect(Collectors.toList());
+
+            // Finding 8 fix: capture any exception thrown by a processor so we can report
+            // it as a clear AssertionError instead of letting the test time out silently.
+            // We inject a wrapping ExceptionHandler on each copy (not the originals) so
+            // that FlowFactory wires it onto every FlowNode when context.start() runs.
+            for (FlowDefinition copy : copies) {
+                final ExceptionHandler original = copy.getExceptionHandler(ExceptionHandler.class);
+                ((FlowDefinitionImpl) copy).setExceptionHandler((exception, exchange) -> {
+                    flowFailure.compareAndSet(null, exception);
+                    if (original != null) {
+                        original.handleException(exception, exchange);
+                    }
+                });
+            }
+
+            // registerFlowDefinition (duplicate flow name) and context.start() can both throw;
+            // keeping them inside this try/finally ensures the capture future is always
+            // deregistered and the context is always stopped, even on that failure path.
+            copies.forEach(context::registerFlowDefinition);
+            snapshotCapture = registerStepSnapshotCapture(copies, context.getExchangeFactory());
+            context.start();
+
             final Exchange flowExchange = context.getExchangeFactory().createExchange(headers, inputPayload);
             CaptureChannelAdapter.attachTestId(flowExchange, testId);
             context.supplyExchange(entryPointEndpoint, flowExchange);
@@ -258,7 +262,9 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
         } catch (ExecutionException e) {
             throw new RuntimeException("Unexpected error waiting for flow capture", e);
         } finally {
-            snapshotCapture.deactivate();
+            if (snapshotCapture != null) {
+                snapshotCapture.deactivate();
+            }
             CaptureChannelAdapter.deregister(testId);
             context.stop();
         }
