@@ -1,2 +1,5 @@
 * xref:testing:index.adoc[Testing]
-** xref:testing:reference.adoc[API Reference]
+** xref:testing:introduction.adoc[Introduction]
+** xref:testing:processor-testing.adoc[Processor Testing]
+** xref:testing:flow-testing.adoc[Flow Testing]
+** xref:testing:appendix.adoc[Appendix]

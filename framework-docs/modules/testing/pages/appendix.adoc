@@ -1,0 +1,156 @@
+= Appendix
+:description: Complete reference for Preconditions, Actions, and Expectations in pipelite-test-support
+
+Full reference for all factory methods exposed by `PipeliteTest` (accessible via `import static io.pipelite.test.PipeliteTest.*`), grouped by the phase of the given/when/then chain they belong to. See xref:introduction.adoc[Introduction] for the overall chain, xref:processor-testing.adoc[Processor Testing], and xref:flow-testing.adoc[Flow Testing] for narrative examples of most of these.
+
+== Preconditions
+
+Passed to `given(Precondition...)` and applied in order, before the component under test runs.
+
+[cols="2,4"]
+|===
+|Method |Description
+
+|`header(String name, Object value)`
+|Adds a header to the initial exchange.
+
+|`inputPayload(Object payload)`
+|Sets the input payload of the initial exchange.
+
+|`flowDefinition(FlowDefinition flow)`
+|Registers a flow to be deployed in the test context (flow mode only). Multiple flows can be registered together and chained via `link://`.
+
+|`flowConfiguration(Class<?> configClass)`
+|Scans a `@FlowConfiguration` class (must have a no-arg constructor) and registers every flow it declares (flow mode only).
+
+|`flowConfiguration(Class<?> configClass, Object... dependencies)`
+|Same as above, but resolves `@DefineFlow` method parameters against `dependencies` by runtime type, following the plain-Java SPI dependency-resolution contract.
+
+|`timeout(long seconds)`
+|Overrides the default 5-second capture timeout used by `supplyTo(...)` (flow mode only). Must be positive.
+|===
+
+== Actions
+
+Passed to `when(Action)`; activates the component under test.
+
+[cols="2,4"]
+|===
+|Method |Description
+
+|`process(Processor processor)`
+|Executes the `Processor` synchronously against the prepared exchange. No runtime, no endpoints.
+
+|`supplyTo(String entryPointEndpoint)`
+|Starts a managed `PipeliteContext` with all registered flows, injects the exchange into `entryPointEndpoint`, and waits for it to reach its sink (or the configured timeout to elapse). Real terminal sinks are transparently redirected to an internal capture endpoint.
+|===
+
+== Expectations
+
+Passed as varargs to `then(Expectation...)`; all are evaluated, in order.
+
+=== Processor-mode only
+
+Require the processor's outcome; using them after `supplyTo(...)` fails with a clear `AssertionError`.
+
+[cols="2,4"]
+|===
+|Method |Description
+
+|`isSuccess()`
+|Asserts the processor completed without throwing.
+
+|`isFailure()`
+|Asserts the processor threw a `RuntimeException`.
+
+|`isExecutionStopped()`
+|Asserts the processor called `stopExecution()` on its contribution.
+
+|`failureCause(Throwable expected)`
+|Asserts the failure cause is exactly `expected` (reference equality).
+|===
+
+=== Flow-mode only
+
+[cols="2,4"]
+|===
+|Method |Description
+
+|`isExecutionCompleted()`
+|Asserts the flow reached its sink before the configured timeout.
+
+|`isNotExecutionCompleted()`
+|Asserts the flow did *not* reach its sink (e.g. it was filtered or stopped along the way).
+|===
+
+=== Exchange-level (both modes)
+
+[cols="2,4"]
+|===
+|Method |Description
+
+|`payloadEquals(Object expected)`
+|Asserts the effective payload — output if set, otherwise input — equals `expected` (null-safe).
+
+|`hasHeader(String name)`
+|Asserts the named header is present.
+
+|`headerEquals(String name, Object expectedValue)`
+|Asserts the named header is present and equal to `expectedValue`.
+
+|`noHeader(String name)`
+|Asserts the named header is absent.
+
+|`payloadAs(Class<T> type, Consumer<T> assertions)`
+|Asserts the payload is of type `T`, then passes the typed instance to `assertions` — the bridge to AssertJ/JUnit assertions.
+|===
+
+=== Grouping: output vs. step
+
+[cols="2,4"]
+|===
+|Method |Description
+
+|`output(Expectation... expectations)`
+|Groups expectations that apply to the *final* exchange. Purely a readability label when mixed with `step(...)`; requires at least one expectation.
+
+|`step(String stepName, Expectation... expectations)`
+|Verifies `expectations` against the exchange snapshot captured right after the named step executed (flow mode only). Fails if the step was never reached, or if the name is ambiguous across multiple registered flows.
+
+|`step(String flowName, String stepName, Expectation... expectations)`
+|Same as above, but pinned to `flowName` — use when two registered flows share a step name.
+|===
+
+=== Custom expectations
+
+Any lambda matching `(Exchange exchange, TestProcessContribution contribution) -> void` is a valid `Expectation`; throw `AssertionError` yourself to signal failure:
+
+[source,java]
+----
+.then((exchange, contribution) -> {
+    String payload = (String) exchange.getInputPayload();
+    if (!payload.startsWith("OK:")) {
+        throw new AssertionError("Expected payload to start with 'OK:', got: " + payload);
+    }
+});
+----
+
+`contribution` is `null` in flow mode — check before accessing it.
+
+== `ThenOperations` — direct access
+
+Returned by `when(...)`; in addition to `then(...)`, it exposes the result directly for use with an external assertion library:
+
+[cols="2,4"]
+|===
+|Method |Description
+
+|`getOutputPayload()`
+|Returns the effective payload (output if set, otherwise input). Throws `IllegalStateException` if called before `when(...)` has run.
+
+|`getOutputPayloadAs(Class<T> expectedType)`
+|Returns the effective payload cast to `expectedType`. Throws `ClassCastException` if the cast fails.
+
+|`getHeaderAs(String name, Class<T> expectedType)`
+|Returns the header value cast to `expectedType`, or `null` if absent.
+|===
