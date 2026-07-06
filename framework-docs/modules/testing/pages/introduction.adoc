@@ -1,0 +1,67 @@
+= Introduction
+:description: Getting started with the Pipelite BDD test kit
+
+`pipelite-test-support` lets you test the two building blocks of a Pipelite application — a single *processor* and a full *flow* — using the same fluent, given/when/then chain. No running container, no real endpoints, no manual `Exchange` plumbing.
+
+== Maven dependency
+
+Add `pipelite-test-support` to your project in `test` scope:
+
+[source,xml,subs="attributes+"]
+----
+<dependency>
+    <groupId>{project-group-id}</groupId>
+    <artifactId>pipelite-test-support</artifactId>
+    <version>{project-version}</version>
+    <scope>test</scope>
+</dependency>
+----
+
+== Single import
+
+All factory methods used by the fixture are aggregated in one class, `PipeliteTest`.
+A single static import is enough for an entire test class — no need to import `Preconditions`, `Actions`, or `Expectations` individually:
+
+[source,java]
+----
+import static io.pipelite.test.PipeliteTest.*;
+----
+
+== The BDD chain
+
+Every test — whatever it verifies — follows the same three phases:
+
+[source]
+----
+given(Precondition...)  ─►  when(Action)  ─►  then(Expectation...)
+----
+
+* **`given(...)`** describes the starting state: headers, input payload, which flows (if any) are involved, and an optional timeout.
+* **`when(...)`** activates the component under test: either a bare `Processor` or a running flow.
+* **`then(...)`** verifies the outcome, and can also be used to pull the resulting payload or headers out directly for use with your own assertion library.
+
+[source,java]
+----
+given(
+        header("Source-System", "Legacy-API"),
+        inputPayload(Map.of("price", 100)))
+    .when(process(myProcessor))
+    .then(isSuccess(), payloadEquals(Map.of("price", 110)));
+----
+
+== Two testing modes, one API
+
+What differs between test styles is only *what* you pass to `when(...)`:
+
+[cols="1,3"]
+|===
+|Mode |Use it to
+
+|xref:processor-testing.adoc[Processor testing]
+|Unit-test one processing step in isolation, synchronously, with no engine involved.
+
+|xref:flow-testing.adoc[Flow testing]
+|Exercise a complete pipeline — one or more linked flows — from source to sink, including intermediate steps.
+|===
+
+The `Expectation`s available in `then(...)` depend on which mode produced the result (see the xref:appendix.adoc[Appendix] for the full breakdown), but the shape of the test — `given` → `when` → `then` — never changes.

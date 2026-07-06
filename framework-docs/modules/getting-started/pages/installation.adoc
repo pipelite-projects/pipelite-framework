@@ -54,6 +54,22 @@ The HTTP and Kafka adapters must be added explicitly:
 
 The `time`, `slf4j`, and `link` adapters are included in `default-channel-adapters`, already present as a transitive dependency of `pipelite-core`.
 
+== Test support
+
+To write BDD-style unit and integration tests for processors and flows, add the test kit in `test` scope:
+
+[source,xml,subs="attributes+"]
+----
+<dependency>
+    <groupId>{project-group-id}</groupId>
+    <artifactId>pipelite-test-support</artifactId>
+    <version>{project-version}</version>
+    <scope>test</scope>
+</dependency>
+----
+
+See xref:testing:index.adoc[Testing] for the full guide.
+
 == Distribution
 
 Pipelite is published on Maven Central.

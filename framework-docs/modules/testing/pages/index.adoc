@@ -1,0 +1,21 @@
+= Testing
+:description: BDD-style testing kit for Pipelite processors and flows
+
+The `pipelite-test-support` module provides a fluent, BDD-style test kit for verifying Pipelite components in isolation or as end-to-end flows — without needing to wire a running container, configure real endpoints, or write boilerplate setup code.
+
+[cols="1,3"]
+|===
+|Page |Content
+
+|xref:introduction.adoc[Introduction]
+|Setup, the single static import, and the `given` / `when` / `then` chain shared by every test.
+
+|xref:processor-testing.adoc[Processor Testing]
+|Unit-testing a single `Processor` in complete isolation, with no runtime and no endpoints.
+
+|xref:flow-testing.adoc[Flow Testing]
+|End-to-end testing of one or more `FlowDefinition` objects, including intermediate step assertions.
+
+|xref:appendix.adoc[Appendix]
+|Full method reference for `Preconditions`, `Actions`, and `Expectations`.
+|===

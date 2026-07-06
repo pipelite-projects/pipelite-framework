@@ -1,0 +1,102 @@
+= Processor Testing
+:description: Unit-testing a single Pipelite Processor in isolation
+
+Processor mode tests one `Processor` lambda in complete isolation: no `PipeliteContext`, no endpoints, no flow — just the input you provide and the processor's effect on it, evaluated synchronously.
+Use it as the default way to unit-test the business logic of a single step, the same way you would unit-test a plain function.
+
+== A basic test
+
+[source,java]
+----
+given(inputPayload(Map.of("price", 100)))
+    .when(process(myProcessor))
+    .then(isSuccess(), payloadEquals(Map.of("price", 110)));
+----
+
+`given(...)` prepares the exchange that will be handed to the processor; `process(...)` invokes it; `then(...)` verifies both the outcome of the invocation and the resulting exchange state.
+
+== Preparing the input
+
+Any combination of headers and an input payload can be supplied, in any order:
+
+[source,java]
+----
+given(
+        header("Source-System", "Legacy-API"),
+        header("X-Tenant", "acme"),
+        inputPayload(new Order("ORD-001")))
+    .when(process(orderProcessor))
+    .then(isSuccess());
+----
+
+== Verifying success and failure
+
+A processor either completes normally or throws. Both outcomes are first-class assertions:
+
+[source,java]
+----
+@Test
+void completesSuccessfully() {
+    given(inputPayload("hello"))
+        .when(process((exchange, contribution) -> exchange.setOutputPayload("world")))
+        .then(isSuccess(), payloadEquals("world"));
+}
+
+@Test
+void propagatesFailure() {
+    RuntimeException expected = new RuntimeException("boom");
+
+    given(inputPayload("input"))
+        .when(process((exchange, contribution) -> { throw expected; }))
+        .then(isFailure(), failureCause(expected));
+}
+----
+
+A thrown `RuntimeException` never escapes the test as an exception — it is captured and exposed as a fact you assert on with `isFailure()` and, if needed, matched precisely with `failureCause(...)`.
+
+== Verifying explicit stop
+
+Some processors signal "stop here" via `stopExecution()` on the contribution passed to them, instead of returning an error. This is asserted the same way:
+
+[source,java]
+----
+given(inputPayload("duplicate-id"))
+    .when(process((exchange, contribution) -> {
+        if (isDuplicate(exchange.getInputPayload())) {
+            contribution.stopExecution();
+        }
+    }))
+    .then(isExecutionStopped());
+----
+
+== Asserting on headers and typed payloads
+
+The same exchange-level expectations used for flows also apply here:
+
+[source,java]
+----
+given(inputPayload("Alice"))
+    .when(process((exchange, contribution) ->
+        exchange.setOutputPayload("Hello, " + exchange.getInputPayload() + "!")))
+    .then(
+        headerEquals("X-Greeting-Language", "en"),
+        payloadAs(String.class, greeting -> assertThat(greeting).startsWith("Hello")));
+----
+
+`payloadAs(...)` is the bridge to AssertJ, JUnit, or any assertion library: it checks the payload's type, then hands you the typed instance.
+
+== Reading the result directly
+
+When it's more convenient to assert with your own tooling than with `then(...)`, `ThenOperations` also exposes the result directly:
+
+[source,java]
+----
+ThenOperations result = given(inputPayload(42))
+    .when(process((exchange, contribution) ->
+        exchange.setOutputPayload(exchange.getInputPayloadAs(Integer.class) * 2)))
+    .then(isSuccess());
+
+assertThat(result.getOutputPayloadAs(Integer.class)).isEqualTo(84);
+----
+
+For the complete list of preconditions and expectations available in processor mode, see the xref:appendix.adoc[Appendix]. To test multiple processors wired together end-to-end, move on to xref:flow-testing.adoc[Flow Testing].
