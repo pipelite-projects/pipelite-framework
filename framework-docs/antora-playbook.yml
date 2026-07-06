@@ -11,6 +11,7 @@ content:
     branches: HEAD
     start_path: framework-docs
   - url: https://github.com/pipelite-projects/pipelite-framework.git
+    branches: []
     tags: v*
     start_path: framework-docs
 
