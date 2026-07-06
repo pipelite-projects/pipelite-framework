@@ -32,7 +32,7 @@ jobs:
       - name: Check if Version is SNAPSHOT
         id: check-version
         run: |
-          CURRENT_VERSION=$(./mvnw help:evaluate -Dexpression=project.version -q -DforceStdout)
+          CURRENT_VERSION=$(grep -m1 '<revision>' pom.xml | sed -E 's/.*<revision>(.*)<\/revision>.*/\1/')
           echo "Current POM version: $CURRENT_VERSION"
           if [[ "$CURRENT_VERSION" == *"-SNAPSHOT"* ]]; then
             echo "is_snapshot=true" >> $GITHUB_OUTPUT
