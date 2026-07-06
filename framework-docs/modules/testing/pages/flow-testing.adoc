@@ -1,0 +1,132 @@
+= Flow Testing
+:description: End-to-end testing of Pipelite flows, including intermediate step assertions
+
+Flow mode tests one or more `FlowDefinition` objects running end-to-end, exactly as they would in production: the fixture starts a real (but ephemeral) `PipeliteContext`, feeds an exchange into the entry-point endpoint, waits for it to reach the sink, then stops the context. Use it to verify the wiring and behavior of a complete pipeline, not just one step of it.
+
+== A basic flow test
+
+[source,java]
+----
+FlowDefinition flow = Pipelite.defineFlow("order-flow")
+    .fromSource("orders-in")
+    .process("validate", (io, c) -> { /* ... */ })
+    .process("enrich",   (io, c) -> { /* ... */ })
+    .toSink("kafka://orders-out")   // <1>
+    .build();
+
+given(
+        flowDefinition(flow),
+        header("X-Tenant", "acme"),
+        inputPayload(order))
+    .when(supplyTo("orders-in"))
+    .then(isExecutionCompleted(), payloadEquals(expectedOrder));
+----
+<1> Real sinks (Kafka, HTTP, a linked flow, …) are transparently redirected to an internal capture endpoint for the duration of the test. The Kafka adapter is never actually instantiated.
+
+`flowDefinition(...)` registers the flow(s) under test; `supplyTo(entryPointEndpoint)` runs the whole pipeline and returns once the exchange has arrived at the sink (or the timeout elapses).
+
+== Flows that don't reach the sink
+
+A flow can legitimately stop or filter an exchange before it reaches its sink. Assert that directly instead of treating it as a timeout:
+
+[source,java]
+----
+given(flowDefinition(filteringFlow), inputPayload(rejectedOrder))
+    .when(supplyTo("orders-in"))
+    .then(isNotExecutionCompleted());
+----
+
+Since capture waits for the configured timeout (5 seconds by default) before concluding the exchange won't arrive, shorten it for these tests with the `timeout(...)` precondition:
+
+[source,java]
+----
+given(flowDefinition(filteringFlow), timeout(1), inputPayload(rejectedOrder))
+    .when(supplyTo("orders-in"))
+    .then(isNotExecutionCompleted());
+----
+
+== Verifying intermediate steps
+
+Beyond the final result, `then(...)` can assert on the exchange state captured right after any named step ran — without stopping the pipeline there:
+
+[source,java]
+----
+given(flowDefinition(flow), inputPayload("raw-input"))
+    .when(supplyTo("in"))
+    .then(
+        output(isExecutionCompleted(), payloadEquals("final-value")),   // <1>
+        step("normalize", payloadEquals("normalized")),                  // <2>
+        step("enrich",    hasHeader("X-Enriched-By")));                  // <3>
+----
+<1> `output(...)` groups assertions that target the final exchange, for readability alongside `step(...)`.
+<2> `step("normalize", ...)` asserts against the snapshot taken right after the `normalize` step executed.
+<3> Step and output assertions can be freely mixed in a single `then(...)` call.
+
+If a step was never reached — for example because an earlier step called `stopExecution()` — the corresponding `step(...)` assertion fails with a descriptive `AssertionError` rather than silently passing.
+
+== Testing multiple linked flows together
+
+Flows can be chained with a `link://` sink/source pair and registered together, letting you test a cross-flow pipeline as a single unit:
+
+[source,java]
+----
+FlowDefinition flowA = Pipelite.defineFlow("flow-a")
+    .fromSource("entry")
+    .process("step-a", (io, c) -> io.setOutputPayload("from-a"))
+    .toSink("link://next-entry")
+    .build();
+
+FlowDefinition flowB = Pipelite.defineFlow("flow-b")
+    .fromSource("next-entry")
+    .process("step-b", (io, c) -> io.setOutputPayload(
+        io.getInputPayloadAs(String.class) + "-enriched"))
+    .toSink("out")
+    .build();
+
+given(
+        flowDefinition(flowA),
+        flowDefinition(flowB),
+        inputPayload("start"))
+    .when(supplyTo("entry"))
+    .then(
+        output(isExecutionCompleted(), payloadEquals("from-a-enriched")),
+        step("flow-a", "step-a", payloadEquals("from-a")),
+        step("flow-b", "step-b", payloadEquals("from-a-enriched")));
+----
+
+When two registered flows happen to use the same step name, pin the lookup with the three-argument `step(flowName, stepName, ...)` form, as shown above, instead of the ambiguous `step("transform", ...)`.
+
+== Testing flows declared with `@FlowConfiguration`
+
+If your flows are declared declaratively via the xref:spring-integration:index.adoc[Spring Boot integration] SPI rather than built inline, use `flowConfiguration(...)` in place of `flowDefinition(...)`:
+
+[source,java]
+----
+class OrderFlowConfiguration {
+
+    @DefineFlow
+    public FlowDefinition orderFlow(OrderService orderService) {
+        return Pipelite.defineFlow("order-flow")
+            .fromSource("orders-in")
+            .process("process", (io, c) -> orderService.process(io.getInputPayloadAs(Order.class)))
+            .toSink("orders-out")
+            .build();
+    }
+}
+
+OrderService mockService = new MockOrderService();
+
+given(
+        flowConfiguration(OrderFlowConfiguration.class, mockService),
+        inputPayload(new Order("ORD-001")))
+    .when(supplyTo("orders-in"))
+    .then(isExecutionCompleted());
+----
+
+Any object passed after the configuration class is made available to `@DefineFlow` methods by parameter type — pass one instance per dependency type used across the configuration class, typically test doubles or mocks.
+
+== Unhandled exceptions inside a flow
+
+If a processor throws inside a flow being tested with `supplyTo(...)`, the test does not hang until the timeout — it fails immediately with an `AssertionError` describing the unhandled exception and its cause. To verify a flow's own error-handling behavior instead of failing the test, attach an `ExceptionHandler` to the `FlowDefinition` under test, the same way you would in production code, and assert on the resulting (handled) output.
+
+For the complete list of preconditions, actions, and expectations usable in flow mode, see the xref:appendix.adoc[Appendix].
