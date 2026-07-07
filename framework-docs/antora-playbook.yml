@@ -15,6 +15,9 @@ content:
     tags: v*
     start_path: framework-docs
 
+urls:
+  latest_version_segment: latest
+
 ui:
   bundle:
     url: ./ui-bundle.zip

@@ -69,6 +69,16 @@ jobs:
             exit 1
           fi
 
+      # The "main" placeholder keeps the snapshot docs URL stable across POM version bumps
+      # (avoids orphaning old version-segment folders on the FTP host, which only adds files).
+      # Only the label shown in the UI is synced to the real POM version here.
+      - name: Set Snapshot Display Version
+        if: github.event_name == 'workflow_run'
+        working-directory: .
+        run: |
+          POM_VERSION="${{ steps.pom-version.outputs.version }}"
+          yq eval -i ".display_version = \"$POM_VERSION\"" framework-docs/antora.yml
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -82,7 +92,7 @@ jobs:
       - name: Download UI Bundle
         run: |
           ASSET_URL=$(curl -s -H "Authorization: Bearer ${{ secrets.ANTORA_UI_BUNDLE_TOKEN }}" \
-            https://api.github.com/repos/pipelite-projects/pipelite-antora-ui/releases/tags/v1.0.1 \
+            https://api.github.com/repos/pipelite-projects/pipelite-antora-ui/releases/tags/v1.0.2 \
             | jq -r '.assets[] | select(.name=="ui-bundle.zip") | .url')
           
           curl -L -H "Authorization: Bearer ${{ secrets.ANTORA_UI_BUNDLE_TOKEN }}" \
