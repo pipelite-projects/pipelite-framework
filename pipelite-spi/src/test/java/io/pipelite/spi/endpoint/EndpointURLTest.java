@@ -47,4 +47,30 @@ public class EndpointURLTest {
         EndpointURL.parse("link://source01");
     }
 
+    @Test
+    public void givenQueryValueWithSlash_whenParseURL_thenValueIsAccepted(){
+
+        final EndpointURL endpointURL = EndpointURL.parse("source-01?archiveDir=/data/archive");
+        Assert.assertNotNull(endpointURL);
+
+        final EndpointProperties props = endpointURL.getProperties();
+        Assert.assertEquals("/data/archive", props.get("archiveDir"));
+    }
+
+    @Test
+    public void givenCustomResourcePattern_whenParseURL_thenResourceAllowingSlashIsAccepted(){
+
+        final EndpointURL endpointURL = EndpointURL.parse("/data/in/orders.log?mode=tail", "[a-z0-9-_./]+");
+        Assert.assertNotNull(endpointURL);
+        Assert.assertEquals("/data/in/orders.log", endpointURL.getResource());
+
+        final EndpointProperties props = endpointURL.getProperties();
+        Assert.assertEquals("tail", props.get("mode"));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void givenCustomResourcePattern_whenSlashNotInDefaultPattern_thenDefaultOverloadStillRejectsSlash(){
+        EndpointURL.parse("/data/in/orders.log");
+    }
+
 }

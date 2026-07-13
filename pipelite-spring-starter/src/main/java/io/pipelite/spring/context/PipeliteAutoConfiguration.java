@@ -20,14 +20,15 @@ import io.pipelite.core.context.PipeliteContext;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Role;
+import org.springframework.core.env.Environment;
 
 @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
 public class PipeliteAutoConfiguration {
 
     @Bean
     @Role(BeanDefinition.ROLE_INFRASTRUCTURE)
-    public PipeliteContext pipeliteContext(){
-        return Pipelite.createContext();
+    public PipeliteContext pipeliteContext(Environment environment){
+        return Pipelite.createContext(new SpringEnvironmentEndpointURLPropertyResolver(environment));
     }
 
     @Bean

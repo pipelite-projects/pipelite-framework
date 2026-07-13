@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.config.EndpointURLPropertyResolver;
+import io.pipelite.core.config.NoOpEndpointURLPropertyResolver;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.definition.builder.FlowDefinitionBuilder;
@@ -28,7 +30,11 @@ public class Pipelite {
     }
 
     public static PipeliteContext createContext(){
-        return new DefaultPipeliteContext();
+        return createContext(new NoOpEndpointURLPropertyResolver());
+    }
+
+    public static PipeliteContext createContext(EndpointURLPropertyResolver endpointURLPropertyResolver){
+        return new DefaultPipeliteContext(endpointURLPropertyResolver);
     }
 
 }

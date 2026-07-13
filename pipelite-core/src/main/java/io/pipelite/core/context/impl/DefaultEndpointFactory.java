@@ -16,6 +16,7 @@
 package io.pipelite.core.context.impl;
 
 import io.pipelite.common.support.Preconditions;
+import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.context.ChannelAdapterManager;
 import io.pipelite.core.context.EndpointFactory;
 import io.pipelite.core.definition.TypedSourceDefinition;
@@ -33,21 +34,24 @@ import java.lang.reflect.InvocationTargetException;
 public class DefaultEndpointFactory implements EndpointFactory {
 
     private final ChannelAdapterManager channelAdapterManager;
+    private final EndpointURLPropertyResolver endpointURLPropertyResolver;
 
-    public DefaultEndpointFactory(ChannelAdapterManager channelAdapterManager) {
+    public DefaultEndpointFactory(ChannelAdapterManager channelAdapterManager, EndpointURLPropertyResolver endpointURLPropertyResolver) {
         Preconditions.notNull(channelAdapterManager, "componentManager is required and cannot be null");
+        Preconditions.notNull(endpointURLPropertyResolver, "endpointURLPropertyResolver is required and cannot be null");
         this.channelAdapterManager = channelAdapterManager;
+        this.endpointURLPropertyResolver = endpointURLPropertyResolver;
     }
 
     @Override
     public Endpoint createEndpoint(EndpointDefinition endpointDefinition) {
 
-        if(endpointDefinition instanceof TypedSourceDefinition){
-            final TypedSourceDefinition typedSourceDefinition = (TypedSourceDefinition) endpointDefinition;
+        if(endpointDefinition instanceof TypedSourceDefinition typedSourceDefinition){
             return createTypedSourceEndpoint(typedSourceDefinition);
         }
 
-        final ChannelURL channelURL = ChannelURL.parse(endpointDefinition.getUrl());
+        final String resolvedUrl = endpointURLPropertyResolver.resolve(endpointDefinition.getUrl());
+        final ChannelURL channelURL = ChannelURL.parse(resolvedUrl);
         if(channelURL.hasProtocol()){
             final ChannelAdapter channel = channelAdapterManager.resolveChannel(channelURL.getProtocol());
             return channel.createEndpoint(channelURL.getEndpointURL());
@@ -60,7 +64,8 @@ public class DefaultEndpointFactory implements EndpointFactory {
         final Class<? extends Endpoint> endpointType = typedSourceDefinition.getEndpointType();
         try {
             final Constructor<? extends Endpoint> ctr = endpointType.getConstructor(EndpointURL.class);
-            EndpointURL endpointURL = EndpointURL.parse(typedSourceDefinition.getUrl());
+            final String resolvedUrl = endpointURLPropertyResolver.resolve(typedSourceDefinition.getUrl());
+            EndpointURL endpointURL = EndpointURL.parse(resolvedUrl);
             return ctr.newInstance(endpointURL);
         } catch (NoSuchMethodException | InvocationTargetException | InstantiationException | IllegalAccessException e) {
             ReflectionUtils.rethrowRuntimeException(e);

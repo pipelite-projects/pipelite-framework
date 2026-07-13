@@ -17,7 +17,9 @@ package io.pipelite.core.context.impl;
 
 import io.pipelite.core.config.DefaultDependencyRegistry;
 import io.pipelite.core.config.DependencyRegistry;
+import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.config.FlowConfigurationScanner;
+import io.pipelite.core.config.NoOpEndpointURLPropertyResolver;
 import io.pipelite.core.context.*;
 import io.pipelite.core.flow.FlowFactory;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
@@ -74,6 +76,10 @@ public class DefaultPipeliteContext implements PipeliteContext {
     private final RetryChannelDefinitionFactory retryChannelDefinitionFactory;
 
     public DefaultPipeliteContext() {
+        this(new NoOpEndpointURLPropertyResolver());
+    }
+
+    public DefaultPipeliteContext(EndpointURLPropertyResolver endpointURLPropertyResolver) {
 
         flowDefinitions = new ArrayList<>();
 
@@ -87,7 +93,7 @@ public class DefaultPipeliteContext implements PipeliteContext {
         serviceManager = new DefaultServiceManager();
         channelAdapterManager = new DefaultChannelAdapterManager(exchangeFactory);
 
-        endpointFactory = new DefaultEndpointFactory(channelAdapterManager);
+        endpointFactory = new DefaultEndpointFactory(channelAdapterManager, endpointURLPropertyResolver);
         flowFactory = new FlowFactory(this);
 
         executionDumpFactory = new FlowExecutionDumpFactory(new DistributedIdentityGeneratorImpl(), new Base64ObjectSerializer());

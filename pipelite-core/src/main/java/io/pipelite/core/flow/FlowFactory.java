@@ -131,7 +131,7 @@ public class FlowFactory {
             previousProcessor.setNext(producer);
         }
 
-        return new Flow(flowName, sourceDefinition.getUrl(), sourceEndpoint, consumer);
+        return new Flow(flowName, sourceEndpointURL.getResource(), sourceEndpoint, consumer);
     }
 
     private void injectDependencies(Object flowNode){
