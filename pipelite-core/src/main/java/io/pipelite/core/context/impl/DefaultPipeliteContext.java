@@ -17,7 +17,9 @@ package io.pipelite.core.context.impl;
 
 import io.pipelite.core.config.DefaultDependencyRegistry;
 import io.pipelite.core.config.DependencyRegistry;
+import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.config.FlowConfigurationScanner;
+import io.pipelite.core.config.NoOpEndpointURLPropertyResolver;
 import io.pipelite.core.context.*;
 import io.pipelite.core.flow.FlowFactory;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
@@ -49,7 +51,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
 
-public class DefaultPipeliteContext implements PipeliteContext {
+public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
     private static final String RETRY_CHANNEL_NAME = "retry-channel";
 
@@ -65,7 +67,7 @@ public class DefaultPipeliteContext implements PipeliteContext {
     private final ServiceManager serviceManager;
     private final ChannelAdapterManager channelAdapterManager;
 
-    private final EndpointFactory endpointFactory;
+    private final DefaultEndpointFactory endpointFactory;
     private final FlowFactory flowFactory;
     private final ExchangeFactory exchangeFactory;
 
@@ -87,12 +89,17 @@ public class DefaultPipeliteContext implements PipeliteContext {
         serviceManager = new DefaultServiceManager();
         channelAdapterManager = new DefaultChannelAdapterManager(exchangeFactory);
 
-        endpointFactory = new DefaultEndpointFactory(channelAdapterManager);
+        endpointFactory = new DefaultEndpointFactory(channelAdapterManager, new NoOpEndpointURLPropertyResolver());
         flowFactory = new FlowFactory(this);
 
         executionDumpFactory = new FlowExecutionDumpFactory(new DistributedIdentityGeneratorImpl(), new Base64ObjectSerializer());
         executionDumpRepository = new FlowExecutionDumpInMemoryRepository();
         retryChannelDefinitionFactory = new RetryChannelDefinitionFactory(executionDumpRepository);
+    }
+
+    @Override
+    public void setEndpointURLPropertyResolver(EndpointURLPropertyResolver resolver) {
+        endpointFactory.setEndpointURLPropertyResolver(resolver);
     }
 
     @Deprecated

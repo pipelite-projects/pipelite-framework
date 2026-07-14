@@ -1,0 +1,66 @@
+= Endpoint URL Property Placeholders
+:description: Resolving Spring property placeholders in Pipelite endpoint URLs
+
+The `pipelite-spring-starter` module resolves `${property.key}` placeholders embedded in endpoint URLs, using the Spring `Environment` as the value source at context startup time.
+
+== Overview
+
+Endpoint URLs in Pipelite flows are plain strings such as `kafka://orders` or `files://inbox`.
+In production deployments the target resource names often vary between environments (dev, staging, production) and must be externalised to configuration files or environment variables.
+
+By embedding standard Spring property placeholders directly in the URL string, you can keep flow definitions deployment-agnostic:
+
+[source,java]
+----
+@DefineFlow
+public FlowDefinition orderFlow() {
+    return Pipelite.defineFlow("order-flow")
+        .fromSource("kafka://${app.kafka.topic.orders}")    // <1>
+        .toSink("slf4j://order-log")
+        .build();
+}
+----
+<1> `${app.kafka.topic.orders}` is resolved against the Spring `Environment` before the URL is parsed.
+
+`application.properties`:
+
+[source,properties]
+----
+app.kafka.topic.orders=orders-v2
+----
+
+At startup the context sees `kafka://orders-v2`.
+
+All standard Spring `Environment` sources are supported: `application.properties`, `application.yml`, OS environment variables, JVM system properties, and any custom `PropertySource`.
+
+== Resolution at startup
+
+Placeholder resolution happens once, eagerly, during `PipeliteContext.start()`, just before each endpoint URL is parsed.
+The resolved value becomes the permanent key under which the flow is registered in the internal registry — not the raw placeholder string.
+This means that routing and lookups (e.g. `PipeliteContext.supplyExchange(...)`) must use the resolved name, not the original `${...}` literal.
+
+== Fail-fast behaviour
+
+If a placeholder cannot be resolved — because the property is absent from every `Environment` source — Pipelite propagates the failure immediately during startup with an `IllegalArgumentException`.
+The application context will not start with an unresolved placeholder.
+There is no fallback to a literal `${key}` value.
+
+== Plain-Java usage
+
+Without `pipelite-spring-starter`, the default resolver is a no-op: placeholders in URL strings are not substituted and reach the URL parser unchanged, causing a startup failure (see <<_fail_fast_behaviour>>).
+
+To use dynamic URLs outside Spring, supply a custom `EndpointURLPropertyResolver` when creating the context:
+
+[source,java]
+----
+EndpointURLPropertyResolver resolver =
+    rawUrl -> rawUrl.replace("${key}", System.getenv("MY_SOURCE_NAME")); // <1>
+
+PipeliteContext context = Pipelite.createContext(resolver);
+----
+<1> Any substitution logic can be used here; the resolved URL is passed directly to the endpoint parser.
+
+== Related topics
+
+* xref:autoconfiguration.adoc[Autoconfiguration] — `@EnablePipelite`, `PipeliteAutoConfiguration`, and the Spring lifecycle wiring.
+* xref:configuration-properties.adoc[Configuration Properties] — all supported `application.properties` keys.

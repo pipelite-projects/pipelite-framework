@@ -26,9 +26,9 @@ public class EndpointURL {
 
     //private static final String URL_PATTERN_REGEX = "^(([a-z0-9]+):/{2})?([-a-z0-9]+)(\\?([-a-zA-Z0-9_&=]{1,256}))?$";
 
-    private static final String URL_PATTERN_REGEX = "^([a-z0-9-_.]+)(\\?([a-zA-Z0-9-._&=]{1,256}))?$";
+    private static final String DEFAULT_RESOURCE_PATTERN = "[a-z0-9-_.]+";
+    private static final String QUERY_PATTERN = "[a-zA-Z0-9-._&=/]{1,256}";
 
-    private static final Pattern URL_PATTERN = Pattern.compile(URL_PATTERN_REGEX);
     private final String resource;
     private final Map<String, String> parameters;
 
@@ -50,9 +50,14 @@ public class EndpointURL {
     }
 
     public static EndpointURL parse(String url) {
+        return parse(url, DEFAULT_RESOURCE_PATTERN);
+    }
+
+    public static EndpointURL parse(String url, String resourcePattern) {
 
         final Map<String, String> queryPairs = new LinkedHashMap<>();
-        final Matcher matcher = URL_PATTERN.matcher(url);
+        final Pattern pattern = Pattern.compile("^(" + resourcePattern + ")(\\?(" + QUERY_PATTERN + "))?$");
+        final Matcher matcher = pattern.matcher(url);
         if(!matcher.matches()){
             throw new IllegalArgumentException(String.format("Malformed endpoint url '%s'. Ensure to use only [-a-z0-9] for resource characters!", url));
         }

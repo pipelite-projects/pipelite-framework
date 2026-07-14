@@ -29,3 +29,6 @@ buildNumber.properties
 #framework-docs
 framework-docs/node_modules
 framework-docs/build
+
+.claude
+pipelite-ui

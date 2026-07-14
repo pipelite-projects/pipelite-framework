@@ -21,9 +21,7 @@ import java.util.regex.Pattern;
 
 public class ChannelURL {
 
-    private static final String URL_PATTERN_REGEX = "^((.+)://)*([a-zA-Z0-9-_.?=&]+)";
-
-    private static final Pattern URL_PATTERN = Pattern.compile(URL_PATTERN_REGEX);
+    private static final Pattern SCHEME_PATTERN = Pattern.compile("^([a-zA-Z][a-zA-Z0-9+.-]*)://(.*)$");
 
     private final String protocol;
     private final String endpointURL;
@@ -46,13 +44,20 @@ public class ChannelURL {
     }
 
     public static ChannelURL parse(String url) {
-        final Matcher matcher = URL_PATTERN.matcher(url);
-        if(!matcher.matches()){
-            throw new IllegalArgumentException(String.format("Malformed endpoint url %s", url));
+        final Matcher matcher = SCHEME_PATTERN.matcher(url);
+        if (matcher.matches()) {
+            final String protocol = matcher.group(1);
+            final String remainder = matcher.group(2);
+            if (remainder.isEmpty()) {
+                throw new IllegalArgumentException(String.format(
+                    "Malformed endpoint url '%s': protocol '%s' is present but no resource follows", url, protocol));
+            }
+            return new ChannelURL(protocol, remainder);
         }
-        final String protocol = matcher.group(2);
-        final String endpointURL = matcher.group(3);
-        return new ChannelURL(protocol, endpointURL);
+        if (url.isEmpty()) {
+            throw new IllegalArgumentException("Malformed endpoint url: url is empty");
+        }
+        return new ChannelURL(null, url);
     }
 
 }
