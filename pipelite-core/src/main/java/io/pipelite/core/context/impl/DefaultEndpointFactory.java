@@ -34,12 +34,17 @@ import java.lang.reflect.InvocationTargetException;
 public class DefaultEndpointFactory implements EndpointFactory {
 
     private final ChannelAdapterManager channelAdapterManager;
-    private final EndpointURLPropertyResolver endpointURLPropertyResolver;
+    private EndpointURLPropertyResolver endpointURLPropertyResolver;
 
     public DefaultEndpointFactory(ChannelAdapterManager channelAdapterManager, EndpointURLPropertyResolver endpointURLPropertyResolver) {
         Preconditions.notNull(channelAdapterManager, "componentManager is required and cannot be null");
         Preconditions.notNull(endpointURLPropertyResolver, "endpointURLPropertyResolver is required and cannot be null");
         this.channelAdapterManager = channelAdapterManager;
+        this.endpointURLPropertyResolver = endpointURLPropertyResolver;
+    }
+
+    public void setEndpointURLPropertyResolver(EndpointURLPropertyResolver endpointURLPropertyResolver) {
+        Preconditions.notNull(endpointURLPropertyResolver, "endpointURLPropertyResolver is required and cannot be null");
         this.endpointURLPropertyResolver = endpointURLPropertyResolver;
     }
 
