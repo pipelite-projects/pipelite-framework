@@ -9,6 +9,7 @@ The `pipelite-spring-starter` module provides native integration with Spring Boo
 * Declarative flow definition via `@FlowConfiguration` and `@DefineFlow` annotations.
 * Lifecycle management via Spring's `SmartLifecycle`.
 * `@EnablePipelite(flowConfigurations = ...)` annotation to activate the integration.
+* `${property.key}` placeholder resolution in endpoint URLs via the Spring `Environment`.
 
 [cols="1,3"]
 |===
@@ -16,6 +17,9 @@ The `pipelite-spring-starter` module provides native integration with Spring Boo
 
 |xref:autoconfiguration.adoc[Autoconfiguration]
 |How autoconfiguration works, `@EnablePipelite`, `FlowConfigurationBeanPostProcessor`.
+
+|xref:endpoint-url-properties.adoc[Endpoint URL Property Placeholders]
+|Using `${property.key}` placeholders in endpoint URLs, resolved from `application.properties`, environment variables, and other Spring `Environment` sources.
 
 |xref:configuration-properties.adoc[Configuration Properties]
 |All supported `application.properties` / `application.yml` properties.
