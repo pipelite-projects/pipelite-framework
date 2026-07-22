@@ -1,0 +1,196 @@
+= File Channel Adapter
+:description: Filesystem adapter for tailing and writing local files
+
+The `file-channel-adapter` module provides a filesystem-based adapter: a tail-polling source that streams newly appended file content, and a sink that writes the flow payload to a file.
+
+== Dependency
+
+[source,xml,subs="attributes+"]
+----
+<dependency>
+    <groupId>{project-group-id}</groupId>
+    <artifactId>file-channel-adapter</artifactId>
+    <version>{project-version}</version>
+</dependency>
+----
+
+== Usage as source (tail consumer)
+
+[source,java]
+----
+Pipelite.defineFlow("file-tail")
+    .fromSource("file:///var/log/app.log?startPosition=beginning&period=500")   // <1>
+    .process("handle", exchange -> {
+        String line = exchange.getInputPayloadAs(String.class);
+        // process one line at a time
+    })
+    .toSink("slf4j://log")
+    .build();
+----
+<1> Polls `/var/log/app.log` every 500 ms, starting from the beginning of the file.
+
+The `FileTailPollingConsumer` polls the file on a dedicated per-endpoint thread via `FileTailConsumerService` (one `ScheduledExecutorService` per endpoint, not shared across the adapter). On each poll it reads only the bytes appended since the last known offset, maps them into records via the configured `FileRecordMapper`, and emits one `Exchange` per record.
+
+=== URL format
+
+[source]
+----
+file://<path>[?<params>]
+----
+
+`<path>` is a filesystem path (absolute or relative, forward or backward slashes accepted) — e.g. `file:///var/log/app.log` or `file://C:\logs\app.log`. Dynamic/templated paths (e.g. `#{...}` expressions) are *not* supported: the resource must be a static path known at flow-definition time.
+
+=== Source (consumer) parameters
+
+[cols="1,1,3"]
+|===
+|Parameter |Default |Description
+
+|`startPosition`
+|`end`
+|`beginning` reads the file's entire existing content on first discovery; `end` (tail semantics) treats the current size as already consumed and only emits content appended *after* the first poll.
+
+|`recordMapper`
+|(built-in line mapper)
+|Logical name of a `FileRecordMapper` registered via `FileChannelConfigurer#registerMapper(name, mapper)`. If omitted, newly read bytes are split into complete lines by the built-in `LineRecordMapper`. Referencing a name that was never registered throws `IllegalArgumentException` at consumer creation time (flow registration).
+
+|`charset`
+|`UTF-8`
+|Charset used to decode the bytes read from the file.
+
+|`mode`
+|`tail`
+|Consumption mode. `tail` is currently the only supported value; any other value throws `IllegalArgumentException` when the consumer is created.
+
+|`period`
+|`1000`
+|Polling interval, in the unit given by `timeUnit`. Inherited from the generic `ScheduledPollingConsumerService` (same parameter used by the `time` and `kafka` sources).
+
+|`initialDelay`
+|`0`
+|Delay before the first poll, in the unit given by `timeUnit`.
+
+|`timeUnit`
+|`MILLISECONDS`
+|Time unit for `period` and `initialDelay` (any `java.util.concurrent.TimeUnit` constant name).
+|===
+
+NOTE: With the default `startPosition=end`, the *first* poll after the file is discovered establishes the current size as the "already consumed" baseline — it does not emit pre-existing content. Writing to the file immediately after `PipeliteContext#start()`, before that first poll has run, can race with this baseline check; the safest pattern for deterministic tests or startup scripts is to allow at least one poll cycle to elapse before writing, or to use `startPosition=beginning` when the existing content must be read deterministically.
+
+== Usage as sink (producer)
+
+[source,java]
+----
+.toSink("file:///var/log/output.log?append=true")
+----
+
+The `FileProducer` writes the `Exchange` input payload to the target file. `byte[]` and `InputStream` payloads are written as-is; `CharSequence` payloads are encoded with the configured charset; any other payload type is converted via `toString()` (a warning is logged in that case). Parent directories are created automatically if missing.
+
+=== URL format
+
+[source]
+----
+file://<path>[?<params>]
+----
+
+=== Sink (producer) parameters
+
+[cols="1,1,3"]
+|===
+|Parameter |Default |Description
+
+|`append`
+|`false`
+|`true` appends to the target file (creating it if missing); `false` truncates and overwrites it on every write.
+
+|`charset`
+|`UTF-8`
+|Charset used to encode `CharSequence` payloads. Ignored for `byte[]` and `InputStream` payloads.
+|===
+
+Every consumed record is also enriched, on the source side, with two exchange headers useful downstream:
+
+[cols="1,3"]
+|===
+|Header |Description
+
+|`File-Name`
+|The file name (last path segment) of the source file the record was read from.
+
+|`File-Path`
+|The absolute path of the source file the record was read from.
+|===
+
+== Record mapping
+
+The built-in `LineRecordMapper` splits newly read content into complete lines, stripping the line terminator (`\n`/`\r\n`). A trailing, not-yet-terminated line is left unconsumed and completed on a future poll — so partial writes never produce a truncated record. Because line terminators are stripped, a flow that pipes a `file://` source straight into a `file://` sink needs an explicit processing step to reintroduce them if the sink output must remain line-delimited:
+
+[source,java]
+----
+.fromSource("file://" + sourceFile + "?startPosition=beginning")
+.process("restore-line-break", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(String.class) + "\n"))
+.toSink("file://" + sinkFile + "?append=true")
+----
+
+To use a custom mapping strategy (e.g. parsing CSV rows, JSON lines, or fixed-width records instead of plain lines), implement `FileRecordMapper<T>` and register it by logical name:
+
+[source,java]
+----
+public class UpperCaseLineRecordMapper implements FileRecordMapper<String> {
+    private final LineRecordMapper delegate = new LineRecordMapper();
+
+    @Override
+    public MappingResult<String> map(String newContent) {
+        MappingResult<String> result = delegate.map(newContent);
+        List<String> upperCased = result.getRecords().stream()
+            .map(String::toUpperCase)
+            .collect(Collectors.toList());
+        return new MappingResult<>(upperCased, result.getConsumedLength());
+    }
+}
+----
+
+`MappingResult` carries both the mapped records and `consumedLength` — the number of bytes to advance the persisted offset by. Returning fewer bytes than were passed in (as the built-in mapper does for an incomplete trailing line) leaves the remainder to be re-read on the next poll.
+
+== Configuration
+
+File channel behavior is provided via `FileChannelConfigurer`:
+
+[source,java]
+----
+FileChannelConfigurer configurer = configuration -> {
+    configuration.setStateDirectory(Path.of("/var/lib/myapp/pipelite-file-state"));
+    configuration.registerMapper("upper", new UpperCaseLineRecordMapper());
+};
+
+context.addChannelConfigurer(configurer);
+----
+
+With Spring Boot, the configurer can be defined as a `@Bean`.
+
+WARNING: Only the *first* `FileChannelConfigurer` registered on a context is applied; any additional ones are silently ignored. Fold every setting (state directory, all `registerMapper` calls) into a single configurer instance rather than calling `addChannelConfigurer` more than once for this adapter.
+
+=== Available FileChannelConfiguration properties
+
+[cols="1,1,3"]
+|===
+|Property |Default |Description
+
+|`stateDirectory`
+|`${user.home}/.pipelite/file-channel-adapter`
+|Directory where per-resource tail offsets are persisted.
+
+|`mappers`
+|(empty)
+|Registry of named `FileRecordMapper` instances, populated via `registerMapper(name, mapper)` and looked up via the `recordMapper` URL parameter.
+|===
+
+== State persistence and resume semantics
+
+For every tailed resource, `FileTailStateStore` persists the last consumed byte offset in one file per resource under `stateDirectory`, named after the SHA-256 hex digest of the resource's absolute path (an `index.properties` file maps digests back to paths, for debugging only — it is never read by the runtime). Reads and writes are synchronized with a `FileLock` on the state file.
+
+This makes tailing resumable across restarts: a new `PipeliteContext` pointed at the same `stateDirectory` picks up exactly where the previous process left off, without re-emitting already-consumed content or re-applying `startPosition` semantics. If the source file shrinks below the last known offset (e.g. rotation/truncation), the offset is reset to `0` and a warning is logged.
+
+== Availability of the `mode` parameter
+
+`FileEndpoint#createConsumer()` only accepts `mode=tail` (the default); any other value throws `IllegalArgumentException` when the flow is registered. This is a configuration-time failure, not a runtime one — it surfaces as soon as the context starts, before any polling begins.

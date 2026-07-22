@@ -20,6 +20,11 @@ Each adapter implements the SPI interface `ChannelAdapter` and is automatically 
 |`kafka-channel-adapter`
 |Apache Kafka consumer and producer.
 
+|xref:file.adoc[File]
+|`file://`
+|`file-channel-adapter`
+|Filesystem tail-polling source and file-writing sink.
+
 |xref:time.adoc[Time]
 |`time://`
 |`default-channel-adapters`
