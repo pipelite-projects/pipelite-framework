@@ -25,6 +25,7 @@
         <module>slf4j-channel-adapter</module>
         <module>http-channel-adapter</module>
         <module>kafka-channel-adapter</module>
+        <module>file-channel-adapter</module>
         <module>default-channel-adapters</module>
     </modules>
 
