@@ -25,6 +25,7 @@ public class FileConstants {
     public static final String START_POSITION_PROPERTY_NAME = "startPosition";
     public static final String RECORD_MAPPER_PROPERTY_NAME = "recordMapper";
     public static final String MODE_PROPERTY_NAME = "mode";
+    public static final String SKIP_LINES_PROPERTY_NAME = "skipLines";
 
     public static final String START_POSITION_BEGINNING = "beginning";
     public static final String START_POSITION_END = "end";

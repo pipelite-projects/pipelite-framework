@@ -49,24 +49,43 @@ public class FileTailStateStoreTest {
 
     @Test
     public void shouldReturnZeroWhenStateFileDoesNotExistYet() {
-        final long offset = subject.load("/var/log/nonexistent.log");
-        Assert.assertEquals(0L, offset);
+        final TailState state = subject.load("/var/log/nonexistent.log");
+        Assert.assertEquals(0L, state.getOffset());
+        Assert.assertEquals(0L, state.getSkippedLines());
     }
 
     @Test
     public void shouldRoundTripSaveAndLoad() {
         final String resourcePath = "/var/log/app.log";
-        subject.save(resourcePath, 12345L);
-        Assert.assertEquals(12345L, subject.load(resourcePath));
+        subject.save(resourcePath, new TailState(12345L, 2L));
+        TailState loaded = subject.load(resourcePath);
+        Assert.assertEquals(12345L, loaded.getOffset());
+        Assert.assertEquals(2L, loaded.getSkippedLines());
 
-        subject.save(resourcePath, 67890L);
-        Assert.assertEquals(67890L, subject.load(resourcePath));
+        subject.save(resourcePath, new TailState(67890L, 3L));
+        loaded = subject.load(resourcePath);
+        Assert.assertEquals(67890L, loaded.getOffset());
+        Assert.assertEquals(3L, loaded.getSkippedLines());
+    }
+
+    @Test
+    public void shouldDefaultSkippedLinesToZeroForLegacySingleLineStateFile() throws Exception {
+        final String resourcePath = "/var/log/legacy.log";
+        subject.save(resourcePath, new TailState(1L, 0L));
+
+        // Simulate a state file written before skippedLines existed: a single line with just the offset.
+        final Path stateFile = stateDirectory.resolve(sha256Hex(resourcePath) + ".state");
+        Files.writeString(stateFile, "42", StandardCharsets.UTF_8);
+
+        final TailState loaded = subject.load(resourcePath);
+        Assert.assertEquals(42L, loaded.getOffset());
+        Assert.assertEquals(0L, loaded.getSkippedLines());
     }
 
     @Test
     public void shouldNameStateFileAfterSha256OfResourcePath() throws Exception {
         final String resourcePath = "/var/log/app.log";
-        subject.save(resourcePath, 1L);
+        subject.save(resourcePath, new TailState(1L, 0L));
 
         final String expectedSha256 = sha256Hex(resourcePath);
         final Path expectedStateFile = stateDirectory.resolve(expectedSha256 + ".state");
@@ -76,7 +95,7 @@ public class FileTailStateStoreTest {
     @Test
     public void shouldWriteIndexPropertiesMappingSha256ToOriginalPath() throws Exception {
         final String resourcePath = "/var/log/app.log";
-        subject.save(resourcePath, 1L);
+        subject.save(resourcePath, new TailState(1L, 0L));
 
         final Path indexFile = stateDirectory.resolve("index.properties");
         Assert.assertTrue(Files.exists(indexFile));
@@ -103,7 +122,7 @@ public class FileTailStateStoreTest {
             executor.submit(() -> {
                 try {
                     startLatch.await();
-                    subject.save(resourcePath, offset);
+                    subject.save(resourcePath, new TailState(offset, 0L));
                     maxOffsetSubmitted.updateAndGet(current -> Math.max(current, offset));
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -118,7 +137,7 @@ public class FileTailStateStoreTest {
         executor.shutdown();
 
         // No exception/corruption: the persisted value must be one of the submitted offsets.
-        final long persisted = subject.load(resourcePath);
+        final long persisted = subject.load(resourcePath).getOffset();
         Assert.assertTrue(persisted > 0 && persisted <= maxOffsetSubmitted.get());
     }
 

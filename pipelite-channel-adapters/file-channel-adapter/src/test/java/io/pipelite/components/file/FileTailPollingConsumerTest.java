@@ -140,6 +140,71 @@ public class FileTailPollingConsumerTest {
         Assert.assertEquals("second", exchange.getInputPayload());
     }
 
+    @Test
+    public void shouldSkipConfiguredNumberOfHeaderLinesWhenStartPositionIsBeginning() throws IOException {
+        final Path file = temporaryFolder.getRoot().toPath().resolve("data.csv");
+        Files.writeString(file, "id,name\ncomment\n1,alice\n2,bob\n", StandardCharsets.UTF_8);
+
+        final FileTailPollingConsumer subject = newConsumer(file, "?startPosition=beginning&skipLines=2");
+
+        final Exchange first = subject.receive(0);
+        Assert.assertNotNull(first);
+        Assert.assertEquals("1,alice", first.getInputPayload());
+
+        final Exchange second = subject.receive(0);
+        Assert.assertNotNull(second);
+        Assert.assertEquals("2,bob", second.getInputPayload());
+
+        Assert.assertNull(subject.receive(0));
+    }
+
+    @Test
+    public void shouldIgnoreSkipLinesWhenStartPositionIsEnd() throws IOException {
+        final Path file = temporaryFolder.getRoot().toPath().resolve("data.csv");
+        Files.writeString(file, "id,name\n", StandardCharsets.UTF_8);
+
+        // startPosition defaults to "end": skipLines has no effect because the tail
+        // already jumps past all pre-existing content, header included.
+        final FileTailPollingConsumer subject = newConsumer(file, "?skipLines=1");
+        Assert.assertNull(subject.receive(0));
+
+        Files.writeString(file, "1,alice\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
+
+        final Exchange exchange = subject.receive(0);
+        Assert.assertNotNull(exchange);
+        Assert.assertEquals("1,alice", exchange.getInputPayload());
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void shouldRejectSkipLinesWhenRecordMapperIsNotLineRecordMapper() throws IOException {
+        configuration.registerMapper("whole-file", newContent -> new MappingResult<>(
+            newContent == null || newContent.isEmpty() ? java.util.Collections.emptyList() : java.util.List.of(newContent),
+            newContent == null ? 0L : newContent.length()));
+
+        final Path file = temporaryFolder.getRoot().toPath().resolve("data.txt");
+        newConsumer(file, "?startPosition=beginning&skipLines=1&recordMapper=whole-file");
+    }
+
+    @Test
+    public void shouldResumeSkipLinesAcrossRestartWhenHeaderSpansMultiplePolls() throws IOException {
+        final Path file = temporaryFolder.getRoot().toPath().resolve("data.csv");
+        // First tranche: only one of the two header lines is complete.
+        Files.writeString(file, "id,name\n", StandardCharsets.UTF_8);
+
+        final FileTailPollingConsumer first = newConsumer(file, "?startPosition=beginning&skipLines=2");
+        Assert.assertNull(first.receive(0));
+
+        // Simulate a JVM restart in the middle of the header: a brand new consumer instance
+        // must remember that 1 header line was already skipped, and skip exactly 1 more.
+        Files.writeString(file, "comment\n1,alice\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
+        final FileTailPollingConsumer afterRestart = newConsumer(file, "?startPosition=beginning&skipLines=2");
+
+        final Exchange exchange = afterRestart.receive(0);
+        Assert.assertNotNull(exchange);
+        Assert.assertEquals("1,alice", exchange.getInputPayload());
+        Assert.assertNull(afterRestart.receive(0));
+    }
+
     private FileTailPollingConsumer newConsumer(Path file, String query) {
         final EndpointURL endpointURL = EndpointURL.parse(file.toString() + query, RESOURCE_PATTERN);
         final Endpoint endpoint = new DefaultEndpoint(endpointURL);

@@ -73,6 +73,10 @@ file://<path>[?<params>]
 |`timeUnit`
 |`MILLISECONDS`
 |Time unit for `period` and `initialDelay` (any `java.util.concurrent.TimeUnit` constant name).
+
+|`skipLines`
+|`0`
+|Number of leading lines to discard (e.g. a CSV header), counted from the very beginning of the file. Only supported with the built-in `LineRecordMapper` (default, no explicit `recordMapper`) — setting `skipLines > 0` together with a custom `recordMapper` throws `IllegalArgumentException` at consumer creation time. Also only takes effect combined with `startPosition=beginning`: with the default `startPosition=end` the tail already skips all pre-existing content (header included) on first discovery, so `skipLines` would be a no-op (a warning is logged in that case). The count of already-skipped lines is persisted alongside the read offset, so it survives a restart even if it occurs mid-header.
 |===
 
 NOTE: With the default `startPosition=end`, the *first* poll after the file is discovered establishes the current size as the "already consumed" baseline — it does not emit pre-existing content. Writing to the file immediately after `PipeliteContext#start()`, before that first poll has run, can race with this baseline check; the safest pattern for deterministic tests or startup scripts is to allow at least one poll cycle to elapse before writing, or to use `startPosition=beginning` when the existing content must be read deterministically.

@@ -33,8 +33,10 @@ import java.util.Properties;
 
 /**
  * Persists, one file per tailed resource, the byte offset up to which a resource has
- * already been consumed. State files are named after the SHA-256 hex digest of the
- * resource's path, to avoid any filesystem-unsafe character in the original path.
+ * already been consumed, together with the count of header lines already skipped
+ * (see {@link FileConstants#SKIP_LINES_PROPERTY_NAME}). State files are named after the
+ * SHA-256 hex digest of the resource's path, to avoid any filesystem-unsafe character in
+ * the original path.
  */
 public class FileTailStateStore {
 
@@ -47,7 +49,7 @@ public class FileTailStateStore {
         this.stateDirectory = Preconditions.notNull(stateDirectory, "stateDirectory is required and cannot be null");
     }
 
-    public long load(String resourcePath) {
+    public TailState load(String resourcePath) {
         final Path stateFile = resolveStateFile(resourcePath);
         final boolean isNew = !Files.exists(stateFile);
         ensureStateDirectory();
@@ -57,16 +59,18 @@ public class FileTailStateStore {
                 updateIndex(resourcePath, stateFile);
             }
             if (fc.size() == 0) {
-                return 0L;
+                return TailState.INITIAL;
             }
-            final String content = readAsText(fc).trim();
-            return content.isEmpty() ? 0L : Long.parseLong(content);
+            final String[] lines = readAsText(fc).split("\n", -1);
+            final long offset = parseLongOrDefault(lines.length > 0 ? lines[0] : null, 0L);
+            final long skippedLines = parseLongOrDefault(lines.length > 1 ? lines[1] : null, 0L);
+            return new TailState(offset, skippedLines);
         } catch (IOException exception) {
             throw new IllegalStateException(String.format("Unable to load tail state for resource '%s'", resourcePath), exception);
         }
     }
 
-    public void save(String resourcePath, long offset) {
+    public void save(String resourcePath, TailState state) {
         final Path stateFile = resolveStateFile(resourcePath);
         final boolean isNew = !Files.exists(stateFile);
         ensureStateDirectory();
@@ -75,12 +79,20 @@ public class FileTailStateStore {
             if (isNew) {
                 updateIndex(resourcePath, stateFile);
             }
+            final String content = state.getOffset() + "\n" + state.getSkippedLines();
             fc.truncate(0);
             fc.position(0);
-            fc.write(ByteBuffer.wrap(Long.toString(offset).getBytes(StandardCharsets.UTF_8)));
+            fc.write(ByteBuffer.wrap(content.getBytes(StandardCharsets.UTF_8)));
         } catch (IOException exception) {
             throw new IllegalStateException(String.format("Unable to save tail state for resource '%s'", resourcePath), exception);
         }
+    }
+
+    private static long parseLongOrDefault(String value, long defaultValue) {
+        if (value == null || value.trim().isEmpty()) {
+            return defaultValue;
+        }
+        return Long.parseLong(value.trim());
     }
 
     private void ensureStateDirectory() {

@@ -33,6 +33,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.List;
 
 public class FileTailPollingConsumer extends DefaultPollingConsumer implements ExchangeFactoryAware {
 
@@ -43,6 +44,8 @@ public class FileTailPollingConsumer extends DefaultPollingConsumer implements E
     private final String startPosition;
     private final FileRecordMapper<?> recordMapper;
     private final FileTailStateStore stateStore;
+    private final long skipLines;
+    private final boolean skipHeaderEnabled;
 
     private ExchangeFactory exchangeFactory;
 
@@ -57,8 +60,22 @@ public class FileTailPollingConsumer extends DefaultPollingConsumer implements E
         this.path = Path.of(endpointURL.getResource());
         this.charset = Charset.forName(properties.getOrDefault(FileConstants.CHARSET_PROPERTY_NAME, FileConstants.DEFAULT_CHARSET));
         this.startPosition = properties.getOrDefault(FileConstants.START_POSITION_PROPERTY_NAME, FileConstants.START_POSITION_END);
-        this.recordMapper = configuration.resolveMapper(properties.get(FileConstants.RECORD_MAPPER_PROPERTY_NAME));
+        final String recordMapperName = properties.get(FileConstants.RECORD_MAPPER_PROPERTY_NAME);
+        this.recordMapper = configuration.resolveMapper(recordMapperName);
         this.stateStore = new FileTailStateStore(configuration.getStateDirectory());
+        this.skipLines = Long.parseLong(properties.getOrDefault(FileConstants.SKIP_LINES_PROPERTY_NAME, "0"));
+
+        if (skipLines > 0 && !(recordMapper instanceof LineRecordMapper)) {
+            throw new IllegalArgumentException(String.format(
+                "skipLines is only supported when reading with the default LineRecordMapper; recordMapper '%s' does not support it",
+                recordMapperName));
+        }
+
+        final boolean startsFromBeginning = FileConstants.START_POSITION_BEGINNING.equalsIgnoreCase(startPosition);
+        if (skipLines > 0 && !startsFromBeginning) {
+            sysLogger.warn("skipLines={} has no effect because startPosition is not '{}'", skipLines, FileConstants.START_POSITION_BEGINNING);
+        }
+        this.skipHeaderEnabled = skipLines > 0 && startsFromBeginning;
     }
 
     @Override
@@ -95,12 +112,16 @@ public class FileTailPollingConsumer extends DefaultPollingConsumer implements E
         }
 
         final String resourceKey = path.toString();
-        long offset = resolveOffset(resourceKey, currentSize);
+        final TailState state = resolveState(resourceKey, currentSize);
+        long offset = state.getOffset();
+        long skippedLines = state.getSkippedLines();
 
         if (currentSize < offset) {
             sysLogger.warn("File '{}' shrank from last known offset {} to size {}; resetting offset to 0", path, offset, currentSize);
             offset = 0L;
-            stateStore.save(resourceKey, 0L);
+            // a rotated file may carry a new header of its own, so skip tracking restarts too
+            skippedLines = 0L;
+            stateStore.save(resourceKey, TailState.INITIAL);
         }
 
         if (currentSize == offset) {
@@ -109,21 +130,30 @@ public class FileTailPollingConsumer extends DefaultPollingConsumer implements E
 
         final String newContent = readNewContent(offset, currentSize);
         final MappingResult<?> result = recordMapper.map(newContent);
-        for (Object record : result.getRecords()) {
+
+        List<?> records = result.getRecords();
+        if (skipHeaderEnabled && skippedLines < skipLines) {
+            final int toSkip = (int) Math.min(skipLines - skippedLines, records.size());
+            records = records.subList(toSkip, records.size());
+            skippedLines += toSkip;
+        }
+
+        for (Object record : records) {
             final Exchange exchange = exchangeFactory.createExchange(record);
             exchange.putHeader(FileConstants.FILE_NAME_EXCHANGE_HEADER_NAME, path.getFileName().toString());
             exchange.putHeader(FileConstants.FILE_PATH_EXCHANGE_HEADER_NAME, path.toAbsolutePath().toString());
             consume(exchange);
         }
 
-        stateStore.save(resourceKey, offset + result.getConsumedLength());
+        stateStore.save(resourceKey, new TailState(offset + result.getConsumedLength(), skippedLines));
     }
 
-    private long resolveOffset(String resourceKey, long currentSize) {
-        final long persisted = stateStore.load(resourceKey);
-        if (persisted == 0L && !FileConstants.START_POSITION_BEGINNING.equalsIgnoreCase(startPosition)) {
-            stateStore.save(resourceKey, currentSize);
-            return currentSize;
+    private TailState resolveState(String resourceKey, long currentSize) {
+        final TailState persisted = stateStore.load(resourceKey);
+        if (persisted.getOffset() == 0L && !FileConstants.START_POSITION_BEGINNING.equalsIgnoreCase(startPosition)) {
+            final TailState jumped = new TailState(currentSize, persisted.getSkippedLines());
+            stateStore.save(resourceKey, jumped);
+            return jumped;
         }
         return persisted;
     }
