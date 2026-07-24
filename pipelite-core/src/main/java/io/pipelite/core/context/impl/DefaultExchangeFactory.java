@@ -18,6 +18,7 @@ package io.pipelite.core.context.impl;
 import io.pipelite.dsl.Headers;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.spi.flow.exchange.HeadersImpl;
 import io.pipelite.spi.flow.exchange.Message;
 import io.pipelite.spi.flow.exchange.MessageFactory;
 
@@ -62,10 +63,14 @@ public class DefaultExchangeFactory implements ExchangeFactory {
 
         final Message inputMessage = current.getInput();
         final Message messageCopy = messageFactory.copyMessage(inputMessage);
+        final Headers headersCopy = new HeadersImpl((HeadersImpl) current.getHeaders());
 
-        final Exchange copy = new Exchange(messageCopy, current.getHeaders());
+        final Exchange copy = new Exchange(messageCopy, headersCopy);
         copyProperties(current, copy);
-        copy.setOutput(current.getOutput());
+        final Message outputCopy = current.getOutput() != null
+            ? messageFactory.copyMessage(current.getOutput())
+            : messageFactory.createMessage();
+        copy.setOutput(outputCopy);
         return copy;
 
     }
@@ -73,7 +78,8 @@ public class DefaultExchangeFactory implements ExchangeFactory {
     @Override
     public Exchange nextExchange(Exchange current) {
         current.forwardIfNecessary();
-        final Exchange exchange = new Exchange(current.getOutput(), current.getHeaders());
+        final Headers headersCopy = new HeadersImpl((HeadersImpl) current.getHeaders());
+        final Exchange exchange = new Exchange(current.getOutput(), headersCopy);
         exchange.setOutput(messageFactory.createMessage());
         copyProperties(current, exchange);
         return exchange;
