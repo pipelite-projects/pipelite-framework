@@ -439,6 +439,34 @@ public class PipeliteTestFixtureFlowTest {
     }
 
     // -------------------------------------------------------------------------
+    // Issue #27 — step snapshots must not share mutable Headers across steps
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void givenHeaderMutatedInLaterStep_whenInspectEarlierStepSnapshot_thenEarlierSnapshotIsUnaffected() {
+        // Regression test for issue #27: DefaultExchangeFactory.copyExchange/nextExchange
+        // previously shared the same mutable Headers instance across every Exchange derived
+        // from a common ancestor. Since StepSnapshotCapture snapshots the Exchange via
+        // copyExchange() right after each step, a header written in a LATER step used to
+        // leak into the snapshot already taken for an EARLIER step.
+        FlowDefinition flow = Pipelite.defineFlow("header-isolation-flow")
+            .fromSource("header-isolation-in")
+            .process("first-step", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(String.class)))
+            .process("second-step", (io, c) -> io.putHeader("X-Added-Later", "second-step-value"))
+            .toSink("header-isolation-out")
+            .build();
+
+        given(
+                flowDefinition(flow),
+                inputPayload("data"))
+            .when(supplyTo("header-isolation-in"))
+            .then(
+                output(isExecutionCompleted()),
+                step("first-step", noHeader("X-Added-Later")),
+                step("second-step", headerEquals("X-Added-Later", "second-step-value")));
+    }
+
+    // -------------------------------------------------------------------------
     // Finding #11 — duplicate step names across linked flows
     // -------------------------------------------------------------------------
 
