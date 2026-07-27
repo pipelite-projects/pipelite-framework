@@ -17,7 +17,6 @@ package io.pipelite.core.flow;
 
 import io.pipelite.core.context.EndpointFactory;
 import io.pipelite.core.context.PipeliteContext;
-import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.flow.process.FlowExecutionExchangePostProcessor;
 import io.pipelite.core.flow.process.FlowExecutionExchangePreProcessor;
 import io.pipelite.core.flow.route.ReturnAddressRouterNode;
@@ -33,7 +32,6 @@ import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.Flow;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.pipelite.spi.flow.exchange.FlowNode;
 
 import java.util.Iterator;
@@ -135,14 +133,7 @@ public class FlowFactory {
     }
 
     private void injectDependencies(Object flowNode){
-
-        if(flowNode instanceof ExchangeFactoryAware){
-            ((ExchangeFactoryAware)flowNode).setExchangeFactory(context.getExchangeFactory());
-        }
-        if(flowNode instanceof PipeliteContextAware){
-            ((PipeliteContextAware)flowNode).setPipeliteContext(context);
-        }
-
+        FlowNodeConfigurer.injectDependencies(flowNode, context);
     }
 
     private void setPrePostProcessors(FlowNode flowNode){

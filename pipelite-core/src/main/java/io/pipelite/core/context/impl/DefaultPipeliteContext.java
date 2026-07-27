@@ -24,6 +24,8 @@ import io.pipelite.core.context.*;
 import io.pipelite.core.flow.FlowFactory;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
+import io.pipelite.core.flow.split.AggregateInMemoryRepository;
+import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpFactory;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.core.flow.execution.retry.RetryChannelDefinitionFactory;
@@ -70,6 +72,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     private final DefaultEndpointFactory endpointFactory;
     private final FlowFactory flowFactory;
     private final ExchangeFactory exchangeFactory;
+    private final AggregateRepository aggregateRepository;
 
     private final FlowExecutionDumpRepository executionDumpRepository;
     private final FlowExecutionDumpFactory executionDumpFactory;
@@ -84,6 +87,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
         final MessageFactory messageFactory = new DefaultMessageFactory(new DistributedIdentityGeneratorImpl());
         exchangeFactory = new DefaultExchangeFactory(messageFactory);
+        aggregateRepository = new AggregateInMemoryRepository();
 
         flowRegistry = new DefaultFlowRegistry();
         serviceManager = new DefaultServiceManager();
@@ -115,6 +119,11 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     @Override
     public ExchangeFactory getExchangeFactory() {
         return exchangeFactory;
+    }
+
+    @Override
+    public AggregateRepository getAggregateRepository() {
+        return aggregateRepository;
     }
 
     @Override
