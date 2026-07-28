@@ -15,6 +15,7 @@ FlowOperations
                                  ├─ .transformPayload(...)
                                  ├─ .filter(...)
                                  ├─ .wireTap(...)
+                                 ├─ .split(...)
                                  ├─ .toRoute(...)        ──► BuildOperations
                                  └─ .toSink(url)         ──► SinkOperations
                                                                extends BuildOperations
@@ -34,6 +35,9 @@ The interface hierarchy ensures that the Java compiler enforces the correct sequ
 
 |xref:routing.adoc[Routing]
 |Content-based routing, recipient list, and routing slip.
+
+|xref:split-aggregate.adoc[Split / Aggregate]
+|Splitting a collection payload into independent messages and aggregating the results.
 
 |xref:expressions.adoc[Expressions]
 |Expression syntax used by `filter` and routers.

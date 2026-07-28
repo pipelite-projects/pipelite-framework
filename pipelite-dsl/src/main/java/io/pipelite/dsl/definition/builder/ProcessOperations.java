@@ -19,6 +19,7 @@ import io.pipelite.dsl.process.PayloadTransformer;
 import io.pipelite.dsl.process.Processor;
 import io.pipelite.dsl.route.RecipientList;
 import io.pipelite.dsl.route.RoutingTable;
+import io.pipelite.dsl.split.SplitConfigurator;
 
 import java.util.function.Function;
 
@@ -37,8 +38,7 @@ public interface ProcessOperations extends BuildOperations {
 
     BuildOperations toRoute(Function<RouteConfigurator, RoutingTable<?>> dynamicRouteConfigurator);
 
-    //ProcessorDefinitionOperations.SplitterDefinitionOperations split(String name);
-    //AggregateDefinitionOperations aggregate(String name);
+    ProcessOperations split(String name, SplitConfigurator segmentConfigurator);
     //RoutingDefinitionOperations.DynamicRouterOperations dynamicRouter(String name, Router router);
 
     SinkOperations toSink(String url);

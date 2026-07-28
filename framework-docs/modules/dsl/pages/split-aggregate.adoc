@@ -1,0 +1,49 @@
+= Split / Aggregate
+:description: Splitting a collection payload into independent messages and aggregating the results
+
+Pipelite supports the *Splitter* and *Aggregator* Enterprise Integration Patterns via the `.split()` method of the DSL.
+A single incoming message carrying a collection is broken down into one message per element, each element is processed independently through a dedicated sequence of steps, and the results are recombined into a single message before the flow continues.
+
+== Basic usage
+
+[source,java]
+----
+FlowDefinition flow = Pipelite.defineFlow("order-batch-flow")
+    .fromSource("http://orders/inbound")
+    .split("split-orders", segment -> segment    // <1>
+        .process("validate", orderValidator)     // <2>
+        .process("enrich", orderEnricher)
+        .end())                                  // <3>
+    .toSink("kafka://orders-processed")
+    .build();
+----
+<1> `.split(name, configurator)` splits the input payload — which must be a `Collection` — into one message per element.
+<2> Each element is processed through the steps defined inside the segment, using the same `.process(...)` operation available in the main flow (see xref:flow-definition.adoc[Flow Definition]).
+<3> `.end()` closes the segment definition. `.split(...)` then returns to the main flow, so it can be followed by further steps or by `.toSink(...)`, exactly like `.process(...)`.
+
+== Behavior
+
+* Elements are processed *in order*, one at a time; the aggregated result preserves the original order of the input collection.
+* An *empty collection* is a valid input: the flow continues normally with an empty aggregated result, no element is processed.
+* A segment can contain any number of `.process(...)` steps, including *zero* — in that case, each element passes through the split unchanged.
+* Headers set on the incoming message are visible to every element while it is processed inside the segment. Changes a step makes to one element's headers (e.g. adding a header) never affect the other elements or the original message.
+* The aggregated message carries the same identity, headers, and properties as the message that entered `.split(...)` — from the rest of the flow's point of view, a split step is indistinguishable from an ordinary processing step.
+* If any element fails during processing, the split step fails as a whole — there is no per-element retry or partial recovery. Combined with `.withRetryChannel()` (see xref:core:error-handling.adoc[Error Handling]), a failure causes the entire batch to be retried, not just the failed element.
+
+== Aggregation result
+
+The output payload of the aggregated message is a list containing, in the original order, the result produced by the segment for each element.
+
+If the desired outcome isn't a list — for example a sum, a count, or a merged object — add a regular `.process(...)` step right after `.split(...)` that reads the list and applies the domain-specific combination:
+
+[source,java]
+----
+.split("split-items", segment -> segment
+    .process("price", priceCalculator)
+    .end())
+.process("sum-total", exchange -> {
+    List<BigDecimal> prices = exchange.getInputPayloadAs(List.class);
+    BigDecimal total = prices.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+    exchange.setOutputPayload(total);
+})
+----

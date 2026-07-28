@@ -67,6 +67,18 @@ Sends a copy of the message to a secondary endpoint without blocking the flow.
 .wireTap("audit", "slf4j://audit-logger")
 ----
 
+== split
+
+Splits a collection payload into independent messages, processes each one through a dedicated segment of steps, and aggregates the results back into a single message before the flow continues.
+See xref:split-aggregate.adoc[Split / Aggregate] for complete documentation.
+
+[source,java]
+----
+.split("split-items", segment -> segment
+    .process("step-1", processor)
+    .end())
+----
+
 == toSink
 
 Defines the destination endpoint of the flow.

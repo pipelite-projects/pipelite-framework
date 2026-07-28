@@ -15,6 +15,7 @@
  */
 package io.pipelite.core.context;
 
+import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.channel.ChannelConfigurer;
 import io.pipelite.spi.flow.exchange.Exchange;
@@ -57,6 +58,8 @@ public interface PipeliteContext {
     EndpointFactory getEndpointFactory();
 
     ExchangeFactory getExchangeFactory();
+
+    AggregateRepository getAggregateRepository();
 
     void start();
 

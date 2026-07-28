@@ -1,4 +1,5 @@
 * xref:dsl:index.adoc[DSL]
 ** xref:dsl:flow-definition.adoc[Flow Definition]
 ** xref:dsl:routing.adoc[Routing]
+** xref:dsl:split-aggregate.adoc[Split / Aggregate]
 ** xref:dsl:expressions.adoc[Expressions]

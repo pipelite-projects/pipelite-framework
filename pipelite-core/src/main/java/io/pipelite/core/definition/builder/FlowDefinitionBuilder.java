@@ -19,6 +19,7 @@ import io.pipelite.core.definition.*;
 import io.pipelite.core.definition.builder.error.ErrorChannelBuilder;
 import io.pipelite.core.definition.builder.route.RecipientListBuilder;
 import io.pipelite.core.definition.builder.route.RouteDefinitionBuilder;
+import io.pipelite.core.definition.builder.split.SplitSegmentBuilder;
 import io.pipelite.core.flow.GlobalDefaultExceptionHandler;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
 import io.pipelite.core.flow.expression.TextExpressionEvaluator;
@@ -29,6 +30,7 @@ import io.pipelite.core.flow.process.transform.PayloadTransformerNode;
 import io.pipelite.core.flow.route.ExpressionConditionEvaluator;
 import io.pipelite.core.flow.route.RecipientListRouterNode;
 import io.pipelite.core.flow.route.RouterNode;
+import io.pipelite.core.flow.split.SplitterNode;
 import io.pipelite.dsl.definition.*;
 import io.pipelite.dsl.definition.builder.*;
 import io.pipelite.dsl.process.PayloadTransformer;
@@ -36,6 +38,8 @@ import io.pipelite.dsl.process.Processor;
 import io.pipelite.dsl.route.ConditionEvaluator;
 import io.pipelite.dsl.route.RecipientList;
 import io.pipelite.dsl.route.RoutingTable;
+import io.pipelite.dsl.split.SplitConfigurator;
+import io.pipelite.dsl.split.SplitSegment;
 import io.pipelite.expression.ExpressionParser;
 import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.exchange.FlowNode;
@@ -121,6 +125,15 @@ public class FlowDefinitionBuilder implements FlowOperations {
         final FlowNode recipientListNode = new RecipientListRouterNode(recipientList, conditionEvaluator);
         final ProcessorDefinition recipientListNodeDefinition = new ProcessorDefinitionImpl("to-recipient-list", recipientListNode);
         builder.with(target -> target.addProcessorDefinition(recipientListNodeDefinition));
+        return this;
+    }
+
+    @Override
+    public ProcessOperations split(String name, SplitConfigurator configurator) {
+        final SplitSegment segment = configurator.configure(new SplitSegmentBuilder());
+        final FlowNode splitNode = new SplitterNode(segment);
+        final ProcessorDefinition splitDefinition = new ProcessorDefinitionImpl(name, splitNode);
+        builder.with(target -> target.addProcessorDefinition(splitDefinition));
         return this;
     }
 
