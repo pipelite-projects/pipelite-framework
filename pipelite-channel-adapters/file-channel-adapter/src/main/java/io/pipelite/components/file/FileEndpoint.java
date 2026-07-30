@@ -22,6 +22,7 @@ import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.spi.flow.concurrent.DefaultThreadFactory;
+import io.pipelite.spi.flow.concurrent.FlowNameAbbreviator;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -29,12 +30,10 @@ import java.util.concurrent.ThreadFactory;
 public class FileEndpoint extends DefaultEndpoint {
 
     private final FileChannelConfiguration configuration;
-    private final ThreadFactory threadFactory;
 
     public FileEndpoint(EndpointURL endpointURL, ChannelAdapter channel, FileChannelConfiguration configuration) {
         super(endpointURL, channel);
         this.configuration = Preconditions.notNull(configuration, "configuration is required and cannot be null");
-        this.threadFactory = new DefaultThreadFactory("file");
     }
 
     @Override
@@ -45,6 +44,11 @@ public class FileEndpoint extends DefaultEndpoint {
                 "Unsupported file channel mode '%s'; only '%s' is currently supported", mode, FileConstants.MODE_TAIL));
         }
         final FileTailPollingConsumer pollingConsumer = new FileTailPollingConsumer(this, configuration);
+        // Built here rather than in the constructor for the same reason as TimeEndpoint: the
+        // flow name is only set on pollingConsumer after this method returns, but the factory
+        // resolves it lazily, at the first actual thread creation in doStart(), well after that.
+        final ThreadFactory threadFactory = new DefaultThreadFactory("file",
+            () -> FlowNameAbbreviator.abbreviate(pollingConsumer.getFlowName()));
         return new FileTailConsumerService(pollingConsumer, Executors.newSingleThreadScheduledExecutor(threadFactory), configuration.getStateDirectory());
     }
 

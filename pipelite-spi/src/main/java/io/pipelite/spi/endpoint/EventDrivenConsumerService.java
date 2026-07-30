@@ -19,6 +19,7 @@ import io.pipelite.spi.context.AbstractService;
 import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.concurrent.DefaultThreadFactory;
 import io.pipelite.spi.flow.concurrent.ExecutorType;
+import io.pipelite.spi.flow.concurrent.FlowNameAbbreviator;
 import io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties;
 import io.pipelite.spi.flow.concurrent.SourceWorkerPoolAware;
 import io.pipelite.spi.flow.exchange.Exchange;
@@ -36,7 +37,7 @@ import java.util.concurrent.ThreadFactory;
 
 public class EventDrivenConsumerService extends AbstractService implements Consumer, ExchangeFactoryAware, SourceWorkerPoolAware {
 
-    private static final String WORKER_PREFIX = "EDC";
+    private static final String DEFAULT_ROLE = "event";
     private static final long SHUTDOWN_TIMEOUT_MILLIS = 30_000L;
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
@@ -90,6 +91,15 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
                     }
                     dispatchSemaphore.acquire();
                     sourceWorkerPool.submit(() -> {
+                        // The pool thread's own identity (e.g. "pipelite-pool-3") is stable and
+                        // shared across whichever flow happens to be using it at a given moment
+                        // — that's the point of pooling. Tagging it with the flow name only for
+                        // the duration of this one task (mirroring the MDC correlation-id
+                        // handling in dispatchToNext) makes a thread dump show what it's
+                        // currently doing without giving up that stable base identity.
+                        final Thread currentThread = Thread.currentThread();
+                        final String baseName = currentThread.getName();
+                        currentThread.setName(baseName + "(" + FlowNameAbbreviator.abbreviate(eventDrivenConsumer.getFlowName()) + ")");
                         try {
                             eventDrivenConsumer.dispatchToNext(exchange);
                         } catch (Throwable t) {
@@ -98,6 +108,7 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
                             }
                         } finally {
                             dispatchSemaphore.release();
+                            currentThread.setName(baseName);
                         }
                     });
                 } catch (InterruptedException e) {
@@ -118,8 +129,22 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
     private Semaphore dispatchSemaphore;
 
     public EventDrivenConsumerService(EventDrivenConsumer eventDrivenConsumer) {
+        this(eventDrivenConsumer, DEFAULT_ROLE);
+    }
+
+    /**
+     * Lets a subclass tied to a specific channel adapter (e.g. {@code KafkaConsumerService})
+     * give its threads a more specific role than the generic {@value #DEFAULT_ROLE} — otherwise
+     * a Kafka-backed flow's polling thread would be visually indistinguishable from a plain
+     * {@code link://}-style flow's receive/dispatch thread in a thread dump.
+     */
+    protected EventDrivenConsumerService(EventDrivenConsumer eventDrivenConsumer, String role) {
         this.eventDrivenConsumer = eventDrivenConsumer;
-        threadFactory = new DefaultThreadFactory(WORKER_PREFIX);
+        // Lazily resolved: the flow name isn't set on eventDrivenConsumer yet at this point in
+        // the flow-building lifecycle (FlowFactory calls setFlowName(...) right after this
+        // constructor returns) — but threadFactory.newThread(...) itself is only actually
+        // invoked later, in doStart(), by which time it is.
+        threadFactory = new DefaultThreadFactory(role, () -> FlowNameAbbreviator.abbreviate(eventDrivenConsumer.getFlowName()));
     }
 
     @Override

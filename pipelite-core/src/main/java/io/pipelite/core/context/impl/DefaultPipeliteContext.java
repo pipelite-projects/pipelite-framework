@@ -64,7 +64,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     private static final String RETRY_CHANNEL_NAME = "retry-channel";
 
     private static final int DEFAULT_MAX_SOURCE_WORKER_POOL_SIZE = 200;
-    private static final String SOURCE_WORKER_POOL_THREAD_PREFIX = "source-worker";
+    private static final String SOURCE_WORKER_POOL_THREAD_ROLE = "pool";
     private static final long SOURCE_WORKER_POOL_SHUTDOWN_TIMEOUT_SECONDS = 30L;
 
     private final Logger rootLogger = LogUtils.getRootLogger();
@@ -133,8 +133,12 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
         // directly, bypassing the full start() lifecycle) already triggers FlowNodeConfigurer
         // injection, which needs this pool to exist regardless of whether start() has run yet.
         if (sourceWorkerPool == null) {
+            // No identity supplier: this pool is shared across every flow with concurrency>1,
+            // so its threads get a stable per-pool ordinal ("pipelite-pool-1", "pipelite-pool-2",
+            // ...) rather than any single flow's name — EventDrivenConsumerService transiently
+            // tags a pool thread's name with whichever flow it's currently executing for.
             sourceWorkerPool = Executors.newFixedThreadPool(maxSourceWorkerPoolSize,
-                new DefaultThreadFactory(SOURCE_WORKER_POOL_THREAD_PREFIX));
+                new DefaultThreadFactory(SOURCE_WORKER_POOL_THREAD_ROLE));
         }
         return sourceWorkerPool;
     }

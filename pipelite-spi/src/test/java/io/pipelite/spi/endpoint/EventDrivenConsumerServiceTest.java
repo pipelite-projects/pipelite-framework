@@ -150,9 +150,10 @@ public class EventDrivenConsumerServiceTest {
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> receivedCount.get() == numOfMessages);
         Assert.assertNotEquals(parentThreadId, consumerThreadId.get());
 
-        // Leaving the receive thread running would leak an "EDC-"-prefixed thread for the rest
-        // of the JVM's lifetime, which shouldTerminateDispatchThreadWithinTimeoutOnStop below
-        // relies on NOT being the case (it scans for any live "EDC-" thread after its own stop()).
+        // Leaving the receive thread running would leak a "pipelite-event-test-flow" thread for
+        // the rest of the JVM's lifetime, which shouldTerminateDispatchThreadWithinTimeoutOnStop
+        // below relies on NOT being the case (it scans for any live thread with that name after
+        // its own stop()).
         subject.stop();
     }
 
@@ -280,12 +281,12 @@ public class EventDrivenConsumerServiceTest {
         try {
             concurrentSubject.start();
             concurrentSubject.consume(exchange(1));
-            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> hasThreadNamed("EDC-"));
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> hasThreadNamed("pipelite-event-test-flow"));
 
             concurrentSubject.stop();
 
-            Assert.assertFalse("no EDC-prefixed worker thread should remain alive once stop() has returned",
-                hasThreadNamed("EDC-"));
+            Assert.assertFalse("no pipelite-event-test-flow worker thread should remain alive once stop() has returned",
+                hasThreadNamed("pipelite-event-test-flow"));
         } finally {
             sharedPool.shutdownNow();
         }

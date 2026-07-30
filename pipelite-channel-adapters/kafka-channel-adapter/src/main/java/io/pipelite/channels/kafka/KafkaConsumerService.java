@@ -76,7 +76,7 @@ public class KafkaConsumerService extends EventDrivenConsumerService {
 
     public KafkaConsumerService(KafkaChannelConfiguration configuration, KafkaEndpoint endpoint) {
 
-        super(new EventDrivenConsumer(endpoint));
+        super(new EventDrivenConsumer(endpoint), "kafka");
 
         Preconditions.notNull(configuration, "configuration is required and cannot be null");
         Preconditions.notNull(endpoint, "endpoint is required and cannot be null");

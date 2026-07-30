@@ -26,11 +26,11 @@ import java.util.concurrent.Executors;
 
 public class RetryService extends ScheduledPollingConsumerService implements ExchangeFactoryAware {
 
-    private static final String THREAD_PREFIX = "retry-channel";
+    private static final String THREAD_ROLE = "retry";
 
     public RetryService(Endpoint endpoint) {
         super(new RetryPollingConsumer(endpoint),
-            Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory(THREAD_PREFIX)));
+            Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory(THREAD_ROLE)));
     }
 
     public void setFlowExecutionDumpRepository(FlowExecutionDumpRepository dumpRepository){
