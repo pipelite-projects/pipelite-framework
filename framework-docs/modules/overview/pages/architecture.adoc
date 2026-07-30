@@ -130,8 +130,10 @@ Available types:
 
 * *Event-driven consumers* (e.g. HTTP) react to events on the server thread.
 * *Polling consumers* (e.g. Kafka, Time) run on dedicated threads managed by `ScheduledPollingConsumerService`.
+* *Concurrent sources* (`fromSource(...?concurrency=N)`, see xref:dsl:flow-definition.adoc[Flow Definition]) dispatch to one shared, bounded worker pool instead of allocating dedicated threads per source, so overall thread usage stays bounded no matter how many flows opt in.
 * *WireTap* nodes forward to a separate channel in a *non-blocking* manner.
 * The `RetryService` handles retries on a separate thread with access to the `FlowExecutionDumpRepository`.
+* Every framework-owned thread is named `pipelite-<role>-<flow-name>` (e.g. `pipelite-kafka-order-ingest`, `pipelite-pool-3`), so a thread dump shows at a glance what each thread belongs to.
 
 == SPI — Extensibility
 
