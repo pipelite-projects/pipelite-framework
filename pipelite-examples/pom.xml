@@ -25,6 +25,7 @@
     <modules>
         <module>pipelite-springboot-application</module>
         <module>pipelite-simple-application</module>
+        <module>pipelite-fooddelivery-application</module>
     </modules>
 
     <dependencies>

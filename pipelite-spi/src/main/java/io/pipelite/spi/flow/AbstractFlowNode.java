@@ -85,6 +85,16 @@ public abstract class AbstractFlowNode implements FlowNode {
         this.flowName = flowName;
     }
 
+    /**
+     * Public (not just accessible to subclasses) so a sibling class in another package — e.g.
+     * {@code EventDrivenConsumerService} reading its wrapped {@code EventDrivenConsumer}'s flow
+     * name to build a thread name — can call it through an object reference without itself
+     * extending this class.
+     */
+    public String getFlowName() {
+        return flowName;
+    }
+
     @Override
     public void setSourceEndpointResource(String sourceEndpointResource) {
         this.sourceEndpointResource = sourceEndpointResource;

@@ -95,3 +95,24 @@ FlowDefinition flow = Pipelite.defineFlow("resilient-flow")
 
 For a custom error channel use `withErrorChannel(cfg -> ...)`.
 For full details see xref:core:error-handling.adoc[Error Handling].
+
+== Multi-channel concurrent example
+
+`pipelite-examples/pipelite-fooddelivery-application` is a complete Spring Boot application showing several flows linked together, two of them running with `concurrency > 1`, fed by four different channel adapters:
+
+[source]
+----
+time:// (order generator)  ──┐
+http:// (order intake)       ─┼──► link:// (concurrent kitchen stage)
+file:// (partner orders)    ──┘             │
+                                             ▼
+                                        kafka:// (fan-out)
+                                             │
+                                             ▼
+                                   link:// (concurrent dispatch stage)
+                                             │
+                                             ▼
+                                   file:// (one output file per courier)
+----
+
+A `docker-compose.yml` in the module starts a local Kafka broker. Run the app with `mvn spring-boot:run` and watch the console: a built-in load generator produces sample orders on its own, so concurrent processing is visible immediately with no manual input needed.

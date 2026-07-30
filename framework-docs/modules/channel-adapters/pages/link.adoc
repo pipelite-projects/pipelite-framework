@@ -48,5 +48,6 @@ link://<flow-name>
 * Exchange handoff is *synchronous* in the sender flow thread.
 * No serialization is involved: the `Exchange` is passed by reference.
 * Useful for splitting complex pipelines into modular, reusable flows.
+* The receiving flow's source can declare `?concurrency=N` to process linked Exchanges concurrently — see xref:dsl:flow-definition.adoc[Flow Definition].
 
 WARNING: Ensure the target flow is registered in the context before startup; otherwise the `LinkProducer` will fail to resolve the target `Consumer`.

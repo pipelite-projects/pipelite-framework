@@ -22,6 +22,7 @@ import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
 
 public interface PipeliteContext {
 
@@ -60,6 +61,15 @@ public interface PipeliteContext {
     ExchangeFactory getExchangeFactory();
 
     AggregateRepository getAggregateRepository();
+
+    /**
+     * The shared, application-wide worker pool used by internal (no-protocol) {@code fromSource}
+     * endpoints when {@code concurrency > 1} is configured on their URL. A single pool sized
+     * independently of how many flows use it or how high each sets its own {@code concurrency} —
+     * see {@link io.pipelite.core.context.ConfigurablePipeliteContext#setMaxSourceWorkerPoolSize(int)}.
+     * Only meaningful after {@link #start()}.
+     */
+    ExecutorService getSourceWorkerPool();
 
     void start();
 

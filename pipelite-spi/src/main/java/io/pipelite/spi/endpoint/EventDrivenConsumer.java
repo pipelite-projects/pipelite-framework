@@ -18,6 +18,7 @@ package io.pipelite.spi.endpoint;
 import io.pipelite.spi.flow.exchange.Exchange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
@@ -31,6 +32,8 @@ public class EventDrivenConsumer extends DefaultConsumer {
     public static final Object POISON_PILL = new Object();
 
     private static final int DEFAULT_QUEUE_SIZE = 20;
+
+    private static final String MDC_EXCHANGE_ID_KEY = "pipelite.exchangeId";
 
     protected final BlockingQueue<PriorityExchange> queue;
 
@@ -74,25 +77,62 @@ public class EventDrivenConsumer extends DefaultConsumer {
             if (!hasNext()) {
                 throw new IllegalStateException("DefaultConsumer does not have a next FlowNode");
             }
-            final PriorityExchange priorityExchange = queue.take();
+            final PriorityExchange priorityExchange = takeNext();
             final Exchange exchange = priorityExchange.getExchange();
             synchronized (this){
                 if(tag != null && sysLogger.isTraceEnabled()){
                     sysLogger.trace("{} - Exchange #{} extracted from queue, processing.", tag, priorityExchange.priority);
                 }
             }
-            final Object inputPayload = exchange.getInputPayloadAs(Object.class);
-            if(POISON_PILL.equals(inputPayload)){
+            if(isPoisonPill(exchange)){
                 if(tag != null && sysLogger.isTraceEnabled()){
                     sysLogger.trace("{} - Poison pill acquired, terminating.", tag);
                 }
                 return 0;
             }
-            super.process(exchange);
+            dispatchToNext(exchange);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
         }
         return 1;
+    }
+
+    /**
+     * Blocks until an {@link Exchange} is available. Exposed separately from {@link #receive()}
+     * so a concurrent dispatch loop (see {@code EventDrivenConsumerService}, {@code concurrency > 1})
+     * can pull from the queue on its own dedicated thread without also running {@link
+     * #dispatchToNext} inline — the actual pipeline execution for that exchange is instead
+     * submitted to the shared source worker pool.
+     */
+    PriorityExchange takeNext() throws InterruptedException {
+        return queue.take();
+    }
+
+    boolean isPoisonPill(Exchange exchange) {
+        return POISON_PILL.equals(exchange.getInputPayloadAs(Object.class));
+    }
+
+    /**
+     * Dispatches {@code exchange} to {@code next}, i.e. runs the pipeline attached to this
+     * consumer synchronously to completion. Named distinctly from {@link #process(Exchange)}
+     * (overridden in this class to mean "enqueue") so callers outside this class — which can't
+     * do {@code super.process(...)} — have an unambiguous way to invoke the same behavior
+     * {@link #receive()} already gets via its own {@code super.process(exchange)} call.
+     * Sets the exchange's correlation id in the SLF4J MDC for the duration of the call, so
+     * concurrent workers produce attributable, non-interleaved log lines.
+     */
+    void dispatchToNext(Exchange exchange) {
+        final String previousCorrelationId = MDC.get(MDC_EXCHANGE_ID_KEY);
+        MDC.put(MDC_EXCHANGE_ID_KEY, exchange.getInput().getId());
+        try {
+            super.process(exchange);
+        } finally {
+            if (previousCorrelationId != null) {
+                MDC.put(MDC_EXCHANGE_ID_KEY, previousCorrelationId);
+            } else {
+                MDC.remove(MDC_EXCHANGE_ID_KEY);
+            }
+        }
     }
 
     public static class PriorityExchange implements Comparable<PriorityExchange> {

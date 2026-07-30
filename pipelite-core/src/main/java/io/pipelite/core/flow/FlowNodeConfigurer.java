@@ -17,14 +17,15 @@ package io.pipelite.core.flow;
 
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
+import io.pipelite.spi.flow.concurrent.SourceWorkerPoolAware;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 
 /**
- * Injects framework-level dependencies ({@code ExchangeFactory}, {@code PipeliteContext}) into a
- * node via its {@code Aware} marker interfaces. Shared between {@link FlowFactory} (top-level flow
- * nodes) and {@code SplitterNode} (inner segment nodes, which are never seen by {@code FlowFactory}
- * and must be injected separately) so the two don't each carry their own copy of the same
- * {@code instanceof} dance.
+ * Injects framework-level dependencies ({@code ExchangeFactory}, {@code PipeliteContext}, the
+ * shared source worker pool) into a node via its {@code Aware} marker interfaces. Shared between
+ * {@link FlowFactory} (top-level flow nodes) and {@code SplitterNode} (inner segment nodes, which
+ * are never seen by {@code FlowFactory} and must be injected separately) so the two don't each
+ * carry their own copy of the same {@code instanceof} dance.
  */
 public final class FlowNodeConfigurer {
 
@@ -37,6 +38,9 @@ public final class FlowNodeConfigurer {
         }
         if (flowNode instanceof PipeliteContextAware) {
             ((PipeliteContextAware) flowNode).setPipeliteContext(context);
+        }
+        if (flowNode instanceof SourceWorkerPoolAware) {
+            ((SourceWorkerPoolAware) flowNode).setSourceWorkerPool(context.getSourceWorkerPool());
         }
     }
 }

@@ -22,6 +22,15 @@ Accepts a URL with the channel adapter scheme.
 .fromSource("kafka://my-topic")
 ----
 
+A source with no channel adapter scheme — typically the receiving end of a xref:channel-adapters:link.adoc[`link://`] hop — can also declare `?concurrency=N` to process up to `N` messages at the same time instead of one at a time:
+
+[source,java]
+----
+.fromSource("order-processing?concurrency=4")
+----
+
+Every concurrent source shares one framework-owned worker pool (default 200 threads, override via `ConfigurablePipeliteContext.setMaxSourceWorkerPoolSize(int)`) instead of getting dedicated threads of its own — total thread usage stays bounded regardless of how many flows declare `concurrency`. It is rejected at startup on any source backed by a channel adapter (`http://`, `file://`, `kafka://`, `time://`, ...).
+
 == process
 
 Adds a generic processing node.
