@@ -32,4 +32,13 @@ public interface ConfigurablePipeliteContext extends PipeliteContext {
      */
     void setEndpointURLPropertyResolver(EndpointURLPropertyResolver resolver);
 
+    /**
+     * Sizes the shared, application-wide {@code fromSource} worker pool (see {@link
+     * PipeliteContext#getSourceWorkerPool()}). Must be called before {@link
+     * PipeliteContext#start()} — the pool is created once, at the start of {@code start()}.
+     * If never called, a documented default size is used, so total thread count is bounded
+     * even with zero configuration.
+     */
+    void setMaxSourceWorkerPoolSize(int size);
+
 }

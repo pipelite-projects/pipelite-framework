@@ -19,6 +19,7 @@ import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.context.ChannelAdapterManager;
 import io.pipelite.core.context.EndpointFactory;
+import io.pipelite.core.context.UnsupportedSourceConcurrencyException;
 import io.pipelite.core.definition.TypedSourceDefinition;
 import io.pipelite.dsl.definition.EndpointDefinition;
 import io.pipelite.expression.support.ReflectionUtils;
@@ -27,6 +28,7 @@ import io.pipelite.spi.channel.ChannelURL;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
+import io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -58,10 +60,33 @@ public class DefaultEndpointFactory implements EndpointFactory {
         final String resolvedUrl = endpointURLPropertyResolver.resolve(endpointDefinition.getUrl());
         final ChannelURL channelURL = ChannelURL.parse(resolvedUrl);
         if(channelURL.hasProtocol()){
+            rejectSourceConcurrencyParams(channelURL.getProtocol(), channelURL.getEndpointURL());
             final ChannelAdapter channel = channelAdapterManager.resolveChannel(channelURL.getProtocol());
             return channel.createEndpoint(channelURL.getEndpointURL());
         }
         return new DefaultEndpoint(EndpointURL.parse(channelURL.getEndpointURL()));
+    }
+
+    /**
+     * {@code concurrency}/{@code executorType} only apply to no-protocol (internal) sources —
+     * see {@link UnsupportedSourceConcurrencyException}. Deliberately does NOT call {@link
+     * EndpointURL#parse(String)} (default resource pattern): some adapters (e.g. File) validate
+     * their resource against a wider pattern of their own, and re-validating it here with the
+     * default pattern would falsely reject otherwise-legitimate URLs. This only ever looks at the
+     * raw query string, never the resource portion.
+     */
+    private static void rejectSourceConcurrencyParams(String protocol, String endpointURL) {
+        final int queryIndex = endpointURL.indexOf('?');
+        if (queryIndex < 0) {
+            return;
+        }
+        final String query = endpointURL.substring(queryIndex + 1);
+        for (String pair : query.split("&")) {
+            final String key = pair.split("=", 2)[0];
+            if (SourceConcurrencyProperties.CONCURRENCY.equals(key) || SourceConcurrencyProperties.EXECUTOR_TYPE.equals(key)) {
+                throw new UnsupportedSourceConcurrencyException(protocol, key);
+            }
+        }
     }
 
     private Endpoint createTypedSourceEndpoint(TypedSourceDefinition typedSourceDefinition){
