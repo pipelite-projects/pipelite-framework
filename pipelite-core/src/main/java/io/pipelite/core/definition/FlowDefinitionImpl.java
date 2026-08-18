@@ -55,6 +55,11 @@ public class FlowDefinitionImpl implements FlowDefinition {
 
     public void addProcessorDefinition(ProcessorDefinition processorDefinition){
         if(processorDefinition != null){
+            final String processorName = processorDefinition.getProcessorName();
+            if(processorName != null && processorsDefinitions.stream()
+                .anyMatch(existing -> processorName.equals(existing.getProcessorName()))){
+                throw new DuplicateProcessorNameException(flowName, processorName);
+            }
             processorsDefinitions.add(processorDefinition);
         }
     }

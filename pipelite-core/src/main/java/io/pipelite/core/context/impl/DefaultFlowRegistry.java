@@ -26,9 +26,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DefaultFlowRegistry implements FlowRegistry {
 
     private final Map<String, Flow> flows;
+    private final Map<String, Flow> flowsByName;
 
     public DefaultFlowRegistry() {
         this.flows = new ConcurrentHashMap<>();
+        this.flowsByName = new ConcurrentHashMap<>();
     }
 
     @Override
@@ -42,9 +44,15 @@ public class DefaultFlowRegistry implements FlowRegistry {
     }
 
     @Override
+    public Optional<Flow> tryFindFlowByName(String flowName) {
+        return Optional.ofNullable(flowsByName.get(flowName));
+    }
+
+    @Override
     public void addFlow(Flow flow) {
         Objects.requireNonNull(flow, "flow is required and cannot be null");
         final String sourceEndpointURI = flow.getEndpointURI();
         flows.putIfAbsent(sourceEndpointURI, flow);
+        flowsByName.putIfAbsent(flow.getName(), flow);
     }
 }

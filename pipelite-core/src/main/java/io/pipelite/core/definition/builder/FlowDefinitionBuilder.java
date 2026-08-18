@@ -17,10 +17,11 @@ package io.pipelite.core.definition.builder;
 
 import io.pipelite.core.definition.*;
 import io.pipelite.core.definition.builder.error.ErrorChannelBuilder;
+import io.pipelite.core.definition.builder.error.RetryChannelBuilder;
 import io.pipelite.core.definition.builder.route.RecipientListBuilder;
 import io.pipelite.core.definition.builder.route.RouteDefinitionBuilder;
 import io.pipelite.core.definition.builder.split.SplitSegmentBuilder;
-import io.pipelite.core.flow.GlobalDefaultExceptionHandler;
+import io.pipelite.core.flow.DeadLetterChannelExceptionHandler;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
 import io.pipelite.core.flow.expression.TextExpressionEvaluator;
 import io.pipelite.core.flow.process.DefaultProcessorNode;
@@ -54,6 +55,12 @@ public class FlowDefinitionBuilder implements FlowOperations {
     private final ExpressionParser expressionParser;
     private final ConditionEvaluator conditionEvaluator;
     private final TextExpressionEvaluator textExpressionEvaluator;
+
+    // Accumulated by withRetryChannel(...)/withErrorChannel(...), composed into a single
+    // ExceptionHandler in build() — see resolveExceptionHandler().
+    private boolean retryChannelRequested = false;
+    private int retryMaxAttempts = RetryChannelBuilder.DEFAULT_MAX_ATTEMPTS;
+    private String deadLetterFlowName;
 
     public FlowDefinitionBuilder(String flowName){
 
@@ -145,30 +152,63 @@ public class FlowDefinitionBuilder implements FlowOperations {
     }
 
     @Override
-    public EndOperations withRetryChannel() {
-        builder.with(target -> target.setExceptionHandler(new RetryChannelExceptionHandler()));
+    public BuildOperations withRetryChannel() {
+        retryChannelRequested = true;
         return this;
     }
 
     @Override
-    public EndOperations withErrorChannel(ErrorChannelConfigurator configurator) {
+    public BuildOperations withRetryChannel(RetryChannelConfigurator configurator) {
+        final RetryChannelBuilder retryChannelBuilder = new RetryChannelBuilder();
+        configurator.configure(retryChannelBuilder);
+        retryChannelRequested = true;
+        retryMaxAttempts = retryChannelBuilder.getMaxAttempts();
+        return this;
+    }
+
+    @Override
+    public BuildOperations withErrorChannel(ErrorChannelConfigurator configurator) {
 
         final ErrorChannelDefinition errorChannelDefinition = configurator.configure(new ErrorChannelBuilder());
         final ErrorChannelDefinition.ChannelType channelType = errorChannelDefinition.getErrorChannelType();
-        final ExceptionHandler exceptionHandler;
 
         if (Objects.requireNonNull(channelType) == ErrorChannelDefinition.ChannelType.RETRY_CHANNEL) {
-            exceptionHandler = new RetryChannelExceptionHandler();
+            retryChannelRequested = true;
         } else {
-            exceptionHandler = new GlobalDefaultExceptionHandler();
+            deadLetterFlowName = errorChannelDefinition.getEndpointURL();
         }
-        builder.with(target -> target.setExceptionHandler(exceptionHandler));
         return this;
     }
 
+    /**
+     * Composes whatever combination of {@code withRetryChannel(...)}/{@code withErrorChannel(...)}
+     * was declared into a single {@code ExceptionHandler} — retry alone, dead-letter alone
+     * (routes on the first failure, no retry), or both together (retry first, dead-letter only
+     * once {@code RetryStrategyFilter} exhausts attempts; see {@code RetryChannelExceptionHandler}).
+     * Previously these two DSL methods each wrote directly to the same single
+     * {@code exceptionHandler} field, so declaring both on one flow meant the second call
+     * silently discarded the first.
+     */
     @Override
     public FlowDefinition build() {
+        final ExceptionHandler exceptionHandler = resolveExceptionHandler();
+        if (exceptionHandler != null) {
+            builder.with(target -> target.setExceptionHandler(exceptionHandler));
+        }
         return builder.build();
+    }
+
+    private ExceptionHandler resolveExceptionHandler() {
+        if (retryChannelRequested) {
+            final RetryChannelExceptionHandler handler = new RetryChannelExceptionHandler();
+            handler.setMaxAttempts(retryMaxAttempts);
+            handler.setDeadLetterFlowName(deadLetterFlowName);
+            return handler;
+        }
+        if (deadLetterFlowName != null) {
+            return new DeadLetterChannelExceptionHandler(deadLetterFlowName);
+        }
+        return null;
     }
 
 }

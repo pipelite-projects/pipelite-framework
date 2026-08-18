@@ -46,6 +46,10 @@ import java.util.concurrent.ThreadLocalRandom;
 class OrderGenerator {
 
     private static final int TOTAL_ORDERS_TO_GENERATE = 40;
+    // Above dispatchProcessingFlow's MANUAL_REVIEW_THRESHOLD (200) on purpose: these orders
+    // always fail validation, no matter how many times the retry channel redelivers them - the
+    // demo's way of driving traffic into the dead letter channel without any manual trigger.
+    private static final double MANUAL_REVIEW_ORDER_PROBABILITY = 0.12;
 
     private static final Logger logger = LoggerFactory.getLogger(OrderGenerator.class);
 
@@ -92,7 +96,10 @@ class OrderGenerator {
         final String items = pick(ITEM_SETS);
         // Locale.ROOT: the default locale may use ',' as the decimal separator (e.g. it_IT),
         // which would break BigDecimal parsing on the consuming side (Order.parse)
-        final String amount = String.format(java.util.Locale.ROOT, "%.2f", ThreadLocalRandom.current().nextDouble(8.0, 45.0));
+        final boolean requiresManualReview = ThreadLocalRandom.current().nextDouble() < MANUAL_REVIEW_ORDER_PROBABILITY;
+        final String amount = requiresManualReview
+            ? String.format(java.util.Locale.ROOT, "%.2f", ThreadLocalRandom.current().nextDouble(250.0, 999.0))
+            : String.format(java.util.Locale.ROOT, "%.2f", ThreadLocalRandom.current().nextDouble(8.0, 45.0));
 
         // roughly 1-in-3 orders arrive via the partner CSV channel, the rest via HTTP
         if (index % 3 == 0) {

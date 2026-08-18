@@ -56,6 +56,13 @@ public class FlowExecutionDumpFactory {
         Preconditions.notNull(lastExecutedProcessor, String.format("Unable to resolve exchange property '%s'",
             IOKeys.FLOW_EXECUTION_LAST_EXECUTED_PROCESSOR_PROPERTY_NAME));
 
+        // Optional, unlike lastExecutedProcessor above: only present when the failure originated
+        // inside a processor's own AbstractProcessorNode catch block (see IOKeys' Javadoc on this
+        // key). Absent for e.g. a failure at the consumer itself — SupplyExchangeProcessor falls
+        // back to resupplying from the flow's source in that case.
+        final String failedProcessor = exchange.getPropertyOrDefault(
+            IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, String.class, null);
+
         final Integer attemptNumber = exchange.getPropertyOrDefault(
             IOKeys.FLOW_EXECUTION_ATTEMPT_NUMBER_PROPERTY_NAME, Integer.class, 1);
 
@@ -64,6 +71,7 @@ public class FlowExecutionDumpFactory {
         executionDump.setAttemptNumber(attemptNumber + 1);
         executionDump.setSourceEndpointResource(lastExecutedFlowSourceEndpointResource);
         executionDump.setLastExecutedProcessor(lastExecutedProcessor);
+        executionDump.setFailedProcessor(failedProcessor);
 
         final String serializedExchangeData = objectSerializer.serializeObject(exchange);
         executionDump.setExchangeData(serializedExchangeData, objectSerializer.getEncoding());

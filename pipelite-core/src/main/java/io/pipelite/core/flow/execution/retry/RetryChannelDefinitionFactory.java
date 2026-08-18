@@ -16,6 +16,7 @@
 package io.pipelite.core.flow.execution.retry;
 
 import io.pipelite.common.support.Preconditions;
+import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.definition.EndpointDefinitionImpl;
 import io.pipelite.core.definition.FlowDefinitionImpl;
 import io.pipelite.core.definition.ProcessorDefinitionImpl;
@@ -30,10 +31,13 @@ import io.pipelite.spi.flow.exchange.FlowNode;
 public class RetryChannelDefinitionFactory {
 
     private final FlowExecutionDumpRepository dumpRepository;
+    private final PipeliteContext pipeliteContext;
 
-    public RetryChannelDefinitionFactory(FlowExecutionDumpRepository dumpRepository) {
+    public RetryChannelDefinitionFactory(FlowExecutionDumpRepository dumpRepository, PipeliteContext pipeliteContext) {
         Preconditions.notNull(dumpRepository, "dumpRepository is required and cannot be null");
+        Preconditions.notNull(pipeliteContext, "pipeliteContext is required and cannot be null");
         this.dumpRepository = dumpRepository;
+        this.pipeliteContext = pipeliteContext;
     }
 
     public FlowDefinition createDefinition(String retryChannelName){
@@ -45,7 +49,7 @@ public class RetryChannelDefinitionFactory {
 
         setSourceDefinition(builder, retryChannelName);
         addDefaultProcessorNodeDefinition(builder, "resolve-execution-dump", new ResolveExecutionDumpProcessor(dumpRepository));
-        addDefaultProcessorNodeDefinition(builder, "retry-strategy-filter", new RetryStrategyFilter());
+        addDefaultProcessorNodeDefinition(builder, "retry-strategy-filter", new RetryStrategyFilter(pipeliteContext));
         addFlowNodeDefinition(builder, "supply-exchange", new SupplyExchangeProcessor());
 
         return builder.build();

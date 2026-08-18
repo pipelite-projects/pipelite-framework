@@ -120,6 +120,16 @@ public abstract class AbstractFlowNode implements FlowNode {
     }
 
     @Override
+    public FlowNode getNext() {
+        return next;
+    }
+
+    @Override
+    public String getProcessorName() {
+        return processorName;
+    }
+
+    @Override
     public void setExceptionHandler(ExceptionHandler exceptionHandler) {
         this.exceptionHandler = exceptionHandler;
     }

@@ -18,6 +18,7 @@ package io.pipelite.examples.fooddelivery;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 
 /**
@@ -25,8 +26,14 @@ import java.math.BigDecimal;
  * stage of the demo: parsed from the two ingress channels ({@link #fromHttpPayload(String)},
  * {@link #fromCsvLine(String)}), enriched in-place by {@link KitchenService} and
  * {@link DispatchService}, and serialized for the Kafka hop / final audit log.
+ *
+ * <p>Implements {@link Serializable} because {@code kitchenProcessingFlow}/{@code
+ * dispatchProcessingFlow} carry it through {@code .withRetryChannel(...)}: on a failure,
+ * {@code RetryChannelExceptionHandler} Java-serializes the whole {@code Exchange} (payload
+ * included) into the durable {@code FlowExecutionDump} — any payload type used on a flow with a
+ * retry channel or dead letter channel must be serializable for that to succeed.
  */
-public class Order {
+public class Order implements Serializable {
 
     private String orderId;
     private String restaurantName;
@@ -100,6 +107,16 @@ public class Order {
     public String toDeliveryLogLine() {
         return String.format("%s | %s -> %s | %s | total=%s | driver=%s | eta=%dmin | status=%s\n",
             orderId, restaurantName, customerName, itemsSummary, totalAmount, driverId, etaMinutes, status);
+    }
+
+    /**
+     * Written by {@code dispatchDeadLetterFlow} for an order the dead letter channel received —
+     * same terminator requirement as {@link #toDeliveryLogLine()} (the file adapter's
+     * {@code LineRecordMapper} strips terminators on read, so writers must supply their own).
+     */
+    public String toRejectedLogLine() {
+        return String.format("%s | %s -> %s | %s | total=%s | channel=%s | REASON=exceeds manual-review threshold\n",
+            orderId, restaurantName, customerName, itemsSummary, totalAmount, sourceChannel);
     }
 
     public String getOrderId() {

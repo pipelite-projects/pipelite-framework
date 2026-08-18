@@ -39,6 +39,13 @@ final class FoodDeliveryPaths {
     static final Path PARTNER_ORDERS_FILE = DEMO_ROOT.resolve("partner-orders.csv");
     static final Path FILE_ADAPTER_STATE_DIRECTORY = DEMO_ROOT.resolve("state");
 
+    /**
+     * Where {@code dispatchDeadLetterFlow} (see {@link FoodDeliveryFlowConfiguration}) writes
+     * orders that exceeded the manual-review threshold and were routed to the dead letter
+     * channel after exhausting {@code dispatchProcessingFlow}'s retry attempts.
+     */
+    static final Path REJECTED_ORDERS_FILE = DEMO_ROOT.resolve("rejected-orders.log");
+
     private FoodDeliveryPaths() {
     }
 

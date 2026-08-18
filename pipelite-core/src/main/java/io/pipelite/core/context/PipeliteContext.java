@@ -18,6 +18,7 @@ package io.pipelite.core.context;
 import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.channel.ChannelConfigurer;
+import io.pipelite.spi.flow.Flow;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 
@@ -55,6 +56,24 @@ public interface PipeliteContext {
     boolean isRegistered(String flowName);
 
     void supplyExchange(String endpointURL, Exchange exchange);
+
+    /**
+     * Looks up a registered {@link Flow} by its source endpoint resource (the same value
+     * {@code Flow#getEndpointURI()} was registered under). Used to resume a flow's execution
+     * directly at a specific {@code FlowNode} (see {@code SupplyExchangeProcessor}) rather than
+     * re-entering from the source — the registry backing this lookup is otherwise entirely
+     * internal to this context's implementation.
+     */
+    Optional<Flow> tryFindFlow(String sourceEndpointResource);
+
+    /**
+     * Looks up a registered {@link Flow} by its own name — the value passed to
+     * {@code Pipelite.defineFlow(String flowName)} — not by its {@code fromSource(...)} resource
+     * (see {@link #tryFindFlow(String)} for that). Used to route to a dead-letter flow declared
+     * via {@code .withErrorChannel(c -> c.definedFlow(flowName))}: that value identifies the
+     * target flow itself, independent of whatever resource it happens to consume from.
+     */
+    Optional<Flow> tryFindFlowByName(String flowName);
 
     EndpointFactory getEndpointFactory();
 

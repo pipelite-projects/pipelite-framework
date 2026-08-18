@@ -48,7 +48,11 @@ public class PipeliteRetryChannelIntegrationTest {
                 throw new RuntimeException("Programmatic exception");
             }))
             .toSink("end")
-            .withRetryChannel()
+            // maxAttempts must exceed the 10 failures this test drives on purpose - prior to the
+            // maxAttempts fix, attemptNumber never actually advanced (a bug), so the hardcoded
+            // default of 3 never kicked in and this test passed by accident. Now that the cap is
+            // real, it must be configured explicitly for a scenario that wants >3 retries.
+            .withRetryChannel(retry -> retry.maxAttempts(20))
             .build();
 
         pipeliteContext.registerFlowDefinition(testFlow);

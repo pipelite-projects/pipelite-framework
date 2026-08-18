@@ -27,10 +27,46 @@ public interface FlowExecutionDump {
     String getSourceEndpointResource();
     void setLastExecutedProcessor(String processorName);
     String getLastExecutedProcessor();
+
+    /**
+     * The processor that actually threw, captured at the exact catch site — distinct from
+     * {@link #getLastExecutedProcessor()}, which only ever names the previous, successful step.
+     * {@code null} if the failure didn't originate inside a processor's own
+     * {@code AbstractProcessorNode.process(...)} catch block (e.g. a failure at the consumer
+     * itself), in which case resubmission falls back to resupplying from the flow's source.
+     */
+    void setFailedProcessor(String processorName);
+    String getFailedProcessor();
     void setAttemptNumber(int attemptNumber);
     int getAttemptNumber();
 
     void setFailureException(Throwable failureException);
     Optional<Throwable> tryGetFailureException();
+
+    /**
+     * A formatted, serializable rendering of {@link #tryGetFailureException()} — that field is
+     * {@code transient} and never survives serialization, so this is the only representation of
+     * the failure's stack trace that a durable/dead-lettered dump can carry.
+     */
+    void setStackTrace(String stackTrace);
+    String getStackTrace();
+
+    /**
+     * How many attempts this flow's retry channel is configured for, copied from the owning
+     * flow's {@code .withRetryChannel(...)} configuration at capture time (default 3) — read by
+     * {@code RetryStrategyFilter} instead of a hardcoded constant, since that filter is a single
+     * shared instance serving every flow's dumps.
+     */
+    void setMaxAttempts(int maxAttempts);
+    int getMaxAttempts();
+
+    /**
+     * The name of the owning flow's configured dead-letter flow (the value passed to
+     * {@code Pipelite.defineFlow(...)} for that flow, via {@code definedFlow(flowName)}), or
+     * {@code null} if none is configured — copied at capture time for the same reason as
+     * {@link #getMaxAttempts()}.
+     */
+    void setDeadLetterFlowName(String deadLetterFlowName);
+    String getDeadLetterFlowName();
 
 }
