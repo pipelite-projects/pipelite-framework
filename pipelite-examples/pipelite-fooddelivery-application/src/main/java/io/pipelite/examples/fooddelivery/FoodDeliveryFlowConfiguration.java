@@ -92,7 +92,7 @@ import java.util.concurrent.ThreadLocalRandom;
 @FlowConfiguration
 public class FoodDeliveryFlowConfiguration {
 
-    private static final int ORDER_GENERATOR_TICK_PERIOD_MILLIS = 500;
+    private static final int ORDER_GENERATOR_TICK_PERIOD_MILLIS = 1000;
     // Fraction of ticks randomly dropped by orderGeneratorFlow's filter, so the effective
     // inter-arrival time between generated orders is uneven rather than a flat 500ms.
     private static final double TICK_DROP_PROBABILITY = 0.4;
@@ -159,9 +159,8 @@ public class FoodDeliveryFlowConfiguration {
 
     @DefineFlow
     public FlowDefinition partnerOrdersFileFlow() {
-        final String fileSourceUrl = String.format("file://%s?startPosition=end&period=250", FoodDeliveryPaths.PARTNER_ORDERS_FILE);
         return Pipelite.defineFlow("partner-orders-file-flow")
-            .fromSource(fileSourceUrl)
+            .fromSource(String.format("file://%s?startPosition=end&period=250", FoodDeliveryPaths.PARTNER_ORDERS_FILE))
             .transformPayload("parse-partner-order", payload -> Order.fromCsvLine(payload.getPayloadAs(String.class)))
             .wireTap("log-incoming-partner-order", "slf4j://orders-received")
             .toSink("link://kitchen-start")
@@ -172,9 +171,11 @@ public class FoodDeliveryFlowConfiguration {
     public FlowDefinition kitchenProcessingFlow() {
         return Pipelite.defineFlow("kitchen-processing-flow")
             .fromSource(String.format("kitchen-start?concurrency=%d", KITCHEN_CONCURRENCY))
-            .process("prepare-order", (ioContext, contribution) ->
-                ioContext.setOutputPayload(kitchenService.prepareOrder(ioContext.getInputPayloadAs(Order.class))))
-            .transformPayload("serialize-order-event", payload -> payload.getPayloadAs(Order.class).toKafkaEventJson(objectMapper))
+            .process("prepare-order", (ioContext, contribution) -> {
+                final Order order = ioContext.getInputPayloadAs(Order.class);
+                kitchenService.prepareOrder(order);
+            })
+            .transformPayload("serialize-order-event", payloadHolder -> payloadHolder.getPayloadAs(Order.class).toKafkaEventJson(objectMapper))
             .toSink(String.format("kafka://%s", ORDER_EVENTS_TOPIC))
             // Retry channel alone: KitchenService.prepareOrder's occasional "equipment glitch" is
             // transient, so redelivering the same order (resumed directly at prepare-order, not
