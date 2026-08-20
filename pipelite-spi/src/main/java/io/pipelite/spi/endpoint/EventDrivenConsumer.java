@@ -54,8 +54,15 @@ public class EventDrivenConsumer extends DefaultConsumer {
         final long exchangeNumber = exchangeCount.incrementAndGet();
         try {
             preProcessExchange(exchange);
-            queue.put(PriorityExchange.withNormalPriority(exchange, exchangeNumber));
+            // postProcessExchange (marks this consumer as the last-executed processor) must run
+            // BEFORE queue.put, not after: put/take on a BlockingQueue is the only happens-before
+            // edge to the dispatch thread that later dequeues and runs this Exchange. Setting the
+            // property after put() races that thread — under the wrong scheduling (observed on CI,
+            // rarely locally) the dispatch thread can dequeue, run the next FlowNode, and have it
+            // throw before this thread gets to postProcessExchange, so a downstream ExceptionHandler
+            // reading FLOW_EXECUTION_LAST_EXECUTED_PROCESSOR_PROPERTY_NAME sees it still unset.
             postProcessExchange(exchange);
+            queue.put(PriorityExchange.withNormalPriority(exchange, exchangeNumber));
             /*
             synchronized (this){
                 if(tag != null && sysLogger.isTraceEnabled()){
