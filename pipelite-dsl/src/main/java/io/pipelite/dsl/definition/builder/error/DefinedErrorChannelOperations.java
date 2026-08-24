@@ -15,5 +15,15 @@
  */
 package io.pipelite.dsl.definition.builder.error;
 
-public interface DefinedErrorChannelOperations {
+import io.pipelite.dsl.definition.ErrorChannelDefinition;
+
+/**
+ * Extends {@link ErrorChannelDefinition} so a call chain like
+ * {@code c -> c.definedFlow(flowName)} can be returned directly from an
+ * {@code ErrorChannelConfigurator} lambda — {@code ErrorChannelConfigurator.configure(...)}
+ * must return an {@code ErrorChannelDefinition}, and previously nothing implementing this
+ * interface ever did, making that exact call chain (as proposed in issue #5's own sample code)
+ * fail to type-check.
+ */
+public interface DefinedErrorChannelOperations extends ErrorChannelDefinition {
 }

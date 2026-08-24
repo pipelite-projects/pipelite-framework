@@ -22,12 +22,22 @@ public class IOKeys {
 
     public static final String FAILURE_EXCEPTION_TYPE_HEADER_NAME = "X-Failure-Exception-Type";
     public static final String FAILURE_EXCEPTION_MESSAGE_HEADER_NAME = "X-Failure-Exception-Message";
+    public static final String FAILURE_STACK_TRACE_HEADER_NAME = "X-Failure-Stack-Trace";
 
     public static final String FLOW_EXECUTION_DUMP_ID_PROPERTY_NAME = "X-FlowExecution-Dump-Id";
     public static final String FLOW_EXECUTION_LAST_EXECUTED_FLOW_PROPERTY_NAME = "X-FlowExecution-Last-Executed-Flow";
     public static final String FLOW_EXECUTION_LAST_EXECUTED_FLOW_SOURCE_ENDPOINT_RESOURCE_PROPERTY_NAME = "X-FlowExecution-Last-Executed-Flow-Source-Endpoint-Resource";
     public static final String FLOW_EXECUTION_LAST_EXECUTED_PROCESSOR_PROPERTY_NAME = "X-FlowExecution-Last-Executed-Processor";
     public static final String FLOW_EXECUTION_ATTEMPT_NUMBER_PROPERTY_NAME = "X-FlowExecution-Attempt-Number";
+
+    /**
+     * Distinct from {@link #FLOW_EXECUTION_LAST_EXECUTED_PROCESSOR_PROPERTY_NAME}, which is
+     * only ever written on success (by a post-processor) and therefore names the step
+     * <em>before</em> the one that actually failed. This one is set once, at the exact catch
+     * site inside {@code AbstractProcessorNode.process()}, and names the processor whose
+     * {@code delegate.process(...)} call actually threw.
+     */
+    public static final String FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME = "X-FlowExecution-Failed-Processor";
 
     private IOKeys(){
     }

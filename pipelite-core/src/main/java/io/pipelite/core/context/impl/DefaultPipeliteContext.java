@@ -21,6 +21,7 @@ import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.config.FlowConfigurationScanner;
 import io.pipelite.core.config.NoOpEndpointURLPropertyResolver;
 import io.pipelite.core.context.*;
+import io.pipelite.core.flow.DeadLetterChannelExceptionHandler;
 import io.pipelite.core.flow.FlowFactory;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
@@ -42,6 +43,7 @@ import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
+import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.Flow;
 import io.pipelite.spi.flow.concurrent.DefaultThreadFactory;
 import io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties;
@@ -111,7 +113,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
         executionDumpFactory = new FlowExecutionDumpFactory(new DistributedIdentityGeneratorImpl(), new Base64ObjectSerializer());
         executionDumpRepository = new FlowExecutionDumpInMemoryRepository();
-        retryChannelDefinitionFactory = new RetryChannelDefinitionFactory(executionDumpRepository);
+        retryChannelDefinitionFactory = new RetryChannelDefinitionFactory(executionDumpRepository, this);
     }
 
     @Override
@@ -317,6 +319,16 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     }
 
     @Override
+    public Optional<Flow> tryFindFlow(String sourceEndpointResource) {
+        return flowRegistry.tryFindFlow(sourceEndpointResource);
+    }
+
+    @Override
+    public Optional<Flow> tryFindFlowByName(String flowName) {
+        return flowRegistry.tryFindFlowByName(flowName);
+    }
+
+    @Override
     public void supplyExchange(String destinationURL, Exchange exchange) {
 
         final ChannelURL channelURL = ChannelURL.parse(destinationURL);
@@ -375,6 +387,18 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
                 }
 
+            } else {
+                // No retry channel: a bare dead-letter channel (.withErrorChannel(c ->
+                // c.definedFlow(flowName)) with no .withRetryChannel(...)) routes on the very
+                // first failure and needs this context to dispatch there — see
+                // DeadLetterChannelExceptionHandler. Fetched as the base ExceptionHandler type
+                // (never throws) rather than FlowDefinition#getExceptionHandler(specific-class),
+                // which throws ClassCastException for any other handler type a flow might carry
+                // (e.g. PipeliteTestFixture's own capture handler) instead of just not matching.
+                final ExceptionHandler configuredHandler = flowDefinition.getExceptionHandler(ExceptionHandler.class);
+                if(configuredHandler instanceof DeadLetterChannelExceptionHandler){
+                    ((DeadLetterChannelExceptionHandler) configuredHandler).setPipeliteContext(this);
+                }
             }
 
             // Create and register the flow

@@ -17,15 +17,30 @@ package io.pipelite.core.flow.execution.retry;
 
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
+import io.pipelite.core.flow.FlowNodeLocator;
 import io.pipelite.core.flow.execution.dump.SerializedFlowExecutionDump;
 import io.pipelite.core.support.serialization.BaseEncoding;
 import io.pipelite.core.support.serialization.ByteArrayToObjectConverter;
-import io.pipelite.dsl.route.RoutingSlip;
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.AbstractFlowNode;
+import io.pipelite.spi.flow.Flow;
 import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.FlowNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * Resumes a failed flow's execution. Prefers resuming directly at the {@code FlowNode} that
+ * actually failed ({@link SerializedFlowExecutionDump#getFailedProcessor()}) — bypassing the
+ * flow's source and every already-succeeded step, which would otherwise re-run and could
+ * re-apply side effects. Falls back to the pre-existing behavior (resupply from the flow's own
+ * source) only when the failed processor's identity or the flow itself can't be resolved, e.g.
+ * a dump produced before this resume mechanism existed, or a failure that didn't originate
+ * inside a processor's own catch block.
+ */
 public class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContextAware {
+
+    private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
     private final ByteArrayToObjectConverter converter;
 
@@ -46,6 +61,25 @@ public class SupplyExchangeProcessor extends AbstractFlowNode implements Pipelit
         final Exchange recoveredExchange = converter.convert(exchangeContent, Exchange.class);
         recoveredExchange.setProperty(IOKeys.FLOW_EXECUTION_ATTEMPT_NUMBER_PROPERTY_NAME, executionDump.getAttemptNumber());
         recoveredExchange.setProperty(IOKeys.FLOW_EXECUTION_LAST_EXECUTED_PROCESSOR_PROPERTY_NAME, executionDump.getLastExecutedProcessor());
+
+        final String failedProcessor = executionDump.getFailedProcessor();
+        if (failedProcessor != null) {
+            final FlowNode target = pipeliteContext.tryFindFlow(executionDump.getSourceEndpointResource())
+                .flatMap(flow -> FlowNodeLocator.findByProcessorName(flow, failedProcessor))
+                .orElse(null);
+            if (target != null) {
+                target.process(recoveredExchange);
+                return;
+            }
+            if (sysLogger.isWarnEnabled()) {
+                sysLogger.warn("Unable to resolve failed processor '{}' on flow source '{}' for FlowExecutionDump {}, " +
+                        "falling back to source resupply",
+                    failedProcessor, executionDump.getSourceEndpointResource(), executionDump.getId());
+            }
+        } else if (sysLogger.isWarnEnabled()) {
+            sysLogger.warn("FlowExecutionDump {} has no failedProcessor, falling back to source resupply",
+                executionDump.getId());
+        }
 
         final String endpointURL = String.format("link://%s", executionDump.getSourceEndpointResource());
         pipeliteContext.supplyExchange(endpointURL, recoveredExchange);

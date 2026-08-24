@@ -263,6 +263,16 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
     }
 
     @Override
+    public FlowNode getNext() {
+        return eventDrivenConsumer.getNext();
+    }
+
+    @Override
+    public String getProcessorName() {
+        return eventDrivenConsumer.getProcessorName();
+    }
+
+    @Override
     public void setExceptionHandler(ExceptionHandler exceptionHandler) {
         eventDrivenConsumer.setExceptionHandler(exceptionHandler);
     }

@@ -17,7 +17,13 @@ package io.pipelite.dsl.definition.builder;
 
 public interface BuildOperations extends EndOperations {
 
-    EndOperations withRetryChannel();
-    EndOperations withErrorChannel(ErrorChannelConfigurator configurator);
+    // Return BuildOperations (not EndOperations) so these three are chainable with each other in
+    // any combination/order before build() — e.g. .withRetryChannel(...).withErrorChannel(...) —
+    // instead of each call being a dead end that only leaves build() available. See
+    // io.pipelite.core.definition.builder.FlowDefinitionBuilder#resolveExceptionHandler for how
+    // retry + dead-letter compose into a single ExceptionHandler when both are declared.
+    BuildOperations withRetryChannel();
+    BuildOperations withRetryChannel(RetryChannelConfigurator configurator);
+    BuildOperations withErrorChannel(ErrorChannelConfigurator configurator);
 
 }

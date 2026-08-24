@@ -30,6 +30,22 @@ public interface FlowNode {
     void setSourceEndpointResource(String sourceEndpointResource);
     void setProcessorName(String processorName);
 
+    /**
+     * The next node in this flow's own processor chain, or {@code null} if this node is
+     * terminal ({@link #hasNext()} is {@code false}) or doesn't participate in name-based
+     * lookup (e.g. a router node, which dispatches elsewhere via {@code supplyExchange}
+     * rather than continuing this chain). Default {@code null} so existing {@code FlowNode}
+     * implementations that predate this method don't have to change.
+     */
+    default FlowNode getNext(){ return null; }
+
+    /**
+     * This node's own processor name, as set by {@link #setProcessorName(String)} — or
+     * {@code null} if never set / not applicable to this node. Default {@code null} for the
+     * same backward-compatibility reason as {@link #getNext()}.
+     */
+    default String getProcessorName(){ return null; }
+
     void addExchangePreProcessor(ExchangePreProcessor exchangePreProcessor);
     void addExchangePostProcessor(ExchangePostProcessor exchangePostProcessor);
 

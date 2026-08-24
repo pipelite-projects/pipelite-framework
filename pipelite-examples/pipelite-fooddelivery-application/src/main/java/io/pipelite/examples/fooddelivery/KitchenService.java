@@ -28,15 +28,29 @@ import java.util.concurrent.ThreadLocalRandom;
  * so the random sleep here is what makes the overlap between "kitchen stations" visible in the
  * console log. {@code @Component} so Spring constructor-injects it into
  * {@link FoodDeliveryFlowConfiguration}.
+ *
+ * <p>Also throws an occasional transient "equipment glitch" (see
+ * {@link #EQUIPMENT_GLITCH_PROBABILITY}) — a failure with no lasting cause, so it's expected to
+ * succeed on a later attempt. This is what {@code kitchenProcessingFlow}'s
+ * {@code .withRetryChannel(...)} exists to demonstrate: at ~20% failure probability per attempt,
+ * the odds of exhausting all 3 configured attempts in a row are under 1%, so in practice this
+ * shows retries recovering, not messages being dropped.
  */
 @Component
 public class KitchenService {
+
+    private static final double EQUIPMENT_GLITCH_PROBABILITY = 0.2;
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     public Order prepareOrder(Order order) {
         order.setStatus(OrderStatus.PREPARING);
         logger.info("[kitchen] preparing {} on thread {}", order, Thread.currentThread().getName());
+
+        if (ThreadLocalRandom.current().nextDouble() < EQUIPMENT_GLITCH_PROBABILITY) {
+            logger.warn("[kitchen] equipment glitch while preparing {} - retry channel should redeliver", order);
+            throw new IllegalStateException("Kitchen equipment glitch while preparing " + order.getOrderId());
+        }
 
         final int prepMillis = ThreadLocalRandom.current().nextInt(50, 200);
         try {

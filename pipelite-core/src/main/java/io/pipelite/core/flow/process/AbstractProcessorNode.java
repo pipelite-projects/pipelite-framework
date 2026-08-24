@@ -17,6 +17,7 @@ package io.pipelite.core.flow.process;
 
 import io.pipelite.dsl.process.ProcessContribution;
 import io.pipelite.dsl.process.Processor;
+import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.AbstractFlowNode;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
@@ -61,6 +62,7 @@ public abstract class AbstractProcessorNode extends AbstractFlowNode implements 
                 sysLogger.error("An underlying error occurred processing message", exception);
             }
             if(exceptionHandler != null){
+                exchange.setProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, getProcessorName());
                 exceptionHandler.handleException(exception, exchange);
                 return;
             }else{

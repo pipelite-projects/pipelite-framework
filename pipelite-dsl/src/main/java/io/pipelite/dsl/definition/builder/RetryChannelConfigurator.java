@@ -13,9 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.definition.builder.error;
+package io.pipelite.dsl.definition.builder;
 
-import io.pipelite.dsl.definition.builder.error.DefinedErrorChannelOperations;
+import io.pipelite.dsl.definition.builder.retry.RetryChannelOperations;
 
-public class CustomErrorChannelBuilder implements DefinedErrorChannelOperations {
+/**
+ * Consumer-style on purpose (no return value), unlike {@link ErrorChannelConfigurator}: avoids
+ * the class of bug fixed on {@code DefinedErrorChannelOperations}, where a fluent method's
+ * return type didn't match what the configurator contract required callers to hand back.
+ */
+public interface RetryChannelConfigurator {
+
+    void configure(RetryChannelOperations builder);
+
 }

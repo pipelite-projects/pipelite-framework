@@ -26,6 +26,7 @@ import io.pipelite.spi.flow.AbstractFlowNode;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.FlowNode;
+import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.exchange.HeadersImpl;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import io.pipelite.spi.flow.process.ExchangePreProcessor;
@@ -147,6 +148,11 @@ public class SplitterNode extends AbstractFlowNode implements PipeliteContextAwa
             // nodes (would break the collector for a failing last step) - a single dispatch
             // covers the entire split, never a per-item one.
             if (exceptionHandler != null) {
+                // D13: intentionally the whole pre-split collection, not the single failing
+                // item — a resume/dead-letter targeting this property lands back on the split
+                // step itself, atomically re-running/dead-lettering the entire batch. See
+                // 2026-Q3-pipelite-dead-letter-channel-review.md §3.7 for the reasoning.
+                exchange.setProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, getProcessorName());
                 exceptionHandler.handleException(exception, exchange);
                 return;
             } else {

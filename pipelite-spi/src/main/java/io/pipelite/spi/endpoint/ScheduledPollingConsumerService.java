@@ -118,6 +118,16 @@ public class ScheduledPollingConsumerService extends AbstractService implements 
     }
 
     @Override
+    public FlowNode getNext() {
+        return pollingConsumer.getNext();
+    }
+
+    @Override
+    public String getProcessorName() {
+        return pollingConsumer.getProcessorName();
+    }
+
+    @Override
     public void tag(String tag) {
         pollingConsumer.tag(tag);
     }

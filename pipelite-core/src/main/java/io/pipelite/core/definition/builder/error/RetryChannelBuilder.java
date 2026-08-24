@@ -18,8 +18,21 @@ package io.pipelite.core.definition.builder.error;
 import io.pipelite.dsl.definition.builder.retry.RetryChannelOperations;
 
 public class RetryChannelBuilder implements RetryChannelOperations {
+
+    public static final int DEFAULT_MAX_ATTEMPTS = 3;
+
+    private int maxAttempts = DEFAULT_MAX_ATTEMPTS;
+
     @Override
     public RetryChannelOperations maxAttempts(int maxAttempts) {
+        if (maxAttempts < 1) {
+            throw new IllegalArgumentException("maxAttempts must be at least 1, got " + maxAttempts);
+        }
+        this.maxAttempts = maxAttempts;
         return this;
+    }
+
+    public int getMaxAttempts() {
+        return maxAttempts;
     }
 }

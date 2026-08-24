@@ -30,7 +30,11 @@ public abstract class AbstractFlowExecutionDump implements FlowExecutionDump {
     private final String flowName;
     private String sourceEndpointResource;
     private String lastExecutedProcessor;
+    private String failedProcessor;
     private int attemptNumber;
+    private String stackTrace;
+    private int maxAttempts = 3;
+    private String deadLetterFlowName;
 
     private transient Throwable failureException;
 
@@ -85,6 +89,16 @@ public abstract class AbstractFlowExecutionDump implements FlowExecutionDump {
     }
 
     @Override
+    public void setFailedProcessor(String processorName) {
+        failedProcessor = processorName;
+    }
+
+    @Override
+    public String getFailedProcessor() {
+        return failedProcessor;
+    }
+
+    @Override
     public void setAttemptNumber(int attemptNumber){
         this.attemptNumber = attemptNumber;
     }
@@ -102,6 +116,36 @@ public abstract class AbstractFlowExecutionDump implements FlowExecutionDump {
     @Override
     public Optional<Throwable> tryGetFailureException() {
         return Optional.ofNullable(failureException);
+    }
+
+    @Override
+    public void setStackTrace(String stackTrace) {
+        this.stackTrace = stackTrace;
+    }
+
+    @Override
+    public String getStackTrace() {
+        return stackTrace;
+    }
+
+    @Override
+    public void setMaxAttempts(int maxAttempts) {
+        this.maxAttempts = maxAttempts;
+    }
+
+    @Override
+    public int getMaxAttempts() {
+        return maxAttempts;
+    }
+
+    @Override
+    public void setDeadLetterFlowName(String deadLetterFlowName) {
+        this.deadLetterFlowName = deadLetterFlowName;
+    }
+
+    @Override
+    public String getDeadLetterFlowName() {
+        return deadLetterFlowName;
     }
 
     @Override

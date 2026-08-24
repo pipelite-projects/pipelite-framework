@@ -15,14 +15,41 @@
  */
 package io.pipelite.core.definition.builder.error;
 
+import io.pipelite.dsl.definition.ErrorChannelDefinition;
 import io.pipelite.dsl.definition.builder.error.DefinedErrorChannelOperations;
 import io.pipelite.dsl.definition.builder.error.ErrorChannelOperations;
+import io.pipelite.spi.channel.ChannelURL;
+
+import java.util.Objects;
 
 public class ErrorChannelBuilder implements ErrorChannelOperations, DefinedErrorChannelOperations {
 
+    private String flowName;
+
     @Override
-    public DefinedErrorChannelOperations definedChannel(String channelName) {
-        return null;
+    public DefinedErrorChannelOperations definedFlow(String flowName) {
+        Objects.requireNonNull(flowName, "flowName is required and cannot be null");
+        final ChannelURL channelURL = ChannelURL.parse(flowName);
+        if (channelURL.hasProtocol()) {
+            throw new IllegalArgumentException(String.format(
+                "definedFlow('%s') expects the plain name of an internal flow (the value passed to " +
+                    "Pipelite.defineFlow(...)), not a URL and not a fromSource(...) resource — omit the " +
+                    "protocol (e.g. '%s', not '%s://%s'); routing to that flow is applied automatically, " +
+                    "and a direct channel adapter (Kafka/HTTP/...) is never a valid dead letter target",
+                flowName, channelURL.getEndpointURL(), channelURL.getProtocol(), channelURL.getEndpointURL()));
+        }
+        this.flowName = flowName;
+        return this;
+    }
+
+    @Override
+    public String getEndpointURL() {
+        return flowName;
+    }
+
+    @Override
+    public ErrorChannelDefinition.ChannelType getErrorChannelType() {
+        return ErrorChannelDefinition.ChannelType.DEFINED_CHANNEL;
     }
 
 }
