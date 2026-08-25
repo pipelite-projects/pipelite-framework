@@ -141,6 +141,42 @@ public class FileTailStateStoreTest {
         Assert.assertTrue(persisted > 0 && persisted <= maxOffsetSubmitted.get());
     }
 
+    @Test
+    public void shouldNotLoseIndexEntriesWhenDifferentNewResourcesAreSavedConcurrently() throws Exception {
+        final int resourceCount = 16;
+        final ExecutorService executor = Executors.newFixedThreadPool(resourceCount);
+        final CountDownLatch startLatch = new CountDownLatch(1);
+        final CountDownLatch doneLatch = new CountDownLatch(resourceCount);
+
+        for (int i = 0; i < resourceCount; i++) {
+            final String resourcePath = "/var/log/resource-" + i + ".log";
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    subject.save(resourcePath, new TailState(1L, 0L));
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        startLatch.countDown();
+        Assert.assertTrue(doneLatch.await(10, TimeUnit.SECONDS));
+        executor.shutdown();
+
+        final Path indexFile = stateDirectory.resolve("index.properties");
+        final Properties properties = new Properties();
+        try (var in = Files.newInputStream(indexFile)) {
+            properties.load(in);
+        }
+        for (int i = 0; i < resourceCount; i++) {
+            final String resourcePath = "/var/log/resource-" + i + ".log";
+            Assert.assertEquals(resourcePath, properties.getProperty(sha256Hex(resourcePath)));
+        }
+    }
+
     private static String sha256Hex(String value) throws Exception {
         final MessageDigest digest = MessageDigest.getInstance("SHA-256");
         final byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
