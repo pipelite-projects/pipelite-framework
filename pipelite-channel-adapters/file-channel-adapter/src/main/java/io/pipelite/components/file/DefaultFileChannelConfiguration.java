@@ -16,6 +16,7 @@
 package io.pipelite.components.file;
 
 import io.pipelite.common.support.Preconditions;
+import io.pipelite.common.support.fs.PipeliteHome;
 
 import java.nio.file.Path;
 import java.util.HashMap;
@@ -23,8 +24,7 @@ import java.util.Map;
 
 public class DefaultFileChannelConfiguration implements FileChannelConfiguration {
 
-    private static final Path DEFAULT_STATE_DIRECTORY =
-        Path.of(System.getProperty("user.home"), ".pipelite", "file-channel-adapter");
+    private static final Path DEFAULT_STATE_DIRECTORY = PipeliteHome.resolve("file-channel-adapter");
 
     private static final FileRecordMapper<String> DEFAULT_MAPPER = new LineRecordMapper();
 

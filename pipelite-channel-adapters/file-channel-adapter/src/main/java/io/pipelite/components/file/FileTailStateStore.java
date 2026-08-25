@@ -16,17 +16,14 @@
 package io.pipelite.components.file;
 
 import io.pipelite.common.support.Preconditions;
+import io.pipelite.common.support.fs.LockedFileStore;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
+import java.io.StringReader;
+import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Properties;
@@ -36,7 +33,8 @@ import java.util.Properties;
  * already been consumed, together with the count of header lines already skipped
  * (see {@link FileConstants#SKIP_LINES_PROPERTY_NAME}). State files are named after the
  * SHA-256 hex digest of the resource's path, to avoid any filesystem-unsafe character in
- * the original path.
+ * the original path. Locked I/O is delegated to {@link LockedFileStore}; this class owns the
+ * resource-path-to-file-name mapping and the on-disk value format.
  */
 public class FileTailStateStore {
 
@@ -44,48 +42,32 @@ public class FileTailStateStore {
     private static final String INDEX_FILE_NAME = "index.properties";
 
     private final Path stateDirectory;
+    private final LockedFileStore store;
 
     public FileTailStateStore(Path stateDirectory) {
         this.stateDirectory = Preconditions.notNull(stateDirectory, "stateDirectory is required and cannot be null");
+        this.store = new LockedFileStore(stateDirectory);
     }
 
     public TailState load(String resourcePath) {
-        final Path stateFile = resolveStateFile(resourcePath);
-        final boolean isNew = !Files.exists(stateFile);
-        ensureStateDirectory();
-        try (FileChannel fc = FileChannel.open(stateFile, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
-             FileLock lock = fc.lock()) {
-            if (isNew) {
-                updateIndex(resourcePath, stateFile);
-            }
-            if (fc.size() == 0) {
-                return TailState.INITIAL;
-            }
-            final String[] lines = readAsText(fc).split("\n", -1);
-            final long offset = parseLongOrDefault(lines.length > 0 ? lines[0] : null, 0L);
-            final long skippedLines = parseLongOrDefault(lines.length > 1 ? lines[1] : null, 0L);
-            return new TailState(offset, skippedLines);
-        } catch (IOException exception) {
-            throw new IllegalStateException(String.format("Unable to load tail state for resource '%s'", resourcePath), exception);
-        }
+        final String fileName = stateFileName(resourcePath);
+        registerInIndexIfNew(resourcePath, fileName);
+        return store.readLocked(fileName)
+            .map(FileTailStateStore::parseState)
+            .orElse(TailState.INITIAL);
     }
 
     public void save(String resourcePath, TailState state) {
-        final Path stateFile = resolveStateFile(resourcePath);
-        final boolean isNew = !Files.exists(stateFile);
-        ensureStateDirectory();
-        try (FileChannel fc = FileChannel.open(stateFile, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
-             FileLock lock = fc.lock()) {
-            if (isNew) {
-                updateIndex(resourcePath, stateFile);
-            }
-            final String content = state.getOffset() + "\n" + state.getSkippedLines();
-            fc.truncate(0);
-            fc.position(0);
-            fc.write(ByteBuffer.wrap(content.getBytes(StandardCharsets.UTF_8)));
-        } catch (IOException exception) {
-            throw new IllegalStateException(String.format("Unable to save tail state for resource '%s'", resourcePath), exception);
-        }
+        final String fileName = stateFileName(resourcePath);
+        registerInIndexIfNew(resourcePath, fileName);
+        store.writeLocked(fileName, state.getOffset() + "\n" + state.getSkippedLines());
+    }
+
+    private static TailState parseState(String content) {
+        final String[] lines = content.split("\n", -1);
+        final long offset = parseLongOrDefault(lines.length > 0 ? lines[0] : null, 0L);
+        final long skippedLines = parseLongOrDefault(lines.length > 1 ? lines[1] : null, 0L);
+        return new TailState(offset, skippedLines);
     }
 
     private static long parseLongOrDefault(String value, long defaultValue) {
@@ -95,52 +77,45 @@ public class FileTailStateStore {
         return Long.parseLong(value.trim());
     }
 
-    private void ensureStateDirectory() {
-        try {
-            Files.createDirectories(stateDirectory);
-        } catch (IOException exception) {
-            throw new IllegalStateException(String.format("Unable to create state directory '%s'", stateDirectory), exception);
+    private String stateFileName(String resourcePath) {
+        return sha256Hex(resourcePath) + STATE_FILE_EXTENSION;
+    }
+
+    private void registerInIndexIfNew(String resourcePath, String fileName) {
+        final boolean isNew = !Files.exists(stateDirectory.resolve(fileName));
+        if (isNew) {
+            updateIndex(resourcePath, fileName);
         }
     }
 
-    private Path resolveStateFile(String resourcePath) {
-        return stateDirectory.resolve(sha256Hex(resourcePath) + STATE_FILE_EXTENSION);
-    }
-
-    private void updateIndex(String resourcePath, Path stateFile) {
-        final Path indexFile = stateDirectory.resolve(INDEX_FILE_NAME);
-        final String fileName = stateFile.getFileName().toString();
-        final String key = fileName.substring(0, fileName.length() - STATE_FILE_EXTENSION.length());
-        try (FileChannel fc = FileChannel.open(indexFile, StandardOpenOption.READ, StandardOpenOption.WRITE, StandardOpenOption.CREATE);
-             FileLock lock = fc.lock()) {
+    private void updateIndex(String resourcePath, String stateFileName) {
+        final String key = stateFileName.substring(0, stateFileName.length() - STATE_FILE_EXTENSION.length());
+        store.readAndWriteLocked(INDEX_FILE_NAME, currentContent -> {
             final Properties properties = new Properties();
-            if (fc.size() > 0) {
-                properties.load(new ByteArrayInputStream(readAsBytes(fc)));
-            }
+            currentContent.ifPresent(content -> loadProperties(properties, content));
             if (!properties.containsKey(key)) {
                 properties.setProperty(key, resourcePath);
-                final ByteArrayOutputStream out = new ByteArrayOutputStream();
-                properties.store(out, "sha256 -> original resource path (debug only, not read by runtime)");
-                fc.position(0);
-                fc.truncate(0);
-                fc.write(ByteBuffer.wrap(out.toByteArray()));
             }
+            return formatProperties(properties);
+        });
+    }
+
+    private static void loadProperties(Properties properties, String content) {
+        try {
+            properties.load(new StringReader(content));
         } catch (IOException exception) {
-            throw new IllegalStateException(String.format("Unable to update state index for resource '%s'", resourcePath), exception);
+            throw new IllegalStateException("Unable to parse state index", exception);
         }
     }
 
-    private static byte[] readAsBytes(FileChannel fc) throws IOException {
-        final ByteBuffer buffer = ByteBuffer.allocate((int) fc.size());
-        fc.position(0);
-        while (buffer.hasRemaining() && fc.read(buffer) != -1) {
-            // keep reading until the buffer is full
+    private static String formatProperties(Properties properties) {
+        final StringWriter writer = new StringWriter();
+        try {
+            properties.store(writer, "sha256 -> original resource path (debug only, not read by runtime)");
+        } catch (IOException exception) {
+            throw new IllegalStateException("Unable to format state index", exception);
         }
-        return buffer.array();
-    }
-
-    private static String readAsText(FileChannel fc) throws IOException {
-        return new String(readAsBytes(fc), StandardCharsets.UTF_8);
+        return writer.toString();
     }
 
     private static String sha256Hex(String value) {
