@@ -1,0 +1,86 @@
+= Shared Filesystem Storage
+:description: PipeliteHome and LockedFileStore, reusable utilities for components that persist durable state to disk
+
+Any component that needs to write durable state to the local filesystem — a custom channel adapter tracking a cursor, an offset, or a checkpoint — can build on two small utilities in `pipelite-common` instead of re-deriving directory resolution and file-locking from scratch: `PipeliteHome` and `LockedFileStore`. The built-in xref:channel-adapters:file.adoc[File Channel Adapter] is a real, in-framework example of a component built on both.
+
+== PipeliteHome
+
+Resolves the shared root directory ("Pipelite home") under which any component may keep its own state, purely by computing a path — it never creates directories or touches the filesystem.
+
+[source,java]
+----
+public final class PipeliteHome {
+    public static Path resolve();                  // the shared root directory
+    public static Path resolve(String subfolder);   // a dedicated subfolder under the root
+}
+----
+
+Resolution order for the root directory:
+
+. The `pipelite.home` system property, if set.
+. The `PIPELITE_HOME` environment variable, if set.
+. `~/.pipelite`, otherwise.
+
+[source,java]
+----
+Path home = PipeliteHome.resolve();
+Path myComponentState = PipeliteHome.resolve("my-custom-adapter");
+----
+
+Resolving your component's state directory this way, instead of hardcoding a path, means operators can relocate *every* Pipelite component's durable state at once — by setting one environment variable — without touching your component's own configuration.
+
+== LockedFileStore
+
+Provides safe, locked read/write access to files within a single directory. A file is addressed directly by name — `LockedFileStore` has no notion of logical keys, hashing, or value serialization; deriving a file name from your own domain data, and parsing/formatting its content, is your responsibility.
+
+[source,java]
+----
+public class LockedFileStore {
+    public LockedFileStore(Path directory);
+
+    public Optional<String> readLocked(String fileName);
+    public void writeLocked(String fileName, String content);
+    public void readAndWriteLocked(String fileName, Function<Optional<String>, String> transform);
+}
+----
+
+`readAndWriteLocked` applies a transform to the current content (empty if the file is new) and writes back what it returns, holding a single lock for the whole read-modify-write — safer than calling `readLocked` followed by `writeLocked` separately when the new content depends on the old.
+
+The target directory is created lazily on first access, not at construction time. Reads and writes are safe both across processes and across threads within the same process.
+
+=== Usage by composition
+
+Instantiate `LockedFileStore` as a field of your own component — it is designed to be composed, not extended:
+
+[source,java]
+----
+public class MyCursorStore {
+
+    private final LockedFileStore store;
+
+    public MyCursorStore(Path stateDirectory) {
+        this.store = new LockedFileStore(stateDirectory);
+    }
+
+    public long loadCursor(String resourceKey) {
+        return store.readLocked(resourceKey)
+            .map(Long::parseLong)
+            .orElse(0L);
+    }
+
+    public void saveCursor(String resourceKey, long cursor) {
+        store.writeLocked(resourceKey, Long.toString(cursor));
+    }
+}
+----
+
+Typically combined with `PipeliteHome` to resolve the target directory:
+
+[source,java]
+----
+new MyCursorStore(PipeliteHome.resolve("my-custom-adapter"));
+----
+
+== What's out of scope
+
+`FlowExecutionDumpRepository` (used by the retry channel) and `AggregateRepository` (used by split/aggregate) remain in-memory and are not built on `PipeliteHome`/`LockedFileStore` — filesystem-backed durability for either is a separate concern, not covered by this utility.

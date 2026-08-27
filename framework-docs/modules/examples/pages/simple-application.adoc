@@ -1,0 +1,20 @@
+= Plain-Java Application
+:description: pipelite-simple-application — declaring and running a flow with no Spring on the classpath
+
+Module: `pipelite-examples/pipelite-simple-application`
+
+A minimal plain-Java application, the conceptual twin of xref:springboot-application.adoc[the Spring Boot example] — same flow, no Spring anywhere on the classpath.
+
+== What it demonstrates
+
+* Declaring a flow with `@FlowConfiguration`/`@DefineFlow` outside of any DI container (see xref:core:flow-declaration.adoc[Declaring Flows]).
+* Resolving `@DefineFlow` method parameters through the native `DependencyRegistry`, populated via `PipeliteContext.registerDependency(...)`, instead of Spring autowiring.
+* Explicit creation and startup of a `PipeliteContext` from a plain `main()` method.
+
+== Source
+
+* `Application.java` — creates the context, registers a `GreetingService` dependency and the flow configuration class, and starts the context.
+* `AcquireFlowConfiguration.java` — a single flow: HTTP ingress → greet the caller → wiretap to a logger → main log sink.
+* `GreetingService.java` — the plain dependency resolved by name from the `DependencyRegistry`.
+
+Path: `pipelite-examples/pipelite-simple-application/src/main/java/io/pipelite/examples/simple/`

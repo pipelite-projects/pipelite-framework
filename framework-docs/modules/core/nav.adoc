@@ -2,6 +2,6 @@
 ** xref:core:exchange.adoc[Exchange]
 ** xref:core:messages.adoc[Message and Headers]
 ** xref:core:flows.adoc[Flow and PipeliteContext]
-** xref:core:flow-configuration.adoc[FlowConfiguration SPI]
+** xref:core:flow-declaration.adoc[Declaring Flows]
 ** xref:core:processors.adoc[Processors and Transformers]
 ** xref:core:error-handling.adoc[Error Handling]

@@ -74,11 +74,6 @@ The WireTap sends a *copy* of the current message to a secondary endpoint in a n
 
 The message continues to flow normally along the main flow while the copy is sent to the channel identified by the URL.
 
-== Message Translator
-
-The `MessageTranslatorNode` converts the message type from one format to another via a `Function<Message, Message>`.
-It is configured internally by the framework during flow construction.
-
 == Summary of nodes available via DSL
 
 [cols="2,3,3"]

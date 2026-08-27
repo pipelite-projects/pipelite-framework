@@ -1,0 +1,36 @@
+= Configuring Channel Adapters via Beans
+:description: Configuring channel adapters in a Spring Boot application via ChannelConfigurer beans
+
+Channel adapter configuration in a Spring Boot application is currently done through `@Configuration` beans implementing `ChannelConfigurer` (see xref:extensibility:channel-configuration.adoc[Channel Configuration SPI]) — the autoconfiguration detects and applies matching beans automatically.
+
+== Kafka
+
+[source,java]
+----
+@Bean
+public KafkaChannelConfigurer kafkaConfigurer() {
+    return config -> {
+        config.setBootstrapServers("kafka-broker:9092");
+        config.setGroupId("my-app-group");
+        config.setAutoOffsetReset("earliest");
+    };
+}
+----
+
+The `KafkaChannelConfigurer` bean is automatically detected by the autoconfiguration and applied to the `KafkaChannelAdapter`.
+
+== File
+
+[source,java]
+----
+@Bean
+public FileChannelConfigurer fileConfigurer() {
+    return config -> config.setStateDirectory(Path.of("/var/lib/myapp/pipelite-file-state"));
+}
+----
+
+See xref:channel-adapters:file.adoc[File] for the full set of configurable properties.
+
+== Other adapters
+
+Any adapter exposing a `ChannelConfigurer` type (see xref:extensibility:channel-configuration.adoc[Channel Configuration SPI]) follows the same pattern: declare a bean of that type, and the autoconfiguration applies it.

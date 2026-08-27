@@ -1,0 +1,35 @@
+= Error Handling Internals
+:description: The classes implementing the retry channel and the FlowExecutionDump hierarchy
+
+WARNING: This page documents internal implementation details of Pipelite Framework, intended for contributors to the framework itself. It is *not* required reading to define, run, or extend flows as a user of the framework. See xref:core:error-handling.adoc[Error Handling] instead.
+
+== Retry channel mechanism
+
+. The exception is caught by `RetryChannelExceptionHandler`.
+. The `Exchange` is serialized into a `FlowExecutionDump` via `FlowExecutionDumpFactory`.
+. The dump is persisted in `FlowExecutionDumpRepository` (default in-memory implementation: `FlowExecutionDumpInMemoryRepository`).
+. The `RetryPollingConsumer` periodically retrieves the dumps and retries execution.
+. `RetryStrategyFilter` determines whether the attempt should be made based on the configured strategy.
+
+== FlowExecutionDump
+
+The `FlowExecutionDump` is the serialization of the `Exchange` at the time of failure. It contains the serialized payload, headers, and properties required for the retry.
+
+[cols="1,3"]
+|===
+|Class |Description
+
+|`FlowExecutionDump` (interface)
+|Contract for the execution dump
+
+|`DefaultFlowExecutionDump`
+|Standard in-memory implementation
+
+|`SerializedFlowExecutionDump`
+|Base64-serialized version for persistence
+
+|`FlowExecutionDumpInMemoryRepository`
+|In-memory repository (not persistent across restarts)
+|===
+
+TIP: For production environments with durability requirements, `FlowExecutionDumpRepository` can be implemented with a persistent backend (e.g. database, Redis). This is unrelated to xref:extensibility:shared-filesystem-storage.adoc[Shared Filesystem Storage] (`PipeliteHome`/`LockedFileStore`), which does not back this repository — see that page's "What's out of scope" section.

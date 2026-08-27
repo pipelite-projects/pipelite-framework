@@ -1,8 +1,7 @@
-= FlowConfiguration SPI
+= Declaring Flows
 :description: Declaring flows with @FlowConfiguration and @DefineFlow
 
-The FlowConfiguration SPI provides a structured, declarative way to define and register flows.
-Instead of constructing `FlowDefinition` objects inline and registering them imperatively, you annotate a dedicated class with `@FlowConfiguration` and each factory method with `@DefineFlow`.
+`@FlowConfiguration` and `@DefineFlow` provide a structured, declarative way to define and register flows. Instead of constructing `FlowDefinition` objects inline and registering them imperatively, you annotate a dedicated class with `@FlowConfiguration` and each factory method with `@DefineFlow`.
 
 This mechanism works in both plain-Java and Spring Boot environments with the same annotation model — only the dependency resolution strategy differs.
 
@@ -89,6 +88,8 @@ context.start();
 <1> Makes `OrderServiceImpl` available for `@DefineFlow` parameter resolution.
 <2> `FlowConfigurationScanner` instantiates the class via its default constructor and invokes each `@DefineFlow` method.
 
+See xref:examples:simple-application.adoc[Plain-Java Application] for a complete runnable example.
+
 === DependencyRegistry
 
 `DependencyRegistry` (package `io.pipelite.core.config`) is a lightweight lookup store, not a full DI container.
@@ -102,76 +103,9 @@ Resolution rules:
 
 == Spring Boot usage
 
-List the `@FlowConfiguration` classes in the `flowConfigurations` attribute of `@EnablePipelite`:
+With Spring Boot, the same annotation model applies, but parameter resolution goes through the `ApplicationContext` instead of the `DependencyRegistry` — `@FlowConfiguration` classes are constructed as regular Spring beans with full constructor injection support, and the `@FlowConfiguration` classes to scan are listed in `@EnablePipelite(flowConfigurations = ...)`.
 
-[source,java]
-----
-@SpringBootApplication
-@EnablePipelite(flowConfigurations = AcquireFlowConfiguration.class)
-public class Application {
-    public static void main(String[] args) {
-        SpringApplication.run(Application.class, args);
-    }
-}
-----
-
-Spring constructs the `@FlowConfiguration` class as a regular bean, with full constructor injection support.
-`FlowConfigurationBeanPostProcessor` then scans it, invokes each `@DefineFlow` method, and registers the resulting `FlowDefinition` instances in the `PipeliteContext`.
-
-[source,java]
-----
-@FlowConfiguration
-public class AcquireFlowConfiguration {
-
-    private final OrderService orderService;
-
-    public AcquireFlowConfiguration(OrderService orderService) {    // <1>
-        this.orderService = orderService;
-    }
-
-    @DefineFlow
-    public FlowDefinition acquireFlow() {
-        return Pipelite.defineFlow("acquire-flow")
-            .fromSource("http://api/orders")
-            .process("handle", exchange ->
-                orderService.handle(exchange.getInputPayloadAs(Order.class)))
-            .toSink("slf4j://orders")
-            .build();
-    }
-}
-----
-<1> Standard Spring constructor injection — `OrderService` must be a Spring-managed bean.
-
-Alternatively, `@DefineFlow` method parameters are resolved through the `ApplicationContext` when using Spring:
-
-[source,java]
-----
-@FlowConfiguration
-public class AcquireFlowConfiguration {
-
-    @DefineFlow
-    public FlowDefinition acquireFlow(OrderService orderService) {    // <1>
-        return Pipelite.defineFlow("acquire-flow")
-            .fromSource("http://api/orders")
-            .process("handle", exchange ->
-                orderService.handle(exchange.getInputPayloadAs(Order.class)))
-            .toSink("slf4j://orders")
-            .build();
-    }
-}
-----
-<1> Resolved via `ApplicationContext.getBean(OrderService.class)`.
-
-=== Multiple @FlowConfiguration classes
-
-[source,java]
-----
-@EnablePipelite(flowConfigurations = {
-    OrderFlowConfiguration.class,
-    PaymentFlowConfiguration.class,
-    AuditFlowConfiguration.class
-})
-----
+See xref:spring-integration:autoconfiguration.adoc[Autoconfiguration] for the complete Spring Boot reference, including bean wiring and lifecycle, and xref:examples:springboot-application.adoc[Spring Boot Application] for a complete runnable example.
 
 == Exception reference
 

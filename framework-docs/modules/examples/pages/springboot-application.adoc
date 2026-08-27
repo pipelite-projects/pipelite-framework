@@ -1,0 +1,16 @@
+= Spring Boot Application
+:description: pipelite-springboot-application — the same flow as the plain-Java example, adapted to Spring Boot
+
+Module: `pipelite-examples/pipelite-springboot-application`
+
+The same flow as xref:simple-application.adoc[the plain-Java example], adapted to `@EnablePipelite` and standard Spring dependency injection — useful to compare side by side what changes (and what doesn't) when adopting the Spring Boot starter.
+
+== What it demonstrates
+
+* `@EnablePipelite(flowConfigurations = ...)` activating the framework in a `@SpringBootApplication`.
+* The `@FlowConfiguration` class constructed as a regular Spring bean, with `GreetingService` resolved via constructor injection instead of `DependencyRegistry`.
+* No explicit `PipeliteContext.start()`/`stop()` calls — the context lifecycle is managed by Spring (see xref:spring-integration:autoconfiguration.adoc[Autoconfiguration]).
+
+== Source
+
+Path: `pipelite-examples/pipelite-springboot-application/src/main/java/io/pipelite/examples/springboot/`

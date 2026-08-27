@@ -1,0 +1,40 @@
+= Spring Autoconfiguration Internals
+:description: The Spring beans registered by @EnablePipelite
+
+WARNING: This page documents internal implementation details of Pipelite Framework, intended for contributors to the framework itself. It is *not* required reading to define, run, or extend flows as a user of the framework. See xref:spring-integration:autoconfiguration.adoc[Autoconfiguration] instead.
+
+== Auto-configured components
+
+`@EnablePipelite` imports `PipeliteConfigurationImportSelector`, which registers:
+
+[cols="1,1,3"]
+|===
+|Bean |Status |Responsibility
+
+|`PipeliteContext`
+|Active
+|The framework singleton context, built by `PipeliteAutoConfiguration`.
+
+|`FlowConfigurationBeanPostProcessor`
+|Active
+|Detects `@FlowConfiguration` beans, invokes `@DefineFlow` methods, and registers the resulting `FlowDefinition` instances in `PipeliteContext`.
+
+|`PipeliteContextLifecycleManager`
+|Active
+|Implements `SmartLifecycle` to start and stop the context in sync with Spring.
+
+|`PipeliteContextInitializer`
+|Active
+|Initializes the context with internal factories.
+
+|`FlowDefinitionRegistrar`
+|Deprecated
+|Legacy `BeanPostProcessor` that intercepts `FlowDefinition` beans. Will be removed in a future major release.
+|===
+
+== Lifecycle with Spring
+
+`PipeliteContextLifecycleManager` integrates with the Spring lifecycle:
+
+* `start()` → invoked by Spring after the `ApplicationContext` refresh, once all `@FlowConfiguration` beans have been processed by `FlowConfigurationBeanPostProcessor`.
+* `stop()` → invoked by Spring during orderly shutdown.

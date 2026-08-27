@@ -1,0 +1,93 @@
+= Flow Lifecycle Internals
+:description: Internal components of PipeliteContext, detailed startup/shutdown sequence, FlowNode types, and threading model
+
+WARNING: This page documents internal implementation details of Pipelite Framework, intended for contributors to the framework itself. It is *not* required reading to define, run, or extend flows as a user of the framework. See xref:core:flows.adoc[Flow and PipeliteContext] instead.
+
+== Internal components
+
+[cols="1,3"]
+|===
+|Component |Responsibility
+
+|`FlowRegistry`
+|Maintains the registry of all active `Flow` instances, indexed by name.
+
+|`ChannelAdapterManager`
+|Resolves `ChannelAdapter` instances via classpath scan and associates them with endpoint URLs.
+
+|`EndpointFactory`
+|Creates `Endpoint` instances by delegating to the correct `ChannelAdapter` based on the URL scheme.
+
+|`ServiceManager`
+|Starts and stops all registered `Service` instances (polling consumers, HTTP server, etc.).
+
+|`ExchangeFactory`
+|Creates new `Exchange` and `Message` instances with distributed identity.
+|===
+
+== Detailed lifecycle
+
+[source]
+----
+PipeliteContext.start()
+  │
+  ├─ ChannelAdapterManager.initialize()
+  │    └─ scan classpath → load ChannelAdapters
+  │
+  ├─ For each registered FlowDefinition:
+  │    ├─ EndpointFactory.createSourceEndpoint()
+  │    ├─ EndpointFactory.createSinkEndpoint()
+  │    ├─ Build FlowNode chain (processors, transformers, routers)
+  │    └─ FlowRegistry.register(flow)
+  │
+  └─ ServiceManager.startAll()
+       ├─ Start EventDrivenConsumerService (HTTP, Link, etc.)
+       └─ Start ScheduledPollingConsumerService (Time, Kafka, etc.)
+
+PipeliteContext.stop()
+  └─ ServiceManager.stopAll()
+       └─ Orderly shutdown of all consumers
+----
+
+== FlowNode types
+
+[cols="1,3"]
+|===
+|Type |Responsibility
+
+|`DefaultProcessorNode`
+|Execution of application logic via `Processor`
+
+|`PayloadTransformerNode`
+|Payload transformation via `PayloadTransformer`
+
+|`MessageTranslatorNode`
+|Message type translation (see xref:message-translation.adoc[Message Translation Internals])
+
+|`ExpressionFilterNode`
+|Expression-based filtering
+
+|`WireTapProcessorNode`
+|Asynchronous forwarding to a secondary channel without interrupting the main flow
+
+|`RouterNode`
+|Content-based routing with a routing table
+
+|`RecipientListRouterNode`
+|Delivery to multiple recipients simultaneously
+
+|`RoutingSlipRouterNode`
+|Dynamic routing via routing slip
+
+|`ReturnAddressRouterNode`
+|Routing to the return address set on the Exchange
+|===
+
+== Threading model
+
+* *Event-driven consumers* (e.g. HTTP) react to events on the server thread.
+* *Polling consumers* (e.g. Kafka, Time) run on dedicated threads managed by `ScheduledPollingConsumerService`.
+* *Concurrent sources* (`fromSource(...?concurrency=N)`, see xref:dsl:flow-definition.adoc[Flow Definition]) dispatch to one shared, bounded worker pool instead of allocating dedicated threads per source, so overall thread usage stays bounded no matter how many flows opt in.
+* *WireTap* nodes forward to a separate channel in a *non-blocking* manner.
+* The `RetryService` handles retries on a separate thread with access to the `FlowExecutionDumpRepository`.
+* Every framework-owned thread is named `pipelite-<role>-<flow-name>` (e.g. `pipelite-kafka-order-ingest`, `pipelite-pool-3`), so a thread dump shows at a glance what each thread belongs to.

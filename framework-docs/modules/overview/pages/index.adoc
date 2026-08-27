@@ -17,7 +17,7 @@ Its primary goal is to enable developers to connect heterogeneous systems throug
 
 Pipelite is particularly well suited to scenarios where you need to:
 
-* Build *event-driven microservices* that react to messages from Kafka queues or HTTP requests.
+* Build *event-driven microservices* as a Staged Event-Driven Architecture (SEDA).
 * Implement *data processing pipelines* with transformation, filtering, and conditional routing.
 * Create *scheduled workflows* triggered by timers with automatic retry logic.
 * Connect internal application components without direct coupling.

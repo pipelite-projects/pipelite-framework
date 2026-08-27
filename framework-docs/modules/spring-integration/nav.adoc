@@ -1,4 +1,4 @@
 * xref:spring-integration:index.adoc[Spring Boot Integration]
 ** xref:spring-integration:autoconfiguration.adoc[Autoconfiguration]
 ** xref:spring-integration:endpoint-url-properties.adoc[Endpoint URL Property Placeholders]
-** xref:spring-integration:configuration-properties.adoc[Configuration Properties]
+** xref:spring-integration:bean-configuration.adoc[Configuring Channel Adapters via Beans]

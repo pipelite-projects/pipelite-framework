@@ -1,0 +1,20 @@
+= Examples
+:description: Complete, runnable example applications shipped in the pipelite-examples module
+
+The `pipelite-examples` Maven module ships three complete, runnable applications that demonstrate the concepts covered elsewhere in this documentation in a real codebase.
+
+[cols="1,3"]
+|===
+|Application |Demonstrates
+
+|xref:simple-application.adoc[Plain-Java Application]
+|Declaring and running a flow with no Spring on the classpath.
+
+|xref:springboot-application.adoc[Spring Boot Application]
+|The same flow as the plain-Java example, adapted to `@EnablePipelite` and Spring dependency injection.
+
+|xref:fooddelivery-application.adoc[Food Delivery (Multi-Channel)]
+|A complete application with multiple linked flows, concurrent processing, and five different channel adapters working together.
+|===
+
+Each page below links to the real source under `pipelite-examples/` in the repository — the code is not reproduced here in full.

@@ -181,7 +181,7 @@ WARNING: Only the *first* `FileChannelConfigurer` registered on a context is app
 |Property |Default |Description
 
 |`stateDirectory`
-|`${user.home}/.pipelite/file-channel-adapter`
+|`PipeliteHome.resolve("file-channel-adapter")` (`~/.pipelite/file-channel-adapter` by default)
 |Directory where per-resource tail offsets are persisted.
 
 |`mappers`
@@ -189,11 +189,15 @@ WARNING: Only the *first* `FileChannelConfigurer` registered on a context is app
 |Registry of named `FileRecordMapper` instances, populated via `registerMapper(name, mapper)` and looked up via the `recordMapper` URL parameter.
 |===
 
+== Changing the state directory globally
+
+By default, `stateDirectory` resolves under `PipeliteHome` (`~/.pipelite/file-channel-adapter`). Set the `pipelite.home` system property or the `PIPELITE_HOME` environment variable to relocate the state directory for this adapter — and for every other Pipelite component that stores durable state on the local filesystem — without touching `FileChannelConfigurer`. See xref:extensibility:shared-filesystem-storage.adoc[Shared Filesystem Storage] for details.
+
 == State persistence and resume semantics
 
-For every tailed resource, `FileTailStateStore` persists the last consumed byte offset in one file per resource under `stateDirectory`, named after the SHA-256 hex digest of the resource's absolute path (an `index.properties` file maps digests back to paths, for debugging only — it is never read by the runtime). Reads and writes are synchronized with a `FileLock` on the state file.
+Tailing is resumable across restarts: a new `PipeliteContext` pointed at the same `stateDirectory` picks up exactly where the previous process left off, without re-emitting already-consumed content or re-applying `startPosition` semantics. If the source file shrinks below the last known offset (e.g. rotation/truncation), the offset is reset to `0` and a warning is logged.
 
-This makes tailing resumable across restarts: a new `PipeliteContext` pointed at the same `stateDirectory` picks up exactly where the previous process left off, without re-emitting already-consumed content or re-applying `startPosition` semantics. If the source file shrinks below the last known offset (e.g. rotation/truncation), the offset is reset to `0` and a warning is logged.
+TIP: For how the state directory's contents are laid out on disk, see xref:internals:file-state-persistence.adoc[File Adapter State Persistence Internals].
 
 == Availability of the `mode` parameter
 

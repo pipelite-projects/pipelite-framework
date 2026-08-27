@@ -1,0 +1,8 @@
+= Message Translation Internals
+:description: MessageTranslatorNode, the internal node used to convert message types during flow construction
+
+WARNING: This page documents internal implementation details of Pipelite Framework, intended for contributors to the framework itself. It is *not* required reading to define, run, or extend flows as a user of the framework. See xref:core:processors.adoc[Processors and Transformers] instead.
+
+== MessageTranslatorNode
+
+`MessageTranslatorNode` converts the message type from one format to another via a `Function<Message, Message>`. It is configured internally by the framework during flow construction — no DSL method constructs it directly, unlike the other node types listed in xref:internals:flow-lifecycle.adoc[Flow Lifecycle Internals].

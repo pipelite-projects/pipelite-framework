@@ -1,0 +1,26 @@
+= Internals (Contributor Reference)
+:description: Implementation details of Pipelite Framework internals, intended for contributors
+
+WARNING: This module documents internal implementation details of Pipelite Framework, intended for contributors to the framework itself. It is *not* required reading to define, run, or extend flows as a user of the framework. See xref:core:index.adoc[Core] or xref:extensibility:index.adoc[Extensibility] instead.
+
+== Pages
+
+[cols="1,3"]
+|===
+|Page |Covers
+
+|xref:flow-lifecycle.adoc[Flow Lifecycle Internals]
+|The internal components (`FlowRegistry`, `ChannelAdapterManager`, `EndpointFactory`, `ServiceManager`, `ExchangeFactory`) wired together by `PipeliteContext`, the detailed startup/shutdown sequence, the full `FlowNode` type table, and the threading model.
+
+|xref:message-translation.adoc[Message Translation Internals]
+|`MessageTranslatorNode`, the internal node the framework uses to convert message types during flow construction.
+
+|xref:error-handling-internals.adoc[Error Handling Internals]
+|The classes behind the retry channel (`RetryChannelExceptionHandler`, `FlowExecutionDumpFactory`, `RetryPollingConsumer`, `RetryStrategyFilter`) and the `FlowExecutionDump` hierarchy.
+
+|xref:file-state-persistence.adoc[File Adapter State Persistence Internals]
+|How the File Channel Adapter's state directory is laid out on disk: resource-path hashing, the debug index file, and file locking.
+
+|xref:spring-autoconfiguration-internals.adoc[Spring Autoconfiguration Internals]
+|The Spring beans registered by `@EnablePipelite` and how they wire into the Spring lifecycle.
+|===

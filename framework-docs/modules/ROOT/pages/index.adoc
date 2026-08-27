@@ -25,15 +25,23 @@ Complete reference for the Domain Specific Language for declarative flow definit
 
 [.card]
 === xref:channel-adapters:index.adoc[Channel Adapters]
-All available adapters: HTTP, Kafka, Time, SLF4J, Link, and creating custom adapters.
+All available adapters: HTTP, Kafka, File, Time, SLF4J, and Link.
+
+[.card]
+=== xref:extensibility:index.adoc[Extensibility]
+The public SPIs for extending Pipelite: custom channel adapters, channel configuration, exception handling, exchange processors, and shared filesystem storage.
 
 [.card]
 === xref:spring-integration:index.adoc[Spring Boot Integration]
-Autoconfiguration, `@EnablePipelite`, and all Spring configuration properties.
+Autoconfiguration, `@EnablePipelite`, and channel adapter configuration via beans.
 
 [.card]
 === xref:testing:index.adoc[Testing]
 BDD-style test kit (`pipelite-test-support`): processor-mode unit tests, end-to-end flow tests, and step-by-step assertion.
+
+[.card]
+=== xref:examples:index.adoc[Examples]
+Complete, runnable example applications: plain-Java, Spring Boot, and a multi-channel food delivery showcase.
 
 == Project Information
 

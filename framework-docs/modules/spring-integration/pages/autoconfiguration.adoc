@@ -63,43 +63,9 @@ public class OrderFlowConfiguration {
 ----
 <1> Standard Spring constructor injection — `OrderService` must be a Spring-managed bean.
 
-For the complete `@FlowConfiguration` / `@DefineFlow` reference, including plain-Java usage and dependency resolution, see xref:core:flow-configuration.adoc[FlowConfiguration SPI].
+For the complete `@FlowConfiguration` / `@DefineFlow` reference, including plain-Java usage and dependency resolution, see xref:core:flow-declaration.adoc[Declaring Flows].
 
-== Auto-configured components
-
-`@EnablePipelite` imports `PipeliteConfigurationImportSelector`, which registers:
-
-[cols="1,1,3"]
-|===
-|Bean |Status |Responsibility
-
-|`PipeliteContext`
-|Active
-|The framework singleton context, built by `PipeliteAutoConfiguration`.
-
-|`FlowConfigurationBeanPostProcessor`
-|Active
-|Detects `@FlowConfiguration` beans, invokes `@DefineFlow` methods, and registers the resulting `FlowDefinition` instances in `PipeliteContext`.
-
-|`PipeliteContextLifecycleManager`
-|Active
-|Implements `SmartLifecycle` to start and stop the context in sync with Spring.
-
-|`PipeliteContextInitializer`
-|Active
-|Initializes the context with internal factories.
-
-|`FlowDefinitionRegistrar`
-|Deprecated
-|Legacy `BeanPostProcessor` that intercepts `FlowDefinition` beans. Will be removed in a future major release.
-|===
-
-== Lifecycle with Spring
-
-`PipeliteContextLifecycleManager` integrates with the Spring lifecycle:
-
-* `start()` → invoked by Spring after the `ApplicationContext` refresh, once all `@FlowConfiguration` beans have been processed by `FlowConfigurationBeanPostProcessor`.
-* `stop()` → invoked by Spring during orderly shutdown.
+TIP: For the Spring beans `@EnablePipelite` registers and how they wire into the Spring lifecycle, see xref:internals:spring-autoconfiguration-internals.adoc[Spring Autoconfiguration Internals].
 
 == Registering multiple flows
 

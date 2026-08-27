@@ -1,0 +1,6 @@
+* xref:extensibility:index.adoc[Extensibility]
+** xref:extensibility:channel-adapters.adoc[Custom Channel Adapters]
+** xref:extensibility:channel-configuration.adoc[Channel Configuration SPI]
+** xref:extensibility:exception-handling-spi.adoc[Exception Handling SPI]
+** xref:extensibility:exchange-processors.adoc[Exchange Pre/Post Processors]
+** xref:extensibility:shared-filesystem-storage.adoc[Shared Filesystem Storage]

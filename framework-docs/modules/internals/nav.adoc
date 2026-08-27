@@ -1,0 +1,6 @@
+* xref:internals:index.adoc[Internals (Contributor Reference)]
+** xref:internals:flow-lifecycle.adoc[Flow Lifecycle Internals]
+** xref:internals:message-translation.adoc[Message Translation Internals]
+** xref:internals:error-handling-internals.adoc[Error Handling Internals]
+** xref:internals:file-state-persistence.adoc[File Adapter State Persistence Internals]
+** xref:internals:spring-autoconfiguration-internals.adoc[Spring Autoconfiguration Internals]

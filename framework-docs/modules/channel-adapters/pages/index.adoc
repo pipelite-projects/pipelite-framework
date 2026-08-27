@@ -55,4 +55,4 @@ The `FactoryComponentClasspathScanner` loads the classes at context startup.
 
 == Creating a custom adapter
 
-See xref:custom.adoc[Custom Adapter] for the SPI implementation guide.
+See xref:extensibility:channel-adapters.adoc[Custom Channel Adapters] for the SPI implementation guide.

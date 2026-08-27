@@ -1,0 +1,76 @@
+= Exchange Pre/Post Processors
+:description: Applying cross-cutting logic to every Exchange via ExchangePreProcessor and ExchangePostProcessor
+
+`ExchangePreProcessor` and `ExchangePostProcessor` let you attach cross-cutting logic — logging, metrics, header enrichment — to every `Exchange` that passes through a `FlowNode`, without adding a `.process(...)` step to each flow individually.
+
+== Contracts
+
+[source,java]
+----
+public interface ExchangePreProcessor {
+    int LOWEST_PRECEDENCE = Integer.MIN_VALUE;
+    int HIGHEST_PRECEDENCE = Integer.MAX_VALUE;
+
+    void preProcess(FlowExecutionContext ctx, Exchange exchange);
+    default int getOrder() { return 0; }
+}
+----
+
+[source,java]
+----
+public interface ExchangePostProcessor {
+    int LOWEST_PRECEDENCE = Integer.MIN_VALUE;
+    int HIGHEST_PRECEDENCE = Integer.MAX_VALUE;
+
+    void postProcess(FlowExecutionContext ctx, Exchange exchange);
+    default int getOrder() { return 0; }
+}
+----
+
+A pre-processor runs immediately before a node handles an `Exchange`; a post-processor runs immediately after. Both receive the `Exchange` itself plus a `FlowExecutionContext` describing where in the flow the call is happening.
+
+== FlowExecutionContext
+
+An immutable, read-only snapshot of the current execution point:
+
+[source,java]
+----
+public class FlowExecutionContext {
+    public String getFlowName();               // the flow this node belongs to
+    public String getSourceEndpointResource();  // the flow's source endpoint resource
+    public String getProcessorName();           // the current node's processor name, if any
+}
+----
+
+== Registering processors
+
+Attach a pre/post-processor directly to a `FlowNode`:
+
+[source,java]
+----
+flowNode.addExchangePreProcessor(new LoggingPreProcessor());
+flowNode.addExchangePostProcessor(new MetricsPostProcessor());
+----
+
+== Ordering
+
+When multiple pre-processors (or post-processors) are registered on the same node, they run in ascending order of `getOrder()`. Use `HIGHEST_PRECEDENCE`/`LOWEST_PRECEDENCE` to force a processor to run first or last regardless of other registrations.
+
+== Example: correlation ID enrichment
+
+[source,java]
+----
+public class CorrelationIdPreProcessor implements ExchangePreProcessor {
+
+    @Override
+    public void preProcess(FlowExecutionContext ctx, Exchange exchange) {
+        exchange.tryGetHeader("correlation-id")
+            .ifPresentOrElse(
+                id -> {},
+                () -> exchange.putHeader("correlation-id", UUID.randomUUID().toString())
+            );
+    }
+}
+----
+
+This runs identically for every `Exchange` reaching the node it's attached to, regardless of which flow or which processing steps follow.

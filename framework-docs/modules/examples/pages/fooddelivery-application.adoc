@@ -1,0 +1,22 @@
+= Food Delivery (Multi-Channel)
+:description: pipelite-fooddelivery-application — a complete multi-flow, multi-adapter, concurrent Spring Boot application
+
+Module: `pipelite-examples/pipelite-fooddelivery-application`
+
+A complete Spring Boot application simulating a food delivery order pipeline, wiring together six flows across five different channel adapters. A built-in load generator produces sample orders on its own, so concurrent processing is visible immediately with no manual input needed.
+
+== What it demonstrates
+
+* **Fan-in from heterogeneous sources**: orders arrive via `http://` and a tailed `file://`, both feeding one `link://`-chained concurrent "kitchen" stage.
+* **Concurrent processing** (see xref:dsl:flow-definition.adoc[Flow Definition]): the kitchen stage runs with `concurrency=4`, the dispatch stage with `concurrency=3`, both sharing one bounded worker pool sized via `ConfigurablePipeliteContext.setMaxSourceWorkerPoolSize(int)`.
+* **Retry channel alone vs. retry + dead letter channel composed** (see xref:core:error-handling.adoc[Error Handling]): the kitchen stage retries a transient failure with no dead letter channel configured; the dispatch stage composes a retry channel with a dead letter channel routed to a dedicated flow by name, for a failure that is deterministic rather than transient.
+* **`ChannelConfigurer` applied by an application**: `FoodDeliveryChannelConfiguration` configures the Kafka bootstrap servers and the File adapter's state directory as a Spring `PipeliteContextInitializer` bean — a real-world counterpart to xref:extensibility:channel-configuration.adoc[Channel Configuration SPI].
+* A Kafka hop (`toSink`/`fromSource` on `kafka://order-events`) used specifically to give the dispatch stage its own, separately-sized concurrency budget, since a single flow can't declare `concurrency` on both ends of a channel-adapter boundary.
+
+== Running it
+
+A `docker-compose.yml` in the module starts a local Kafka broker. Run the app with `mvn spring-boot:run` and watch the console.
+
+== Source
+
+Path: `pipelite-examples/pipelite-fooddelivery-application/src/main/java/io/pipelite/examples/fooddelivery/` — start with `FoodDeliveryFlowConfiguration.java` (the six flow definitions, with a class-level Javadoc diagram of the full topology) and `FoodDeliveryChannelConfiguration.java` (adapter configuration).

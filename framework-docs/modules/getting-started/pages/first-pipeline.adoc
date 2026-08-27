@@ -76,7 +76,7 @@ public class IngressFlowConfiguration {
 <1> The `http://ingress` source opens an HTTP listener on port 80 at path `/ingress`.
 <2> `wireTap` sends a copy of the message to the audit channel without blocking the main flow.
 
-For full details on the FlowConfiguration SPI — including dependency injection and multiple flow classes — see xref:core:flow-configuration.adoc[FlowConfiguration SPI].
+For full details on declaring flows — including dependency injection and multiple flow classes — see xref:core:flow-declaration.adoc[Declaring Flows].
 
 == Adding error handling
 
@@ -96,23 +96,6 @@ FlowDefinition flow = Pipelite.defineFlow("resilient-flow")
 For a custom error channel use `withErrorChannel(cfg -> ...)`.
 For full details see xref:core:error-handling.adoc[Error Handling].
 
-== Multi-channel concurrent example
+== Where to go next
 
-`pipelite-examples/pipelite-fooddelivery-application` is a complete Spring Boot application showing several flows linked together, two of them running with `concurrency > 1`, fed by four different channel adapters:
-
-[source]
-----
-time:// (order generator)  ──┐
-http:// (order intake)       ─┼──► link:// (concurrent kitchen stage)
-file:// (partner orders)    ──┘             │
-                                             ▼
-                                        kafka:// (fan-out)
-                                             │
-                                             ▼
-                                   link:// (concurrent dispatch stage)
-                                             │
-                                             ▼
-                                   file:// (one output file per courier)
-----
-
-A `docker-compose.yml` in the module starts a local Kafka broker. Run the app with `mvn spring-boot:run` and watch the console: a built-in load generator produces sample orders on its own, so concurrent processing is visible immediately with no manual input needed.
+For a complete, runnable application combining multiple linked flows, concurrent processing, and several channel adapters, see xref:examples:fooddelivery-application.adoc[Food Delivery (Multi-Channel)] in xref:examples:index.adoc[Examples].

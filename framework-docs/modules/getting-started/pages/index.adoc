@@ -11,3 +11,15 @@ This section provides everything you need to start using Pipelite quickly.
 * Java {java-version} or higher
 * Apache Maven 3.8+
 * (Optional) Spring Boot {spring-boot-version}+ for the `pipelite-spring-starter` module
+
+== Suggested reading path
+
+After completing this section, the rest of the documentation builds up gradually:
+
+. xref:core:index.adoc[Core] — the fundamental concepts (`Exchange`, `Message`, `Flow`, `PipeliteContext`).
+. xref:dsl:index.adoc[DSL] — the full flow-definition builder, routing, and split/aggregate.
+. xref:channel-adapters:index.adoc[Channel Adapters] — the adapters available out of the box.
+. xref:extensibility:index.adoc[Extensibility] — writing your own adapter or plugging into the framework's SPIs.
+. xref:spring-integration:index.adoc[Spring Boot Integration] and xref:testing:index.adoc[Testing], as needed.
+
+Or jump straight to xref:examples:index.adoc[Examples] for complete, runnable applications.

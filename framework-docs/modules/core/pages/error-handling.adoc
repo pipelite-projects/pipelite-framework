@@ -22,13 +22,7 @@ FlowDefinition flow = Pipelite.defineFlow("resilient-flow")
 ----
 <1> Enables automatic retry with the default strategy.
 
-=== Internal mechanism
-
-. The exception is caught by `RetryChannelExceptionHandler`.
-. The `Exchange` is serialized into a `FlowExecutionDump` via `FlowExecutionDumpFactory`.
-. The dump is persisted in `FlowExecutionDumpRepository` (default in-memory implementation: `FlowExecutionDumpInMemoryRepository`).
-. The `RetryPollingConsumer` periodically retrieves the dumps and retries execution.
-. `RetryStrategyFilter` determines whether the attempt should be made based on the configured strategy.
+When an attempt fails, execution resumes from the point of failure, not from the flow's source. See xref:internals:error-handling-internals.adoc[Error Handling Internals] for how this is implemented.
 
 == Custom Error Channel
 
@@ -60,26 +54,6 @@ builder.toSink(String url)   // destination for the error message
 
 If no error channel is configured, the exception is handled by `GlobalDefaultExceptionHandler`, which logs the error and stops processing without propagating the exception to the caller.
 
-== FlowExecutionDump
+== Custom error-handling strategies
 
-The `FlowExecutionDump` is the serialization of the `Exchange` at the time of failure.
-It contains the serialized payload, headers, and properties required for the retry.
-
-[cols="1,3"]
-|===
-|Class |Description
-
-|`FlowExecutionDump` (interface)
-|Contract for the execution dump
-
-|`DefaultFlowExecutionDump`
-|Standard in-memory implementation
-
-|`SerializedFlowExecutionDump`
-|Base64-serialized version for persistence
-
-|`FlowExecutionDumpInMemoryRepository`
-|In-memory repository (not persistent across restarts)
-|===
-
-TIP: For production environments with durability requirements, `FlowExecutionDumpRepository` can be implemented with a persistent backend (e.g. database, Redis).
+Neither the retry channel nor a custom error channel fit every case. To implement a completely custom error-handling strategy (e.g. forwarding to an external alerting system), see xref:extensibility:exception-handling-spi.adoc[Exception Handling SPI].

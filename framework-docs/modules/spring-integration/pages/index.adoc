@@ -21,6 +21,6 @@ The `pipelite-spring-starter` module provides native integration with Spring Boo
 |xref:endpoint-url-properties.adoc[Endpoint URL Property Placeholders]
 |Using `${property.key}` placeholders in endpoint URLs, resolved from `application.properties`, environment variables, and other Spring `Environment` sources.
 
-|xref:configuration-properties.adoc[Configuration Properties]
-|All supported `application.properties` / `application.yml` properties.
+|xref:bean-configuration.adoc[Configuring Channel Adapters via Beans]
+|Configuring channel adapters (Kafka, File, ...) via `ChannelConfigurer` beans.
 |===

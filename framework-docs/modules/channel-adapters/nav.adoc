@@ -5,4 +5,3 @@
 ** xref:channel-adapters:time.adoc[Time]
 ** xref:channel-adapters:slf4j.adoc[SLF4J]
 ** xref:channel-adapters:link.adoc[Link]
-** xref:channel-adapters:custom.adoc[Custom Adapter]

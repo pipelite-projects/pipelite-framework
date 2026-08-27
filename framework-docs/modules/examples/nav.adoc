@@ -1,0 +1,4 @@
+* xref:examples:index.adoc[Examples]
+** xref:examples:simple-application.adoc[Plain-Java Application]
+** xref:examples:springboot-application.adoc[Spring Boot Application]
+** xref:examples:fooddelivery-application.adoc[Food Delivery (Multi-Channel)]

@@ -63,4 +63,4 @@ PipeliteContext context = Pipelite.createContext(resolver);
 == Related topics
 
 * xref:autoconfiguration.adoc[Autoconfiguration] — `@EnablePipelite`, `PipeliteAutoConfiguration`, and the Spring lifecycle wiring.
-* xref:configuration-properties.adoc[Configuration Properties] — all supported `application.properties` keys.
+* xref:bean-configuration.adoc[Configuring Channel Adapters via Beans] — configuring channel adapters via `ChannelConfigurer` beans.

@@ -1,0 +1,58 @@
+= Channel Configuration SPI
+:description: Providing typed, application-supplied configuration to a ChannelAdapter
+
+`ChannelConfigurer<T>` is the generic contract a `ChannelAdapter` uses to accept typed configuration from application code, without the adapter itself depending on any particular DI framework.
+
+[source,java]
+----
+public interface ChannelConfigurer<T> {
+    void configure(T configuration);
+}
+----
+
+== How it works
+
+A `ChannelAdapter` that supports configuration declares the type it expects via `getChannelConfigurerType()`:
+
+[source,java]
+----
+public class MyCustomChannelAdapter implements ChannelAdapter {
+
+    @Override
+    public Endpoint createEndpoint(String url) { /* ... */ }
+
+    @Override
+    public Class<? extends ChannelConfigurer<?>> getChannelConfigurerType() {
+        return MyAdapterConfigurer.class;
+    }
+
+    @Override
+    public void configure(ChannelConfigurer<?> configurer) {
+        MyAdapterConfiguration configuration = new MyAdapterConfiguration();
+        ((MyAdapterConfigurer) configurer).configure(configuration);
+        // apply `configuration` to this adapter instance
+    }
+}
+
+public interface MyAdapterConfigurer extends ChannelConfigurer<MyAdapterConfiguration> {
+}
+----
+
+An application then implements and registers a `ChannelConfigurer` for that type against the `PipeliteContext`:
+
+[source,java]
+----
+context.addChannelConfigurer((MyAdapterConfigurer) configuration -> {
+    configuration.setEndpointCredentials("...");
+});
+----
+
+This is the same pattern used by the built-in `KafkaChannelConfigurer` (xref:channel-adapters:kafka.adoc[Kafka]) and `FileChannelConfigurer` (xref:channel-adapters:file.adoc[File]) — those pages show the pattern applied to a concrete, built-in adapter.
+
+== One configurer per adapter
+
+Only the *first* `ChannelConfigurer` registered for a given adapter type is applied; any additional ones registered for the same type are silently ignored. If your adapter needs several independent settings, fold them into a single configurer instance rather than expecting multiple registrations to be merged.
+
+== With Spring Boot
+
+A `ChannelConfigurer` implementation can be declared as a `@Bean` — the autoconfiguration detects and applies it automatically, with no extra wiring required.

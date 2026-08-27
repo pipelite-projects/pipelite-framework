@@ -1,0 +1,43 @@
+= Exception Handling SPI
+:description: Implementing a custom ExceptionHandler for flow-level error handling
+
+`ExceptionHandler` is the low-level contract invoked whenever an exception surfaces while a `FlowNode` (a consumer, producer, or processing node) handles an `Exchange`.
+
+[source,java]
+----
+public interface ExceptionHandler {
+    void handleException(Throwable exception, Exchange exchange);
+}
+----
+
+== When to implement it
+
+Most flows never need to implement this interface directly: xref:core:error-handling.adoc[Error Handling] already covers the two DSL-level mechanisms built on top of it —
+
+* `.withRetryChannel()` — installs an `ExceptionHandler` that re-queues the `Exchange` for a subsequent attempt.
+* `.withErrorChannel(...)` — installs an `ExceptionHandler` that routes the `Exchange` to a dedicated error flow.
+
+Implement `ExceptionHandler` yourself only when you need error-handling behavior that neither of those covers — for example, forwarding the exception to an external alerting system, or applying a decision that depends on the exception type in ways the built-in retry/error-channel configuration can't express.
+
+== Setting a custom handler
+
+`FlowNode#setExceptionHandler(ExceptionHandler)` installs the handler on a node. If you are implementing a xref:channel-adapters.adoc[custom Channel Adapter] by extending `AbstractConsumer`/`AbstractProducer`, the framework wires the flow's configured handler into your node automatically; if you implement `Consumer`/`Producer`/`FlowNode` directly, invoke it yourself from your own catch block.
+
+[source,java]
+----
+public class MyCustomConsumer extends AbstractConsumer implements EventDrivenConsumer {
+
+    public void onMessage(Object data) {
+        try {
+            Exchange exchange = exchangeFactory.createExchange(data);
+            process(exchange);
+        } catch (Exception exception) {
+            getExceptionHandler().handleException(exception, exchange);
+        }
+    }
+}
+----
+
+== Relationship with testing
+
+`pipelite-test-support` lets you attach an `ExceptionHandler` to a `FlowDefinition` under test to assert on error-handling behavior in isolation — see xref:testing:flow-testing.adoc[Flow Testing].

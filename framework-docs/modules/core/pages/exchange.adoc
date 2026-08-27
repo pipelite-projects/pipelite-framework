@@ -36,25 +36,7 @@ exchange.forwardIfNecessary();
 
 == Headers
 
-Headers are string key-value pairs shared across all nodes in the flow.
-
-[source,java]
-----
-// Write
-exchange.putHeader("correlation-id", "abc123");
-
-// Safe read
-Optional<String> id = exchange.tryGetHeader("correlation-id");
-
-// Read with expectation (throws exception if absent)
-String id = exchange.expectHeader("correlation-id");
-
-// Typed read
-Optional<Integer> count = exchange.tryGetHeaderAs("retry-count", Integer.class);
-
-// Removal
-exchange.removeHeader("temp-header");
-----
+`Exchange` exposes convenience methods (`putHeader`, `tryGetHeader`, `expectHeader`, `tryGetHeaderAs`, `removeHeader`) that delegate to the underlying `Headers` object. See xref:messages.adoc[Message and Headers] for the complete `Headers` API reference.
 
 == Properties
 

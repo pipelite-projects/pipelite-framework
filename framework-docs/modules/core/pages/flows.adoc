@@ -15,7 +15,7 @@ PipeliteContext context = Pipelite.createContext();
 
 === Registration and startup
 
-The recommended approach is via the xref:flow-configuration.adoc[FlowConfiguration SPI], using `@FlowConfiguration` and `@DefineFlow` annotations:
+The recommended approach is via xref:flow-declaration.adoc[Declaring Flows], using `@FlowConfiguration` and `@DefineFlow` annotations:
 
 [source,java]
 ----
@@ -40,27 +40,7 @@ context.start();
 context.stop();
 ----
 
-=== Internal components
-
-[cols="1,3"]
-|===
-|Component |Responsibility
-
-|`FlowRegistry`
-|Maintains the registry of all active `Flow` instances, indexed by name.
-
-|`ChannelAdapterManager`
-|Resolves `ChannelAdapter` instances via classpath scan and associates them with endpoint URLs.
-
-|`EndpointFactory`
-|Creates `Endpoint` instances by delegating to the correct `ChannelAdapter` based on the URL scheme.
-
-|`ServiceManager`
-|Starts and stops all registered `Service` instances (polling consumers, HTTP server, etc.).
-
-|`ExchangeFactory`
-|Creates new `Exchange` and `Message` instances with distributed identity.
-|===
+TIP: For the internal components `PipeliteContext` coordinates at startup (`FlowRegistry`, `ChannelAdapterManager`, `EndpointFactory`, `ServiceManager`, `ExchangeFactory`) and the detailed startup/shutdown sequence, see xref:internals:flow-lifecycle.adoc[Flow Lifecycle Internals].
 
 == FlowDefinition
 
@@ -78,34 +58,10 @@ FlowDefinition definition = Pipelite.defineFlow("my-flow")
 ----
 
 `FlowDefinition` instances are registered in the context either directly via `registerFlowDefinition` or — preferably — through `@FlowConfiguration` classes.
-See xref:flow-configuration.adoc[FlowConfiguration SPI] for the recommended registration pattern.
+See xref:flow-declaration.adoc[Declaring Flows] for the recommended registration pattern.
 
 == Flow
 
 The `Flow` is the runtime instance of a `FlowDefinition`.
 It encapsulates the source `Consumer` and the chain of `FlowNode` instances.
 It is created and started automatically by `PipeliteContext.start()`.
-
-== Detailed lifecycle
-
-[source]
-----
-PipeliteContext.start()
-  │
-  ├─ ChannelAdapterManager.initialize()
-  │    └─ scan classpath → load ChannelAdapters
-  │
-  ├─ For each registered FlowDefinition:
-  │    ├─ EndpointFactory.createSourceEndpoint()
-  │    ├─ EndpointFactory.createSinkEndpoint()
-  │    ├─ Build FlowNode chain (processors, transformers, routers)
-  │    └─ FlowRegistry.register(flow)
-  │
-  └─ ServiceManager.startAll()
-       ├─ Start EventDrivenConsumerService (HTTP, Link, etc.)
-       └─ Start ScheduledPollingConsumerService (Time, Kafka, etc.)
-
-PipeliteContext.stop()
-  └─ ServiceManager.stopAll()
-       └─ Orderly shutdown of all consumers
-----

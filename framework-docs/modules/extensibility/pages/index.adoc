@@ -1,0 +1,46 @@
+= Extensibility
+:description: Overview of the public Service Provider Interfaces (SPI) exposed by Pipelite Framework
+
+Pipelite is built around a small set of public *Service Provider Interfaces* (SPI), all in the `pipelite-spi` module, that let you plug custom behavior into the framework without modifying it. This section documents every one of them, plus two low-level filesystem utilities in `pipelite-common` that any SPI implementation needing durable state can reuse.
+
+== Dependency
+
+[source,xml,subs="attributes+"]
+----
+<dependency>
+    <groupId>{project-group-id}</groupId>
+    <artifactId>pipelite-spi</artifactId>
+    <version>{project-version}</version>
+</dependency>
+----
+
+== Available extension points
+
+[cols="1,3,1"]
+|===
+|SPI |When to implement it |Page
+
+|`ChannelAdapter`
+|You need to connect Pipelite to an external system with no built-in adapter (a message broker, a proprietary protocol, a cloud service).
+|xref:channel-adapters.adoc[Custom Channel Adapters]
+
+|`ChannelConfigurer<T>`
+|Your `ChannelAdapter` needs typed, application-supplied configuration (connection settings, credentials, behavioral flags).
+|xref:channel-configuration.adoc[Channel Configuration SPI]
+
+|`ExceptionHandler`
+|You need error-handling behavior that neither the retry channel nor a custom error channel provide.
+|xref:exception-handling-spi.adoc[Exception Handling SPI]
+
+|`ExchangePreProcessor` / `ExchangePostProcessor`
+|You need a cross-cutting concern (logging, metrics, header enrichment) applied to every `Exchange` passing through a node, without touching every `.process(...)` call.
+|xref:exchange-processors.adoc[Exchange Pre/Post Processors]
+
+|`PipeliteHome` / `LockedFileStore`
+|Your custom component needs to persist durable state on the local filesystem.
+|xref:shared-filesystem-storage.adoc[Shared Filesystem Storage]
+|===
+
+NOTE: The `Condition` interface used by dynamic routing (`toRoute(...)`) is a DSL-level extension point, not part of `pipelite-spi` — see xref:dsl:routing.adoc[Routing] instead.
+
+TIP: For the internal implementation details behind these contracts (not required to use the framework), see xref:internals:index.adoc[Internals].

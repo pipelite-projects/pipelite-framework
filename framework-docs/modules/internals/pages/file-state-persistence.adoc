@@ -1,0 +1,16 @@
+= File Adapter State Persistence Internals
+:description: On-disk layout of the File Channel Adapter's tail state directory
+
+WARNING: This page documents internal implementation details of Pipelite Framework, intended for contributors to the framework itself. It is *not* required reading to define, run, or extend flows as a user of the framework. See xref:channel-adapters:file.adoc[File] instead.
+
+== On-disk layout
+
+For every tailed resource, `FileTailStateStore` persists the last consumed byte offset in one file per resource under `stateDirectory`, named after the SHA-256 hex digest of the resource's absolute path. An `index.properties` file maps digests back to paths, for debugging only — it is never read by the runtime.
+
+If the source file shrinks below the last known offset (e.g. rotation/truncation), the offset is reset to `0` and a warning is logged.
+
+== Locking
+
+`FileTailStateStore` composes `LockedFileStore` (see xref:extensibility:shared-filesystem-storage.adoc[Shared Filesystem Storage]) for both its per-resource state files and `index.properties`, rather than implementing directory-creation and locking logic inline. The on-disk format and public resume behavior are unchanged by this — only the internal implementation was extracted into the reusable utility.
+
+`LockedFileStore` pairs an OS-level `FileChannel`/`FileLock` with an in-JVM `ReentrantLock` per file name: `FileChannel` locks are held on behalf of the entire process, so without the in-JVM lock, a second thread in the *same* JVM attempting to lock an already-locked region would fail immediately with `OverlappingFileLockException` instead of blocking and waiting.

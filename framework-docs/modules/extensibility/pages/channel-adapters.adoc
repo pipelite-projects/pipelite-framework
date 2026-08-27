@@ -1,18 +1,7 @@
-= Custom Adapter
+= Custom Channel Adapters
 :description: Guide to implementing a custom ChannelAdapter via the Pipelite SPI
 
-Pipelite exposes an open SPI that allows custom adapters to be created for any external system.
-
-== SPI dependency
-
-[source,xml,subs="attributes+"]
-----
-<dependency>
-    <groupId>{project-group-id}</groupId>
-    <artifactId>pipelite-spi</artifactId>
-    <version>{project-version}</version>
-</dependency>
-----
+Pipelite exposes an open SPI that allows custom adapters to be created for any external system, following the same contract used by the built-in HTTP, Kafka, File, Time, SLF4J, and Link adapters.
 
 == Implementing ChannelAdapter
 
@@ -111,7 +100,7 @@ File content (one class per line):
 com.example.adapters.MyCustomChannelAdapter
 ----
 
-The `FactoryComponentClasspathScanner` automatically loads all classes registered in this file at `PipeliteContext` startup.
+The framework automatically loads all classes registered in this file at `PipeliteContext` startup.
 
 == Integration with the context lifecycle
 
@@ -133,3 +122,15 @@ public class MyCustomChannelAdapter
     }
 }
 ----
+
+== Honoring pre/post-processors and exception handling
+
+`Consumer` and `Producer` both extend `FlowNode`, which carries `addExchangePreProcessor(...)`, `addExchangePostProcessor(...)`, and `setExceptionHandler(...)`. Extending `AbstractConsumer`/`AbstractProducer` (as shown above) gives your adapter these behaviors for free — every `Exchange` your adapter hands to the framework is automatically run through any pre/post-processors and exception handler registered on the flow.
+
+If instead you implement `Consumer`, `Producer`, or `FlowNode` directly rather than extending the `Abstract*` base classes, you are responsible for invoking these yourself. See xref:exchange-processors.adoc[Exchange Pre/Post Processors] and xref:exception-handling-spi.adoc[Exception Handling SPI] for the contracts involved.
+
+== Configuring your adapter
+
+If your adapter needs application-supplied configuration (connection settings, credentials), see xref:channel-configuration.adoc[Channel Configuration SPI].
+
+If it needs to persist durable state on the local filesystem (as the built-in `file-channel-adapter` does), see xref:shared-filesystem-storage.adoc[Shared Filesystem Storage] instead of deriving your own directory-resolution and file-locking logic.

@@ -16,5 +16,8 @@ nav:
   - modules/core/nav.adoc
   - modules/dsl/nav.adoc
   - modules/channel-adapters/nav.adoc
+  - modules/extensibility/nav.adoc
   - modules/spring-integration/nav.adoc
   - modules/testing/nav.adoc
+  - modules/examples/nav.adoc
+  - modules/internals/nav.adoc
