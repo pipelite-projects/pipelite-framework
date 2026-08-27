@@ -1,0 +1,65 @@
+name: PR Type Labeler
+
+on:
+  pull_request_target:
+    types: [opened, edited]
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Classify PR title and apply type label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const TYPE_LABELS = {
+              'type:breaking': { color: 'B60205', description: 'Change that breaks backward compatibility' },
+              'type:feature': { color: '0E8A16', description: 'New user-facing capability' },
+              'type:enhancement': { color: '84B6EB', description: 'Improvement to existing functionality' },
+              'type:fix': { color: 'D93F0B', description: 'Bug fix' },
+              'type:chore': { color: 'C5DEF5', description: 'Internal/maintenance/CI/tooling, not user-facing' },
+              'no-changelog': { color: 'EDEDED', description: 'Exclude this PR from release notes entirely' },
+            };
+
+            async function ensureLabelsExist() {
+              for (const [name, { color, description }] of Object.entries(TYPE_LABELS)) {
+                try {
+                  await github.rest.issues.getLabel({ owner: context.repo.owner, repo: context.repo.repo, name });
+                } catch (error) {
+                  if (error.status !== 404) throw error;
+                  try {
+                    await github.rest.issues.createLabel({ owner: context.repo.owner, repo: context.repo.repo, name, color, description });
+                  } catch (createError) {
+                    if (createError.status !== 422) throw createError; // already exists (race with a concurrent run)
+                  }
+                }
+              }
+            }
+
+            function classifyTitle(title) {
+              const t = title.trim();
+              if (/^\[?feature\]?/i.test(t)) return 'type:feature';
+              if (/^fix\b/i.test(t)) return 'type:fix';
+              if (/^add\b/i.test(t)) return 'type:enhancement';
+              if (/^(chore|refactor|ci|build|test|ops)\b/i.test(t)) return 'type:chore';
+              return null;
+            }
+
+            await ensureLabelsExist();
+
+            const prNumber = context.payload.pull_request.number;
+            const newLabel = classifyTitle(context.payload.pull_request.title);
+
+            const currentLabels = context.payload.pull_request.labels.map(l => l.name);
+            const staleTypeLabels = currentLabels.filter(l => l.startsWith('type:') && l !== newLabel);
+
+            for (const stale of staleTypeLabels) {
+              await github.rest.issues.removeLabel({ owner: context.repo.owner, repo: context.repo.repo, issue_number: prNumber, name: stale });
+            }
+
+            if (newLabel && !currentLabels.includes(newLabel)) {
+              await github.rest.issues.addLabels({ owner: context.repo.owner, repo: context.repo.repo, issue_number: prNumber, labels: [newLabel] });
+            }
