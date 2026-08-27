@@ -1,0 +1,29 @@
+changelog:
+  exclude:
+    labels:
+      - no-changelog
+      - duplicate
+      - invalid
+      - wontfix
+  categories:
+    - title: "💥 Breaking Changes"
+      labels:
+        - type:breaking
+    - title: "🚀 Features"
+      labels:
+        - type:feature
+    - title: "✨ Enhancements"
+      labels:
+        - type:enhancement
+    - title: "🐛 Bug Fixes"
+      labels:
+        - type:fix
+    - title: "📚 Documentation"
+      labels:
+        - documentation
+    - title: "🧹 Chores & Maintenance"
+      labels:
+        - type:chore
+    - title: "Other Changes"
+      labels:
+        - "*"
