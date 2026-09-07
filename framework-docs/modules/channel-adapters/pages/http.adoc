@@ -45,21 +45,21 @@ http://<path>
 |The HTTP path on which the server listens (e.g. `/api/v1/events`)
 |===
 
-The Undertow server is started automatically by `HttpChannelAdapter.onContextStarted()` upon the first registration of an HTTP consumer.
+The Undertow server starts automatically when the `PipeliteContext` starts, as long as at least one flow has registered an HTTP source.
 
 NOTE: The default port is 80.
 Custom port and host configuration will be available in a future release.
 
 == Usage as sink (outbound)
 
-The module includes an `HttpProducer` for sending messages to external HTTP endpoints.
+The module also supports sending messages to external HTTP endpoints.
 
 [source,java]
 ----
 .toSink("http://target-service/api/notify")
 ----
 
-The `HttpProducer` sends the payload as the body of an HTTP POST request.
+The payload is sent as the body of an HTTP POST request.
 
 == Multiple path registration
 
@@ -77,6 +77,6 @@ context.registerFlowDefinition(
 );
 ----
 
-`HttpChannelAdapter` maintains a per-path consumer map and shares a single Undertow instance.
+Multiple flows can register different paths on the same underlying HTTP server.
 
 WARNING: Registering two flows on the same HTTP path is not allowed: `IllegalStateException` will be thrown.

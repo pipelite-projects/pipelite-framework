@@ -65,8 +65,8 @@ public class IngressFlowConfiguration {
             .fromSource("http://ingress")                 // <1>
             .wireTap("audit-log", "slf4j://audit")        // <2>
             .process("validate", exchange -> {
-                // validation logic
-                exchange.setOutputPayload(exchange.getInputPayload());
+                // validation logic — no need to copy the payload to the output:
+                // it is forwarded automatically when a processor leaves it untouched
             })
             .toSink("slf4j://main-log")
             .build();

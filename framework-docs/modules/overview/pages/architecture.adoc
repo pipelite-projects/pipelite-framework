@@ -34,7 +34,7 @@ It is responsible for:
 * Registering the `FlowDefinition` objects produced by the DSL.
 * Instantiating `Flow` instances from their definitions.
 * Managing the framework lifecycle (start / stop).
-* Providing the `ChannelAdapterManager` and the `FlowRegistry`.
+* Resolving `ChannelAdapter`s for endpoint URLs.
 
 [source,java]
 ----
@@ -80,5 +80,3 @@ An `Endpoint` can expose:
 == Extensibility
 
 Pipelite is built around a small set of public SPIs — most notably `ChannelAdapter`, for connecting a flow to a new external system. See xref:extensibility:index.adoc[Extensibility] for the complete reference.
-
-TIP: For the full `FlowNode` type table, the detailed startup/shutdown sequence, and the threading model, see xref:internals:flow-lifecycle.adoc[Flow Lifecycle Internals].

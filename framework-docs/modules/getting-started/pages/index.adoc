@@ -3,14 +3,16 @@
 
 This section provides everything you need to start using Pipelite quickly.
 
-. xref:installation.adoc[*Installation*] — Add the Maven dependencies to your project.
-. xref:first-pipeline.adoc[*First Pipeline*] — Create and run your first pipeline in minutes.
-
 == Prerequisites
 
 * Java {java-version} or higher
 * Apache Maven 3.8+
 * (Optional) Spring Boot {spring-boot-version}+ for the `pipelite-spring-starter` module
+
+== Try It Out
+
+. xref:installation.adoc[*Installation*] — Add the Maven dependencies to your project.
+. xref:first-pipeline.adoc[*First Pipeline*] — Create and run your first pipeline in minutes.
 
 == Suggested reading path
 

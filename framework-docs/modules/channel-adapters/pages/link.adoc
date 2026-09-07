@@ -50,4 +50,4 @@ link://<flow-name>
 * Useful for splitting complex pipelines into modular, reusable flows.
 * The receiving flow's source can declare `?concurrency=N` to process linked Exchanges concurrently — see xref:dsl:flow-definition.adoc[Flow Definition].
 
-WARNING: Ensure the target flow is registered in the context before startup; otherwise the `LinkProducer` will fail to resolve the target `Consumer`.
+WARNING: Ensure the target flow is registered in the context before startup; otherwise the target flow's consumer will fail to be resolved at send time.

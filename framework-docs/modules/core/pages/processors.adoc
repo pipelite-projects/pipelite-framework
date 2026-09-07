@@ -57,11 +57,11 @@ The `filter` node stops the flow from proceeding if the expression evaluates to 
 
 [source,java]
 ----
-.filter("only-non-empty", "${body} != null && !${body}.isEmpty()")
+.filter("only-non-null", "Payload != null")
 ----
 
 The expression uses the engine from the `pipelite-expression` module.
-The `${body}` placeholder refers to the current payload.
+`Payload` refers to the current payload; see xref:dsl:expressions.adoc[Expressions] for the full syntax.
 
 == WireTap
 
@@ -76,27 +76,22 @@ The message continues to flow normally along the main flow while the copy is sen
 
 == Summary of nodes available via DSL
 
-[cols="2,3,3"]
+[cols="2,3"]
 |===
-|DSL method |Created node |Description
+|DSL method |Description
 
 |`.process(name, processor)`
-|`DefaultProcessorNode`
 |Generic processing via `Processor`
 
 |`.transformPayload(name, transformer)`
-|`PayloadTransformerNode`
 |Pure payload transformation
 
 |`.filter(name, expression)`
-|`ExpressionFilterNode`
 |Expression-based filtering
 
 |`.wireTap(name, url)`
-|`WireTapProcessorNode`
 |Non-blocking fork to a secondary endpoint
 
 |`.toRoute(configurator)`
-|`RouterNode` / `RecipientListRouterNode` / `RoutingSlipRouterNode`
 |Conditional or dynamic routing (see xref:dsl:routing.adoc[Routing])
 |===

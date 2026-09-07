@@ -12,7 +12,7 @@ The *Content-Based Router* routes the message to one of the flows listed in the 
 .toRoute(route -> route.contentBased()               // <1>
     .when(new PayloadTypeCondition(OrderEvent.class), // <2>
           "order-processing-flow")
-    .when(new ExpressionCondition("${header.type} == 'PAYMENT'"),
+    .when(new ExpressionCondition("Headers['type'] == 'PAYMENT'"),
           "payment-flow")
     .otherwise("default-flow")                        // <3>
     .build()
@@ -81,7 +81,7 @@ Setting the routing slip on the Exchange:
 exchange.setRoutingSlip(RoutingSlip.of("flow-a", "flow-b", "flow-c"));
 ----
 
-The framework processes the flows in the specified order, using the `RoutingSlipRouterNode`.
+The framework processes the flows in the specified order.
 
 == Return Address
 
@@ -93,4 +93,4 @@ The *Return Address* pattern routes the response to the flow indicated in the `r
 exchange.setReturnAddress("reply-handler-flow");
 ----
 
-The `ReturnAddressRouterNode` reads the header and routes the Exchange to the corresponding flow in the registry.
+The framework reads the header and routes the Exchange to the corresponding flow.

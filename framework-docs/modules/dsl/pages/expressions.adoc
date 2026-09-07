@@ -3,39 +3,92 @@
 
 The `pipelite-expression` module provides a textual expression evaluation engine used by `filter` and `ExpressionCondition`.
 
-== Syntax
-
-Expressions are Java strings evaluated at runtime.
-The central placeholder is `${body}`, which refers to the current payload of the Exchange.
-
-=== Available placeholders
+== Variables
 
 [cols="1,3"]
 |===
-|Placeholder |Resolves to
+|Variable |Resolves to
 
-|`${body}`
+|`Payload`
 |The input payload of the `Exchange` (equivalent to `exchange.getInputPayload()`)
 
-|`${header.<name>}`
-|The value of the header with the specified name
+|`Headers`
+|The `Headers` of the `Exchange` — index into it with `Headers['name']`
 |===
 
-=== Expression examples
+== Operators
+
+[cols="1,3"]
+|===
+|Operator |Aliases
+
+|`=`
+|`==`, `eq`
+
+|`!=`
+|`<>`, `neq`
+
+|`&`
+|`&&`, `and`
+
+|`\|`
+|`\|\|`, `or`
+
+|`>`
+|`gt`
+
+|`>=`
+|`gte`
+
+|`<`
+|`lt`
+
+|`+++<=+++`
+|`lte`
+
+|`+` `-` `*` `/` `%` `^`
+|arithmetic (sum, subtraction, multiplication, division, modulus, power)
+|===
+
+== Functions
+
+Functions are called as `NAME(arg1, arg2, ...)`:
+
+[cols="1,3"]
+|===
+|Function |Description
+
+|`NOT(x)`
+|Boolean negation
+
+|`IF(condition, whenTrue, whenFalse)`
+|Conditional value
+
+|`SQRT(x)`
+|Square root
+
+|`ROUND(x)`
+|Rounding
+
+|`beanProperty(bean, 'path')` (aliases: `bp`, `property`, `prop`, `jsonPath`)
+|Reads a (possibly nested, dot-separated) property from an object, e.g. `beanProperty(Payload, 'address.city')`
+|===
+
+== Expression examples
 
 [source]
 ----
-// Filter: continue only if body is not null
-${body} != null
-
-// Filter on non-empty string
-${body} != null && !${body}.isEmpty()
-
-// Conditional routing on header
-${header.type} == 'ORDER'
+// Filter on a header
+Headers['status'] eq 'READY'
 
 // Numeric comparison
-${header.priority} > 5
+Headers['priority'] > 5
+
+// Nested bean property
+beanProperty(Payload, 'order.total') > 100
+
+// Combined condition
+Headers['type'] == 'ORDER' and beanProperty(Payload, 'amount') <= 500
 ----
 
 == Usage in DSL
@@ -44,29 +97,20 @@ ${header.priority} > 5
 
 [source,java]
 ----
-.filter("only-valid", "${body} != null && !${body}.isEmpty()")
+.filter("only-ready", "Headers['status'] eq 'READY'")
 ----
 
-The `ExpressionFilterNode` evaluates the expression on each `Exchange`.
-If the evaluation returns `false`, message processing stops.
+The expression is evaluated on each `Exchange`. If the evaluation returns `false`, message processing stops.
 
 === In ExpressionCondition
 
 [source,java]
 ----
 .toRoute(route -> route.contentBased()
-    .when(new ExpressionCondition("${header.type} == 'PAYMENT'"), "payment-flow")
+    .when(new ExpressionCondition("Headers['type'] == 'PAYMENT'"), "payment-flow")
     .otherwise("default-flow")
     .build()
 )
 ----
 
-== Implementation
-
-The expression engine is implemented in `TextExpressionEvaluator` (module `pipelite-core`).
-It resolves placeholders on the `ExpressionVariables` populated from the current `Exchange`.
-
-The `ExpressionUtils` (package `io.pipelite.core.support.expression`) provides helper methods for programmatic expression evaluation.
-
-NOTE: The expression engine is intentionally simple.
-For complex conditional logic, prefer using a `Processor` with standard Java code.
+NOTE: The expression engine is intentionally simple. For complex conditional logic, prefer using a `Processor` with standard Java code.

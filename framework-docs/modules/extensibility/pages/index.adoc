@@ -1,7 +1,7 @@
 = Extensibility
 :description: Overview of the public Service Provider Interfaces (SPI) exposed by Pipelite Framework
 
-Pipelite is built around a small set of public *Service Provider Interfaces* (SPI), all in the `pipelite-spi` module, that let you plug custom behavior into the framework without modifying it. This section documents every one of them, plus two low-level filesystem utilities in `pipelite-common` that any SPI implementation needing durable state can reuse.
+Pipelite is built around a small set of public *Service Provider Interfaces* (SPI), all in the `pipelite-spi` module, that let you plug custom behavior into the framework without modifying it. This section documents every one of them.
 
 == Dependency
 
@@ -14,7 +14,9 @@ Pipelite is built around a small set of public *Service Provider Interfaces* (SP
 </dependency>
 ----
 
-== Available extension points
+== Service Provider Interfaces
+
+Interfaces you implement to plug custom behavior into the framework:
 
 [cols="1,3,1"]
 |===
@@ -35,10 +37,6 @@ Pipelite is built around a small set of public *Service Provider Interfaces* (SP
 |`ExchangePreProcessor` / `ExchangePostProcessor`
 |You need a cross-cutting concern (logging, metrics, header enrichment) applied to every `Exchange` passing through a node, without touching every `.process(...)` call.
 |xref:exchange-processors.adoc[Exchange Pre/Post Processors]
-
-|`PipeliteHome` / `LockedFileStore`
-|Your custom component needs to persist durable state on the local filesystem.
-|xref:shared-filesystem-storage.adoc[Shared Filesystem Storage]
 |===
 
 NOTE: The `Condition` interface used by dynamic routing (`toRoute(...)`) is a DSL-level extension point, not part of `pipelite-spi` — see xref:dsl:routing.adoc[Routing] instead.

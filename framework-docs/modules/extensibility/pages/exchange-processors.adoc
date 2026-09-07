@@ -1,7 +1,9 @@
 = Exchange Pre/Post Processors
 :description: Applying cross-cutting logic to every Exchange via ExchangePreProcessor and ExchangePostProcessor
 
-`ExchangePreProcessor` and `ExchangePostProcessor` let you attach cross-cutting logic — logging, metrics, header enrichment — to every `Exchange` that passes through a `FlowNode`, without adding a `.process(...)` step to each flow individually.
+`ExchangePreProcessor` and `ExchangePostProcessor` let you attach cross-cutting logic — logging, metrics, header enrichment — to every `Exchange` handled by a specific `FlowNode` instance, without adding a `.process(...)` step.
+
+NOTE: This SPI operates on a `FlowNode` reference. The DSL builder (`.process(...)`, `.transformPayload(...)`, etc.) does not expose the `FlowNode` instances it constructs for a flow, so this is primarily relevant when xref:channel-adapters.adoc[implementing a custom Channel Adapter] — `Consumer`/`Producer` implementations that extend `AbstractConsumer`/`AbstractProducer` are themselves the `FlowNode`.
 
 == Contracts
 
@@ -44,12 +46,22 @@ public class FlowExecutionContext {
 
 == Registering processors
 
-Attach a pre/post-processor directly to a `FlowNode`:
+Attach a pre/post-processor directly to a `FlowNode` — typically `this`, from within a custom `Consumer`/`Producer` implementation:
 
 [source,java]
 ----
-flowNode.addExchangePreProcessor(new LoggingPreProcessor());
-flowNode.addExchangePostProcessor(new MetricsPostProcessor());
+public class MyCustomConsumer extends AbstractConsumer implements EventDrivenConsumer {
+
+    public MyCustomConsumer() {
+        addExchangePreProcessor(new LoggingPreProcessor());
+        addExchangePostProcessor(new MetricsPostProcessor());
+    }
+
+    public void onMessage(Object data) {
+        Exchange exchange = exchangeFactory.createExchange(data);
+        process(exchange);
+    }
+}
 ----
 
 == Ordering

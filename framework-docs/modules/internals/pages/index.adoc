@@ -21,6 +21,9 @@ WARNING: This module documents internal implementation details of Pipelite Frame
 |xref:file-state-persistence.adoc[File Adapter State Persistence Internals]
 |How the File Channel Adapter's state directory is laid out on disk: resource-path hashing, the debug index file, and file locking.
 
+|xref:shared-filesystem-storage.adoc[Shared Filesystem Storage]
+|`PipeliteHome` and `LockedFileStore`, the internal utilities the File Channel Adapter builds on for durable filesystem state.
+
 |xref:spring-autoconfiguration-internals.adoc[Spring Autoconfiguration Internals]
 |The Spring beans registered by `@EnablePipelite` and how they wire into the Spring lifecycle.
 |===

@@ -14,8 +14,6 @@ To use Pipelite without Spring Boot, add the core module to your `pom.xml`:
 </dependency>
 ----
 
-The `pipelite-core` module transitively includes `pipelite-common`, `pipelite-spi`, `pipelite-dsl`, `pipelite-expression`, and the `default-channel-adapters` module.
-
 == Spring Boot integration
 
 For Spring Boot applications, use the dedicated starter instead:
@@ -52,7 +50,7 @@ The HTTP and Kafka adapters must be added explicitly:
 </dependency>
 ----
 
-The `time`, `slf4j`, and `link` adapters are included in `default-channel-adapters`, already present as a transitive dependency of `pipelite-core`.
+The `time`, `slf4j`, and `link` adapters are already available out of the box — no additional dependency needed.
 
 == Test support
 

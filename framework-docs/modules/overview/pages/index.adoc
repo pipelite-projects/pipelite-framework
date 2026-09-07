@@ -2,7 +2,21 @@
 :description: Introduction to the Pipelite Framework, design philosophy, and use cases
 
 Pipelite is a Java {java-version}+ framework for building message-based integration pipelines.
-Its primary goal is to enable developers to connect heterogeneous systems through a declarative and composable programming model, inspired by the *Enterprise Integration Patterns* of Hohpe and Woolf.
+It enables developers to connect heterogeneous systems through a declarative, composable programming model built on the *Pipes and Filters* architectural style, generally inspired by the *Enterprise Integration Patterns* of Hohpe and Woolf.
+
+== At a Glance
+
+[source,java]
+----
+Pipelite.defineFlow("hello-flow")
+    .fromSource("time://ticker?period=1000")
+    .transformPayload("greet", payload ->
+        "Hello at " + payload.getPayloadAs(Object.class))
+    .toSink("slf4j://output")
+    .build();
+----
+
+A flow reads from a source, passes through one or more processing steps, and writes to a sink — the rest of this documentation builds on exactly this shape.
 
 == Key Features
 
@@ -11,7 +25,7 @@ Its primary goal is to enable developers to connect heterogeneous systems throug
 * *Extensible Channel Adapters* — Native integration with HTTP, Apache Kafka, scheduled timers, SLF4J, and linked pipelines.
 * *Declarative Error Handling* — Error channel and retry channel configurable directly in the flow definition.
 * *Spring Boot Starter* — Complete autoconfiguration for Spring Boot applications.
-* *Open SPI* — `ChannelAdapter` and `Endpoint` interfaces for implementing custom adapters.
+* *Open SPI* — a small set of public extension points (custom channel adapters, channel configuration, exception handling, exchange processors) — see xref:extensibility:index.adoc[Extensibility].
 
 == When to Use Pipelite
 
@@ -22,58 +36,5 @@ Pipelite is particularly well suited to scenarios where you need to:
 * Create *scheduled workflows* triggered by timers with automatic retry logic.
 * Connect internal application components without direct coupling.
 
-== Comparison with Other Frameworks
+Ready to try it? Continue to xref:getting-started:index.adoc[Getting Started].
 
-[cols="1,1,1,1"]
-|===
-|Feature |Pipelite |Apache Camel |Spring Integration
-
-|Footprint
-|Lightweight (< 500 KB core)
-|Heavy (full runtime)
-|Medium (depends on Spring)
-
-|Configuration
-|Fluent Java DSL
-|Java/XML/YAML DSL
-|Java/XML/annotations DSL
-
-|Spring Boot
-|Dedicated starter
-|Dedicated starter
-|Native
-
-|EIP
-|Selected subset
-|Complete
-|Complete
-
-|Learning curve
-|Low
-|High
-|Medium
-|===
-
-== Project Structure
-
-The Maven project is organized into separate modules by responsibility:
-
-[source]
-----
-pipelite-framework/
-├── pipelite-common          # Shared utilities
-├── pipelite-spi             # Service Provider Interface
-├── pipelite-dsl             # Domain Specific Language API
-├── pipelite-expression      # Expression evaluation engine
-├── pipelite-core            # Core execution engine
-├── pipelite-channel-adapters
-│   ├── default-channel-adapters
-│   ├── http-channel-adapter
-│   ├── kafka-channel-adapter
-│   ├── link-channel-adapter
-│   ├── slf4j-channel-adapter
-│   └── time-channel-adapter
-├── pipelite-spring-starter  # Spring Boot integration
-├── pipelite-examples        # Application examples
-└── framework-docs           # This documentation
-----

@@ -28,7 +28,7 @@ Pipelite.defineFlow("kafka-consumer")
     .build();
 ----
 
-The `KafkaPollingConsumer` polls on a dedicated thread via `KafkaConsumerService`.
+The Kafka source polls the topic on a dedicated background thread.
 
 === URL format
 
@@ -44,7 +44,7 @@ kafka://<topic-name>[?<params>]
 .toSink("kafka://output-topic")
 ----
 
-The `DefaultKafkaProducer` sends the serialized payload as the Kafka record value.
+The Kafka sink sends the serialized payload as the Kafka record value.
 
 == Configuration
 
@@ -59,7 +59,7 @@ KafkaChannelConfigurer configurer = (config) -> {
 };
 ----
 
-With Spring Boot, the configurer can be defined as a `@Bean`.
+With Spring Boot, register it from a `PipeliteContextInitializer` bean — see xref:spring-integration:bean-configuration.adoc[Configuring Channel Adapters via Beans].
 
 === Available KafkaChannelConfiguration properties
 
@@ -82,8 +82,4 @@ With Spring Boot, the configurer can be defined as a `@Bean`.
 
 == Serialization
 
-The module includes:
-
-* `JsonSerializer` — Serialization of Java payload to JSON via Jackson.
-* `JsonDeserializer` — Deserialization from JSON to the target type.
-* `TypeConverterRegistry` — Registry of available converters.
+Java payloads are serialized to/from JSON automatically (via Jackson) when sent to or read from Kafka.

@@ -42,8 +42,4 @@ time://<name>[?period=<ms>]
 |Tick period in milliseconds
 |===
 
-== Internal mechanism
-
-The `TimePollingConsumer` uses a `ScheduledExecutorService` via `TimeService`.
-On each tick, a new `Exchange` is created with a payload containing the current timestamp.
-The consumer is started and stopped together with the `PipeliteContext`.
+On each tick, a new `Exchange` is created with a payload containing the current timestamp. The source starts and stops together with the `PipeliteContext`.

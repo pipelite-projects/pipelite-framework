@@ -52,7 +52,7 @@ builder.toSink(String url)   // destination for the error message
 
 == Default handler
 
-If no error channel is configured, the exception is handled by `GlobalDefaultExceptionHandler`, which logs the error and stops processing without propagating the exception to the caller.
+If no error channel is configured, the framework logs the error and stops processing that `Exchange` without propagating the exception to the caller.
 
 == Custom error-handling strategies
 

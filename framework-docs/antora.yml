@@ -13,6 +13,7 @@ nav:
   - modules/ROOT/nav.adoc
   - modules/overview/nav.adoc
   - modules/getting-started/nav.adoc
+  - modules/overview/architecture-nav.adoc
   - modules/core/nav.adoc
   - modules/dsl/nav.adoc
   - modules/channel-adapters/nav.adoc

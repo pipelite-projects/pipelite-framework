@@ -32,4 +32,4 @@ The `FlowExecutionDump` is the serialization of the `Exchange` at the time of fa
 |In-memory repository (not persistent across restarts)
 |===
 
-TIP: For production environments with durability requirements, `FlowExecutionDumpRepository` can be implemented with a persistent backend (e.g. database, Redis). This is unrelated to xref:extensibility:shared-filesystem-storage.adoc[Shared Filesystem Storage] (`PipeliteHome`/`LockedFileStore`), which does not back this repository — see that page's "What's out of scope" section.
+TIP: For production environments with durability requirements, `FlowExecutionDumpRepository` can be implemented with a persistent backend (e.g. database, Redis). This is unrelated to xref:shared-filesystem-storage.adoc[Shared Filesystem Storage] (`PipeliteHome`/`LockedFileStore`), which does not back this repository — see that page's "What's out of scope" section.

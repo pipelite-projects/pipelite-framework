@@ -15,7 +15,7 @@ Included in `default-channel-adapters`, transitively available with `pipelite-co
 .toSink("slf4j://my-logger")
 ----
 
-The `Slf4jProducer` logs the output `Exchange` payload at `INFO` level using the logger named after the URL.
+The framework logs the output `Exchange` payload at `INFO` level using the logger named after the URL.
 
 === URL format
 

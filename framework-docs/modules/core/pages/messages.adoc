@@ -17,15 +17,14 @@ Object payload       = input.getPayloadAs(Object.class);
 MyDto dto            = input.getPayloadAs(MyDto.class);
 Class<?> payloadType = input.getPayloadType();
 boolean hasPayload   = input.hasPayload();
-
-// Payload modification (inside a processor)
-input.setPayload(newValue);
 ----
+
+To produce a new payload inside a processor, use `exchange.setOutputPayload(...)` — see xref:exchange.adoc[Exchange].
 
 === SimpleMessage
 
 The concrete implementation is `SimpleMessage`, which carries a typed payload and a map of message-own headers.
-Default values are created by the `MessageFactory` (injected by the context).
+Default values are created internally by the context's `MessageFactory`.
 
 == Headers
 
@@ -58,19 +57,8 @@ headers.putHeader("x-correlation-id", "xyz-789");
 headers.removeHeader("x-temp");
 ----
 
-=== System headers
+=== Reserved headers
 
-The framework uses several reserved headers, defined in `IOKeys`:
+The framework reserves a small number of header and property names for its own routing mechanisms — Return Address and Routing Slip (see xref:exchange.adoc[Exchange]). Use the dedicated `Exchange` methods (`setReturnAddress`, `setRoutingSlip`, and their `tryGet*` counterparts) rather than reading or writing these directly.
 
-[cols="1,3"]
-|===
-|Constant |Purpose
-
-|`IOKeys.RETURN_ADDRESS_HEADER_NAME`
-|Address of the reply flow (Return Address pattern)
-
-|`IOKeys.ROUTING_SLIP_PROPERTY_NAME`
-|Dynamic list of flows to traverse (property, not header)
-|===
-
-WARNING: Do not use system-reserved keys as application headers to avoid collisions with framework behaviour.
+WARNING: Avoid choosing application header names that could collide with framework-reserved ones.

@@ -27,7 +27,7 @@ public class Application {
     }
 }
 ----
-<1> Lists the `@FlowConfiguration` classes to register. Spring constructs them as beans and `FlowConfigurationBeanPostProcessor` scans their `@DefineFlow` methods.
+<1> Lists the `@FlowConfiguration` classes to register. Spring constructs them as beans, and the framework automatically scans their `@DefineFlow` methods at startup (see xref:internals:spring-autoconfiguration-internals.adoc[Spring Autoconfiguration Internals] for the exact mechanism).
 
 The `@FlowConfiguration` class defines flows via `@DefineFlow` methods:
 

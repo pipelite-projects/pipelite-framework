@@ -86,7 +86,7 @@ context.registerFlowConfigurationClass(AcquireFlowConfiguration.class);     // <
 context.start();
 ----
 <1> Makes `OrderServiceImpl` available for `@DefineFlow` parameter resolution.
-<2> `FlowConfigurationScanner` instantiates the class via its default constructor and invokes each `@DefineFlow` method.
+<2> The framework instantiates the class via its default constructor and invokes each `@DefineFlow` method.
 
 See xref:examples:simple-application.adoc[Plain-Java Application] for a complete runnable example.
 
@@ -96,7 +96,7 @@ See xref:examples:simple-application.adoc[Plain-Java Application] for a complete
 
 Resolution rules:
 
-* By type — `DefaultDependencyRegistry` checks assignability across all registered instances.
+* By type — the registry checks assignability across all registered instances.
 * By name — if the parameter name matches a registered name exactly, that instance is used.
 * `AmbiguousDependencyException` is thrown when multiple registered instances match the same type.
 * `UnresolvableDependencyException` is thrown when no match is found.

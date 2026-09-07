@@ -55,4 +55,20 @@ Only the *first* `ChannelConfigurer` registered for a given adapter type is appl
 
 == With Spring Boot
 
-A `ChannelConfigurer` implementation can be declared as a `@Bean` — the autoconfiguration detects and applies it automatically, with no extra wiring required.
+`ChannelConfigurer` registration is not autodetected from `@Bean` definitions. Instead, register it from a bean implementing `PipeliteContextInitializer` — the framework calls it with the `PipeliteContext` before it starts:
+
+[source,java]
+----
+@Component
+public class MyChannelConfiguration implements PipeliteContextInitializer {
+
+    @Override
+    public void initializeContext(PipeliteContext context) {
+        ((ConfigurablePipeliteContext) context)
+            .addChannelConfigurer((MyAdapterConfigurer) configuration ->
+                configuration.setEndpointCredentials("..."));
+    }
+}
+----
+
+See xref:spring-integration:bean-configuration.adoc[Configuring Channel Adapters via Beans] for more examples.

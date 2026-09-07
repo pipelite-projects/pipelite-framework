@@ -37,9 +37,9 @@ Adds a generic processing node.
 
 [source,java]
 ----
-.process("step-name", exchange -> {
+.process("tag-length", exchange -> {
     String input = exchange.getInputPayloadAs(String.class);
-    exchange.setOutputPayload(input.trim());
+    exchange.putHeader("input-length", String.valueOf(input.length()));
 })
 ----
 
@@ -64,7 +64,7 @@ See xref:expressions.adoc[Expressions] for the syntax.
 
 [source,java]
 ----
-.filter("non-empty", "${body} != null")
+.filter("non-empty", "Payload != null")
 ----
 
 == wireTap

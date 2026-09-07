@@ -170,7 +170,7 @@ FileChannelConfigurer configurer = configuration -> {
 context.addChannelConfigurer(configurer);
 ----
 
-With Spring Boot, the configurer can be defined as a `@Bean`.
+With Spring Boot, register it from a `PipeliteContextInitializer` bean — see xref:spring-integration:bean-configuration.adoc[Configuring Channel Adapters via Beans].
 
 WARNING: Only the *first* `FileChannelConfigurer` registered on a context is applied; any additional ones are silently ignored. Fold every setting (state directory, all `registerMapper` calls) into a single configurer instance rather than calling `addChannelConfigurer` more than once for this adapter.
 
@@ -191,7 +191,7 @@ WARNING: Only the *first* `FileChannelConfigurer` registered on a context is app
 
 == Changing the state directory globally
 
-By default, `stateDirectory` resolves under `PipeliteHome` (`~/.pipelite/file-channel-adapter`). Set the `pipelite.home` system property or the `PIPELITE_HOME` environment variable to relocate the state directory for this adapter — and for every other Pipelite component that stores durable state on the local filesystem — without touching `FileChannelConfigurer`. See xref:extensibility:shared-filesystem-storage.adoc[Shared Filesystem Storage] for details.
+By default, `stateDirectory` resolves under `PipeliteHome` (`~/.pipelite/file-channel-adapter`). Set the `pipelite.home` system property or the `PIPELITE_HOME` environment variable to relocate the state directory for this adapter — and for every other Pipelite component that stores durable state on the local filesystem — without touching `FileChannelConfigurer`. See xref:internals:shared-filesystem-storage.adoc[Shared Filesystem Storage] for implementation details.
 
 == State persistence and resume semantics
 

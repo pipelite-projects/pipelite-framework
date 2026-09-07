@@ -2,19 +2,7 @@
 :description: The Exchange object as the message transport container in Pipelite
 
 The `Exchange` is the fundamental vehicle through which data travels along a flow.
-Each time a source produces an event, a new `Exchange` is created and passed through all nodes in the pipeline.
-
-== Structure
-
-[source,java]
-----
-public class Exchange implements IOContext, Serializable {
-    private final Message input;    // incoming message (immutable after creation)
-    private Message output;         // response message (optional)
-    private final Headers headers;  // cross-cutting metadata
-    private final Map<String, Object> properties; // internal routing state
-}
-----
+Each time a source produces an event, a new `Exchange` is created and passed through all nodes in the pipeline. It carries an input payload, an optional output payload, and a set of xref:messages.adoc[Headers].
 
 == Payload access
 
@@ -29,28 +17,13 @@ Class<?> type = exchange.getInputPayloadType();
 
 // Set the output payload
 exchange.setOutputPayload(result);
-
-// Automatic forward (input → output if output is empty)
-exchange.forwardIfNecessary();
 ----
+
+NOTE: If a processing step never calls `setOutputPayload(...)`, the framework automatically forwards the input payload to the output before handing the `Exchange` to the next node — a step that only inspects or validates the payload, without transforming it, does not need to copy it manually.
 
 == Headers
 
 `Exchange` exposes convenience methods (`putHeader`, `tryGetHeader`, `expectHeader`, `tryGetHeaderAs`, `removeHeader`) that delegate to the underlying `Headers` object. See xref:messages.adoc[Message and Headers] for the complete `Headers` API reference.
-
-== Properties
-
-Properties are `Object` key-value pairs used internally by the framework for routing.
-
-[source,java]
-----
-exchange.setProperty("my-key", myObject);
-MyType value = exchange.getProperty("my-key", MyType.class);
-MyType valueOrDefault = exchange.getPropertyOrDefault("my-key", MyType.class, defaultValue);
-exchange.removeProperty("my-key");
-----
-
-NOTE: System properties such as `routing-slip` and `return-address` are managed automatically by the framework via the constants in `IOKeys`.
 
 == Return Address
 

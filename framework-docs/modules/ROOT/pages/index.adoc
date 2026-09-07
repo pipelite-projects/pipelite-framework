@@ -1,8 +1,8 @@
 = Pipelite Framework
 :description: Pipelite Framework Reference Documentation
 
-Pipelite is a lightweight Java framework for building enterprise application integration (EAI) systems based on message passing.
-It implements the core *Enterprise Integration Patterns* (EIP), providing a fluent DSL, an asynchronous execution engine, and an extensible channel adapter system.
+Pipelite is a lightweight, asynchronous Java engine for Enterprise Application Integration (EAI).
+It simplifies message-passing workflows by implementing core *Enterprise Integration Patterns* (EIP) through an expressive fluent DSL and an extensible channel adapter framework.
 
 [.card-section]
 == Main Sections
@@ -29,7 +29,7 @@ All available adapters: HTTP, Kafka, File, Time, SLF4J, and Link.
 
 [.card]
 === xref:extensibility:index.adoc[Extensibility]
-The public SPIs for extending Pipelite: custom channel adapters, channel configuration, exception handling, exchange processors, and shared filesystem storage.
+The public SPIs for extending Pipelite: custom channel adapters, channel configuration, exception handling, and exchange processors.
 
 [.card]
 === xref:spring-integration:index.adoc[Spring Boot Integration]

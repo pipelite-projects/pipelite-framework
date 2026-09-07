@@ -47,11 +47,11 @@ Adapters are registered via the file:
 
 [source]
 ----
-META-INF/pipelite/adapters
+META-INF/pipelite.factories
 ----
 
-Each line contains the fully qualified name of a class implementing `ChannelAdapter`.
-The `FactoryComponentClasspathScanner` loads the classes at context startup.
+Each line is a `scheme=fully.qualified.ClassName` entry (e.g. `http=io.pipelite.components.http.HttpChannelAdapter`).
+The framework loads the classes at context startup.
 
 == Creating a custom adapter
 
