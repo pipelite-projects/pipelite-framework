@@ -45,9 +45,10 @@ link://<flow-name>
 
 == Characteristics
 
-* Exchange handoff is *synchronous* in the sender flow thread.
 * No serialization is involved: the `Exchange` is passed by reference.
 * Useful for splitting complex pipelines into modular, reusable flows.
 * The receiving flow's source can declare `?concurrency=N` to process linked Exchanges concurrently — see xref:dsl:flow-definition.adoc[Flow Definition].
 
 WARNING: Ensure the target flow is registered in the context before startup; otherwise the target flow's consumer will fail to be resolved at send time.
+
+IMPORTANT: A `link://` hop is *not* a synchronous function call — the sending flow hands the `Exchange` off to a queue and moves on; the receiving flow runs on its own separate thread, at its own pace. See xref:overview:architecture.adoc#seda-design[SEDA Design] before relying on any particular timing or ordering across a `link://` boundary.

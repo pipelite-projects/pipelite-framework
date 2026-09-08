@@ -31,6 +31,8 @@ A source with no channel adapter scheme — typically the receiving end of a xre
 
 Every concurrent source shares one framework-owned worker pool (default 200 threads, override via `ConfigurablePipeliteContext.setMaxSourceWorkerPoolSize(int)`) instead of getting dedicated threads of its own — total thread usage stays bounded regardless of how many flows declare `concurrency`. It is rejected at startup on any source backed by a channel adapter (`http://`, `file://`, `kafka://`, `time://`, ...).
 
+See xref:overview:architecture.adoc#seda-design[SEDA Design] to understand the queue this dispatches from, and why messages processed concurrently are not guaranteed to finish in the order they arrived.
+
 == process
 
 Adds a generic processing node.

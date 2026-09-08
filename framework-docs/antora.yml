@@ -21,4 +21,3 @@ nav:
   - modules/spring-integration/nav.adoc
   - modules/testing/nav.adoc
   - modules/examples/nav.adoc
-  - modules/internals/nav.adoc

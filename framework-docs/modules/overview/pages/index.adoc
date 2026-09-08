@@ -31,7 +31,7 @@ A flow reads from a source, passes through one or more processing steps, and wri
 
 Pipelite is particularly well suited to scenarios where you need to:
 
-* Build *event-driven microservices* as a Staged Event-Driven Architecture (SEDA).
+* Build *event-driven microservices* as a Staged Event-Driven Architecture (SEDA) — see xref:architecture.adoc#seda-design[SEDA Design] for what that means in practice.
 * Implement *data processing pipelines* with transformation, filtering, and conditional routing.
 * Create *scheduled workflows* triggered by timers with automatic retry logic.
 * Connect internal application components without direct coupling.

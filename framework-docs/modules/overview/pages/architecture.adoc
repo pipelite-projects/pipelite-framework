@@ -1,11 +1,10 @@
 = Architecture
 :description: Internal architecture of the Pipelite Framework, components and their interactions
 
-== Overview
+[#seda-design]
+== SEDA Design
 
-Pipelite is based on a message-oriented pipeline architecture.
-Each *flow* represents a processing path that starts from a *source*, passes through one or more *processors*, and ends at a *sink*.
-Communication between nodes occurs through `Exchange` objects that encapsulate the in-transit message.
+Pipelite is based on a message-oriented pipeline architecture: each *flow* represents a processing path that starts from a *source*, passes through one or more *processors*, and ends at a *sink*. Communication between nodes occurs through `Exchange` objects that encapsulate the in-transit message.
 
 [source]
 ----
@@ -23,6 +22,121 @@ Processor Node 2 (transform / filter / route)
       ▼
 Sink Endpoint
 ----
+
+More fundamentally, Pipelite is a *Staged Event-Driven Architecture* (SEDA): a flow is not one function call from source to sink. It is a series of independent stages, each with its own queue and its own thread, that hand `Exchange` instances to one another. Understanding this is essential before relying on any assumption about timing or ordering — it is easy to write code that *looks* synchronous but isn't.
+
+=== Decoupled by design
+
+Separating "accepting a message" from "running the pipeline for it" is the whole point of SEDA: each stage can absorb bursts, apply back-pressure, and keep running even while another stage is momentarily backed up, instead of one slow step freezing everything upstream of it.
+
+The natural side effect of that separation is timing: accepting a message — an HTTP `201`, a Kafka record polled, a `link://` send returning — only means it has been queued for its stage, not that the pipeline has run yet. If your code assumes a downstream side effect (a file written, a database row inserted, a second flow having run) is already visible as soon as the accepting call returns, it is assuming a synchronous call that this architecture deliberately doesn't make.
+
+=== One stage, one queue, one thread
+
+Every event-driven source (HTTP, Kafka, Link) works the same way: accepting an event and running the pipeline are two *separate* steps, connected by a queue.
+
+[.text-center]
+++++
+<svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg" font-family="monospace" font-size="13" stroke="#000000" fill="none">
+  <!-- incoming event -->
+  <rect x="10" y="80" width="140" height="60" stroke-width="1.5"/>
+  <text x="80" y="105" text-anchor="middle" fill="#000000" stroke="none">Incoming</text>
+  <text x="80" y="122" text-anchor="middle" fill="#000000" stroke="none">event</text>
+
+  <line x1="150" y1="110" x2="200" y2="110" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="175" y="98" text-anchor="middle" fill="#000000" stroke="none" font-size="11">enqueue</text>
+
+  <!-- queue: a row of boxes -->
+  <rect x="205" y="85" width="34" height="50" stroke-width="1.5"/>
+  <rect x="239" y="85" width="34" height="50" stroke-width="1.5"/>
+  <rect x="273" y="85" width="34" height="50" stroke-width="1.5"/>
+  <text x="205" y="70" fill="#000000" stroke="none" font-size="11">Queue (bounded)</text>
+
+  <line x1="307" y1="110" x2="360" y2="110" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow)"/>
+  <text x="333" y="98" text-anchor="middle" fill="#000000" stroke="none" font-size="11">dequeue</text>
+  <text x="290" y="150" fill="#000000" stroke="none" font-size="11">(separate thread</text>
+  <text x="290" y="164" fill="#000000" stroke="none" font-size="11">from here on)</text>
+
+  <!-- dedicated thread / pool -->
+  <rect x="365" y="70" width="150" height="80" stroke-width="1.5"/>
+  <text x="440" y="100" text-anchor="middle" fill="#000000" stroke="none">Dedicated thread</text>
+  <text x="440" y="116" text-anchor="middle" fill="#000000" stroke="none">(or worker pool</text>
+  <text x="440" y="132" text-anchor="middle" fill="#000000" stroke="none">if concurrency=N)</text>
+
+  <line x1="515" y1="110" x2="565" y2="110" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- pipeline -->
+  <rect x="570" y="60" width="140" height="100" stroke-width="1.5"/>
+  <text x="640" y="90" text-anchor="middle" fill="#000000" stroke="none">Pipeline</text>
+  <text x="640" y="108" text-anchor="middle" fill="#000000" stroke="none">process /</text>
+  <text x="640" y="124" text-anchor="middle" fill="#000000" stroke="none">transform /</text>
+  <text x="640" y="140" text-anchor="middle" fill="#000000" stroke="none">sink</text>
+
+  <defs>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 z" fill="#000000"/>
+    </marker>
+  </defs>
+</svg>
+++++
+
+The thread that accepts the event (Undertow's request thread for HTTP, the Kafka poll thread, the sending flow's own thread for a `link://` hop) only ever does the *enqueue* step, then moves on immediately. For an HTTP source, this means the response is sent back to the caller as soon as the `Exchange` is queued — *before* a single processing step of the pipeline has run. A different, dedicated thread (or a shared worker pool, when the source declares `?concurrency=N` — see xref:dsl:flow-definition.adoc[Flow Definition]) is the one that actually dequeues the `Exchange` and runs the pipeline.
+
+The queue is bounded (a fixed capacity). If the pipeline can't keep up, the queue fills up and the accepting thread blocks on enqueue until there's room — this is the framework's back-pressure mechanism, not a bug.
+
+=== Crossing a link:// boundary
+
+Chaining flows with `.toSink("link://next-stage")` is exactly the same producer/consumer handoff, just between two flows instead of between an external system and one flow. Each flow is its own independent stage with its own queue and its own thread:
+
+[.text-center]
+++++
+<svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg" font-family="monospace" font-size="12" stroke="#000000" fill="none">
+  <!-- Stage A -->
+  <rect x="10" y="20" width="300" height="90" stroke-width="1.5"/>
+  <text x="160" y="40" text-anchor="middle" fill="#000000" stroke="none" font-weight="bold">main-flow (its own thread)</text>
+  <rect x="25" y="55" width="80" height="35" stroke-width="1.2"/>
+  <text x="65" y="77" text-anchor="middle" fill="#000000" stroke="none" font-size="11">source</text>
+  <line x1="105" y1="72" x2="140" y2="72" stroke-width="1.2" marker-end="url(#arrow2)"/>
+  <rect x="140" y="55" width="80" height="35" stroke-width="1.2"/>
+  <text x="180" y="77" text-anchor="middle" fill="#000000" stroke="none" font-size="11">enrich</text>
+  <line x1="220" y1="72" x2="255" y2="72" stroke-width="1.2" marker-end="url(#arrow2)"/>
+  <rect x="255" y="55" width="45" height="35" stroke-width="1.2"/>
+  <text x="277" y="77" text-anchor="middle" fill="#000000" stroke="none" font-size="10">sink</text>
+
+  <text x="160" y="128" text-anchor="middle" fill="#000000" stroke="none" font-size="11">toSink("link://secondary-flow")</text>
+  <line x1="160" y1="110" x2="160" y2="150" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+  <!-- queue between the two stages -->
+  <rect x="120" y="150" width="30" height="30" stroke-width="1.2"/>
+  <rect x="150" y="150" width="30" height="30" stroke-width="1.2"/>
+  <text x="200" y="170" fill="#000000" stroke="none" font-size="11">← queue</text>
+
+  <line x1="160" y1="180" x2="160" y2="210" stroke-width="1.5" stroke-dasharray="5,4" marker-end="url(#arrow2)"/>
+  <text x="185" y="200" fill="#000000" stroke="none" font-size="10">different thread</text>
+
+  <!-- Stage B -->
+  <rect x="10" y="210" width="300" height="45" stroke-width="1.5"/>
+  <text x="160" y="228" text-anchor="middle" fill="#000000" stroke="none" font-weight="bold" font-size="11">secondary-flow (its own thread)</text>
+  <text x="160" y="245" text-anchor="middle" fill="#000000" stroke="none" font-size="10">fromSource("link://secondary-flow") → finalize → sink</text>
+
+  <defs>
+    <marker id="arrow2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 z" fill="#000000"/>
+    </marker>
+  </defs>
+</svg>
+++++
+
+`main-flow` finishes its own execution (including the `link://` handoff) without waiting for `secondary-flow` to do anything. `secondary-flow` runs whenever its own dedicated thread gets around to dequeuing — normally milliseconds later, but under load, or if `secondary-flow` is backed up, later than that.
+
+=== What this means in practice
+
+* Don't treat "the source accepted the message" (an HTTP `201`, a Kafka record polled, a `link://` send returning) as "the flow finished". It only means the `Exchange` was queued.
+* Don't assume strict ordering across stage boundaries when a source declares `concurrency > 1` — Exchanges dequeued around the same time can finish processing in any order.
+* A slow consumer on one stage creates back-pressure on *that stage's* queue only — it does not block unrelated flows, but it does delay anything still waiting to be enqueued onto it.
+* xref:core:processors.adoc[WireTap]'s behavior depends on its destination: forwarding to an external sink (`slf4j://`, `http://`, `kafka://`) runs *synchronously* on the same thread, so a slow destination there delays the main flow. Forwarding to another flow (`.wireTap("audit", "link://audit-flow")`) goes through the exact same queue handoff described above — the wiretapped flow runs asynchronously, on its own thread, same as any other `link://` hop.
+
+See xref:internals:flow-lifecycle.adoc[Flow Lifecycle Internals] if you need the full implementation-level detail behind this model.
 
 == Core Components
 

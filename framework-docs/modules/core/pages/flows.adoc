@@ -65,3 +65,5 @@ See xref:flow-declaration.adoc[Declaring Flows] for the recommended registration
 The `Flow` is the runtime instance of a `FlowDefinition`.
 It encapsulates the source `Consumer` and the chain of `FlowNode` instances.
 It is created and started automatically by `PipeliteContext.start()`.
+
+IMPORTANT: Each `Flow` runs on its own thread(s), decoupled from whatever triggered it by a queue — see xref:overview:architecture.adoc#seda-design[SEDA Design] before assuming any particular timing or ordering, especially across a xref:channel-adapters:link.adoc[`link://`] hop.

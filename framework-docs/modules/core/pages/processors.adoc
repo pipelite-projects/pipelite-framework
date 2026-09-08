@@ -65,14 +65,14 @@ The expression uses the engine from the `pipelite-expression` module.
 
 == WireTap
 
-The WireTap sends a *copy* of the current message to a secondary endpoint in a non-blocking manner, without interrupting the main flow.
+The WireTap sends a *copy* of the current message to a secondary endpoint without diverting the main flow's own copy from its original destination.
 
 [source,java]
 ----
 .wireTap("audit-log", "slf4j://audit-logger")
 ----
 
-The message continues to flow normally along the main flow while the copy is sent to the channel identified by the URL.
+Whether sending that copy blocks the main flow depends on the destination: a direct external sink (as in the example above) is written to synchronously, while a destination that is itself another flow (`link://...`) is handed off asynchronously instead. See xref:overview:architecture.adoc#seda-design[SEDA Design] for the full picture.
 
 == Summary of nodes available via DSL
 
@@ -90,7 +90,7 @@ The message continues to flow normally along the main flow while the copy is sen
 |Expression-based filtering
 
 |`.wireTap(name, url)`
-|Non-blocking fork to a secondary endpoint
+|Fork a copy of the Exchange to a secondary endpoint
 
 |`.toRoute(configurator)`
 |Conditional or dynamic routing (see xref:dsl:routing.adoc[Routing])
