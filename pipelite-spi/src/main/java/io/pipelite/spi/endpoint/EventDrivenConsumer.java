@@ -22,7 +22,7 @@ import org.slf4j.MDC;
 
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class EventDrivenConsumer extends DefaultConsumer {
@@ -47,7 +47,18 @@ public class EventDrivenConsumer extends DefaultConsumer {
 
     public EventDrivenConsumer(Endpoint endpoint, int queueSize) {
         super(endpoint);
-        queue = new PriorityBlockingQueue<>(queueSize);
+        // SPIKE (issue #49 tier-2): PriorityBlockingQueue swapped for LinkedBlockingQueue.
+        // PriorityExchange.withMaxPriority() is unused anywhere in the codebase (confirmed by
+        // repo-wide search) - every message, poison pills included, goes through
+        // withNormalPriority() with a strictly increasing ticket number, so the queue already
+        // behaves as plain FIFO in practice. PriorityBlockingQueue guards both put() and take()
+        // with a single shared lock (needed to maintain its heap invariant), which becomes
+        // severely contended with multiple concurrent consumer threads (see MultiConsumerTask);
+        // LinkedBlockingQueue's separate put/take locks don't have this problem. queueSize is
+        // unused here: the queue was already confirmed unbounded in practice (PriorityBlockingQueue
+        // ignores its "capacity" constructor arg for anything but initial array sizing), so this
+        // keeps that same de-facto-unbounded behavior rather than silently introducing a real cap.
+        queue = new LinkedBlockingQueue<>();
         exchangeCount = new AtomicLong(0);
     }
 
