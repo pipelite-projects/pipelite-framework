@@ -90,16 +90,15 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
                         break;
                     }
                     dispatchSemaphore.acquire();
-                    sourceWorkerPool.submit(() -> {
-                        // The pool thread's own identity (e.g. "pipelite-pool-3") is stable and
-                        // shared across whichever flow happens to be using it at a given moment
-                        // — that's the point of pooling. Tagging it with the flow name only for
-                        // the duration of this one task (mirroring the MDC correlation-id
-                        // handling in dispatchToNext) makes a thread dump show what it's
-                        // currently doing without giving up that stable base identity.
-                        final Thread currentThread = Thread.currentThread();
-                        final String baseName = currentThread.getName();
-                        currentThread.setName(baseName + "(" + FlowNameAbbreviator.abbreviate(eventDrivenConsumer.getFlowName()) + ")");
+                    // execute(), not submit(): the Future this would return is never read, so
+                    // submit() would only cost an unnecessary FutureTask allocation per message.
+                    // The pool thread's own identity (e.g. "pipelite-pool-3") is left untouched —
+                    // it's stable and shared across whichever flow happens to be using it at a
+                    // given moment, which is the point of pooling. Which flow it's currently
+                    // running is instead attributable via the MDC pipelite.flowName/
+                    // pipelite.exchangeId keys that dispatchToNext(...) sets, avoiding a
+                    // synchronized Thread.setName() call (twice) on every single message.
+                    sourceWorkerPool.execute(() -> {
                         try {
                             eventDrivenConsumer.dispatchToNext(exchange);
                         } catch (Throwable t) {
@@ -108,7 +107,6 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
                             }
                         } finally {
                             dispatchSemaphore.release();
-                            currentThread.setName(baseName);
                         }
                     });
                 } catch (InterruptedException e) {
