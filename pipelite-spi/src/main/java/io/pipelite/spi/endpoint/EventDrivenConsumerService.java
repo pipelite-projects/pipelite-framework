@@ -32,7 +32,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 
 public class EventDrivenConsumerService extends AbstractService implements Consumer, ExchangeFactoryAware, SourceWorkerPoolAware {
@@ -40,93 +39,26 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
     private static final String DEFAULT_ROLE = "event";
     private static final long SHUTDOWN_TIMEOUT_MILLIS = 30_000L;
 
-    private final Logger logger = LoggerFactory.getLogger(getClass());
-
-    private final class EventDrivenConsumerReceiveTask implements Runnable {
-
-        @Override
-        public void run() {
-            if(!isRunAllowed()){
-                throw new IllegalStateException("Service run not allowed, status is " + EventDrivenConsumerService.this.getStatus());
-            }
-            while (isRunAllowed()) {
-                if(eventDrivenConsumer.receive() < 1){
-                    break;
-                }
-            }
-        }
-    }
-
-    private final class EventDrivenConsumerPoisonPillTask implements Runnable {
-
-        @Override
-        public void run() {
-            final Exchange poisonPill = exchangeFactory.createExchange(EventDrivenConsumer.POISON_PILL);
-            eventDrivenConsumer.consume(poisonPill);
-        }
-    }
-
     /**
-     * Used only when {@code concurrency > 1}: a single dedicated thread (same role as {@link
-     * EventDrivenConsumerReceiveTask}, never more than one per flow) that just drains the queue
-     * and hands each Exchange off to the shared source worker pool, gated by {@link
-     * #dispatchSemaphore} — the actual pipeline execution happens on a pool thread, not here.
-     * {@code dispatchSemaphore.acquire()} blocking (permits exhausted) is exactly what stops this
-     * thread from taking further Exchanges off the queue, which is the backpressure mechanism:
-     * it has nothing to do with the queue's own bounded capacity, and needs none.
+     * Minimum semaphore permits ("in-flight" budget) a {@link PooledDispatchStrategy} dispatcher
+     * thread must have available to itself before another dispatcher is added. Found empirically
+     * during the issue #49 dispatcher-redesign spike: with fewer permits per dispatcher than this,
+     * multiple dispatcher threads thrash contending for too few permits, which costs more in
+     * coordination overhead than it buys in parallelism — see
+     * {@code 2026-Q3-pipelite-dispatcher-redesign-spike.md} in the pipelite-framework-analysis
+     * repository for the numbers (the naive {@code dispatcherCount = min(concurrency, cores)}
+     * formula regressed badly at low concurrency; requiring this minimum fixed it).
      */
-    private final class ConcurrentDispatchTask implements Runnable {
+    static final int MIN_PERMITS_PER_DISPATCHER = 4;
 
-        @Override
-        public void run() {
-            if(!isRunAllowed()){
-                throw new IllegalStateException("Service run not allowed, status is " + EventDrivenConsumerService.this.getStatus());
-            }
-            while (isRunAllowed()) {
-                try {
-                    final EventDrivenConsumer.PriorityExchange priorityExchange = eventDrivenConsumer.takeNext();
-                    final Exchange exchange = priorityExchange.getExchange();
-                    if (eventDrivenConsumer.isPoisonPill(exchange)) {
-                        break;
-                    }
-                    dispatchSemaphore.acquire();
-                    sourceWorkerPool.submit(() -> {
-                        // The pool thread's own identity (e.g. "pipelite-pool-3") is stable and
-                        // shared across whichever flow happens to be using it at a given moment
-                        // — that's the point of pooling. Tagging it with the flow name only for
-                        // the duration of this one task (mirroring the MDC correlation-id
-                        // handling in dispatchToNext) makes a thread dump show what it's
-                        // currently doing without giving up that stable base identity.
-                        final Thread currentThread = Thread.currentThread();
-                        final String baseName = currentThread.getName();
-                        currentThread.setName(baseName + "(" + FlowNameAbbreviator.abbreviate(eventDrivenConsumer.getFlowName()) + ")");
-                        try {
-                            eventDrivenConsumer.dispatchToNext(exchange);
-                        } catch (Throwable t) {
-                            if (logger.isErrorEnabled()) {
-                                logger.error("Unhandled error dispatching an Exchange on the shared source worker pool", t);
-                            }
-                        } finally {
-                            dispatchSemaphore.release();
-                            currentThread.setName(baseName);
-                        }
-                    });
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }
-        }
-    }
+    private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final EventDrivenConsumer eventDrivenConsumer;
     protected final ThreadFactory threadFactory;
     protected ExchangeFactory exchangeFactory;
     protected ExecutorService sourceWorkerPool;
 
-    private Thread receiveTask;
-    private Thread poisonPillTask;
-    private Thread dispatchThread;
-    private Semaphore dispatchSemaphore;
+    private DispatchStrategy dispatchStrategy;
 
     public EventDrivenConsumerService(EventDrivenConsumer eventDrivenConsumer) {
         this(eventDrivenConsumer, DEFAULT_ROLE);
@@ -136,7 +68,7 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
      * Lets a subclass tied to a specific channel adapter (e.g. {@code KafkaConsumerService})
      * give its threads a more specific role than the generic {@value #DEFAULT_ROLE} — otherwise
      * a Kafka-backed flow's polling thread would be visually indistinguishable from a plain
-     * {@code link://}-style flow's receive/dispatch thread in a thread dump.
+     * {@code link://}-style flow's dispatch thread(s) in a thread dump.
      */
     protected EventDrivenConsumerService(EventDrivenConsumer eventDrivenConsumer, String role) {
         this.eventDrivenConsumer = eventDrivenConsumer;
@@ -156,57 +88,35 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
         // in ScheduledPollingConsumerService) — an unrecognized value fails fast at startup.
         ExecutorType.valueOf(properties.getOrDefault(SourceConcurrencyProperties.EXECUTOR_TYPE, ExecutorType.BOUNDED_POOL.name()));
 
-        if (concurrency <= 1) {
-            // Unchanged from before this feature existed: one dedicated thread, inline processing.
-            if (receiveTask == null) {
-                receiveTask = threadFactory.newThread(new EventDrivenConsumerReceiveTask());
-            }
-            receiveTask.start();
-
-            if(logger.isTraceEnabled()){
-                logger.trace("EventDrivenConsumerReceiveTask successfully started");
-            }
-            return;
+        if (dispatchStrategy == null) {
+            dispatchStrategy = concurrency <= 1
+                ? new InlineDispatchStrategy(eventDrivenConsumer, exchangeFactory, threadFactory, this::isRunAllowed, 1)
+                : new PooledDispatchStrategy(eventDrivenConsumer, exchangeFactory, threadFactory, this::isRunAllowed,
+                    sourceWorkerPool, dispatcherCountFor(concurrency), concurrency);
         }
+        dispatchStrategy.start();
 
-        dispatchSemaphore = new Semaphore(concurrency);
-        if (dispatchThread == null) {
-            dispatchThread = threadFactory.newThread(new ConcurrentDispatchTask());
+        if (logger.isTraceEnabled()) {
+            logger.trace("{} successfully started for concurrency={}",
+                dispatchStrategy.getClass().getSimpleName(), concurrency);
         }
-        dispatchThread.start();
+    }
 
-        if(logger.isTraceEnabled()){
-            logger.trace("ConcurrentDispatchTask successfully started with concurrency={}", concurrency);
-        }
+    /**
+     * At least one dispatcher, never more than the machine's core count, and never so many that
+     * any one of them would have fewer than {@link #MIN_PERMITS_PER_DISPATCHER} semaphore permits
+     * to itself on average — see that constant's Javadoc for why.
+     */
+    static int dispatcherCountFor(int concurrency) {
+        return Math.max(1, Math.min(Runtime.getRuntime().availableProcessors(), concurrency / MIN_PERMITS_PER_DISPATCHER));
     }
 
     @Override
     public void doStop() {
-
-        if (poisonPillTask == null) {
-            poisonPillTask = threadFactory.newThread(new EventDrivenConsumerPoisonPillTask());
+        if (dispatchStrategy != null) {
+            dispatchStrategy.stop(SHUTDOWN_TIMEOUT_MILLIS);
         }
-        poisonPillTask.start();
-
-        if(logger.isTraceEnabled()){
-            logger.trace("EventDrivenWorker successfully started");
-        }
-
-        // Wait for the active worker thread (whichever mode was started) to actually terminate,
-        // instead of returning immediately once the poison pill has merely been sent.
-        final Thread workerThread = dispatchThread != null ? dispatchThread : receiveTask;
-        if (workerThread != null) {
-            try {
-                workerThread.join(SHUTDOWN_TIMEOUT_MILLIS);
-                if (workerThread.isAlive() && logger.isWarnEnabled()) {
-                    logger.warn("Worker thread {} did not terminate within {}ms during stop()",
-                        workerThread.getName(), SHUTDOWN_TIMEOUT_MILLIS);
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-        // Note: this only waits for THIS flow's own dispatch thread. Tasks already submitted to
+        // Note: this only waits for THIS flow's own dispatch thread(s). Tasks already submitted to
         // the shared source worker pool are not awaited here — that pool is owned by
         // PipeliteContext, shared across flows, and outlives the stop of any single one; its own
         // shutdown is PipeliteContext#stop()'s responsibility.

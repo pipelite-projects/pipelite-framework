@@ -22,7 +22,7 @@ import org.slf4j.MDC;
 
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class EventDrivenConsumer extends DefaultConsumer {
@@ -35,6 +35,8 @@ public class EventDrivenConsumer extends DefaultConsumer {
 
     private static final String MDC_EXCHANGE_ID_KEY = "pipelite.exchangeId";
 
+    private static final String MDC_FLOW_NAME_KEY = "pipelite.flowName";
+
     protected final BlockingQueue<PriorityExchange> queue;
 
     private final AtomicLong exchangeCount;
@@ -45,7 +47,18 @@ public class EventDrivenConsumer extends DefaultConsumer {
 
     public EventDrivenConsumer(Endpoint endpoint, int queueSize) {
         super(endpoint);
-        queue = new PriorityBlockingQueue<>(queueSize);
+        // SPIKE (issue #49 tier-2): PriorityBlockingQueue swapped for LinkedBlockingQueue.
+        // PriorityExchange.withMaxPriority() is unused anywhere in the codebase (confirmed by
+        // repo-wide search) - every message, poison pills included, goes through
+        // withNormalPriority() with a strictly increasing ticket number, so the queue already
+        // behaves as plain FIFO in practice. PriorityBlockingQueue guards both put() and take()
+        // with a single shared lock (needed to maintain its heap invariant), which becomes
+        // severely contended with multiple concurrent consumer threads (see MultiConsumerTask);
+        // LinkedBlockingQueue's separate put/take locks don't have this problem. queueSize is
+        // unused here: the queue was already confirmed unbounded in practice (PriorityBlockingQueue
+        // ignores its "capacity" constructor arg for anything but initial array sizing), so this
+        // keeps that same de-facto-unbounded behavior rather than silently introducing a real cap.
+        queue = new LinkedBlockingQueue<>();
         exchangeCount = new AtomicLong(0);
     }
 
@@ -125,12 +138,18 @@ public class EventDrivenConsumer extends DefaultConsumer {
      * (overridden in this class to mean "enqueue") so callers outside this class — which can't
      * do {@code super.process(...)} — have an unambiguous way to invoke the same behavior
      * {@link #receive()} already gets via its own {@code super.process(exchange)} call.
-     * Sets the exchange's correlation id in the SLF4J MDC for the duration of the call, so
-     * concurrent workers produce attributable, non-interleaved log lines.
+     * Sets the exchange's correlation id and this consumer's flow name in the SLF4J MDC for the
+     * duration of the call, so concurrent workers produce attributable, non-interleaved log
+     * lines even though — unlike at {@code concurrency=1}, where the dedicated thread's own name
+     * already carries the flow identity — a shared source worker pool thread's name no longer
+     * does (see {@code EventDrivenConsumerService.ConcurrentDispatchTask}, which relies on this
+     * MDC value instead of renaming the thread per message).
      */
     void dispatchToNext(Exchange exchange) {
         final String previousCorrelationId = MDC.get(MDC_EXCHANGE_ID_KEY);
+        final String previousFlowName = MDC.get(MDC_FLOW_NAME_KEY);
         MDC.put(MDC_EXCHANGE_ID_KEY, exchange.getInput().getId());
+        MDC.put(MDC_FLOW_NAME_KEY, getFlowName());
         try {
             super.process(exchange);
         } finally {
@@ -138,6 +157,11 @@ public class EventDrivenConsumer extends DefaultConsumer {
                 MDC.put(MDC_EXCHANGE_ID_KEY, previousCorrelationId);
             } else {
                 MDC.remove(MDC_EXCHANGE_ID_KEY);
+            }
+            if (previousFlowName != null) {
+                MDC.put(MDC_FLOW_NAME_KEY, previousFlowName);
+            } else {
+                MDC.remove(MDC_FLOW_NAME_KEY);
             }
         }
     }

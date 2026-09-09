@@ -25,6 +25,7 @@ import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import io.pipelite.spi.flow.process.ExchangePreProcessor;
 import org.awaitility.Awaitility;
 import org.junit.Assert;
+import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -295,6 +296,104 @@ public class EventDrivenConsumerServiceTest {
     private static boolean hasThreadNamed(String prefix) {
         return Thread.getAllStackTraces().keySet().stream()
             .anyMatch(t -> t.isAlive() && t.getName().startsWith(prefix));
+    }
+
+    private static long countThreadsNamed(String prefix) {
+        return Thread.getAllStackTraces().keySet().stream()
+            .filter(t -> t.isAlive() && t.getName().startsWith(prefix))
+            .count();
+    }
+
+    @Test
+    public void shouldSizeDispatcherThreadsAccordingToConcurrencyAndAvailableCores() {
+        // Pure formula check, no threads involved: low concurrency (<= MIN_PERMITS_PER_DISPATCHER)
+        // must always collapse to exactly one dispatcher, regardless of core count — the property
+        // that fixed the naive `dispatcherCount = min(concurrency, cores)` formula's regression at
+        // low concurrency (multiple dispatchers thrashing over too few semaphore permits; see
+        // 2026-Q3-pipelite-dispatcher-redesign-spike.md in the pipelite-framework-analysis repo).
+        Assert.assertEquals(1, EventDrivenConsumerService.dispatcherCountFor(1));
+        Assert.assertEquals(1, EventDrivenConsumerService.dispatcherCountFor(EventDrivenConsumerService.MIN_PERMITS_PER_DISPATCHER));
+
+        // High concurrency: dispatcher count grows, but is always capped at the machine's own
+        // core count, however high concurrency (the semaphore's permit budget) is configured.
+        final int cores = Runtime.getRuntime().availableProcessors();
+        Assert.assertEquals(cores, EventDrivenConsumerService.dispatcherCountFor(cores * EventDrivenConsumerService.MIN_PERMITS_PER_DISPATCHER * 100));
+    }
+
+    @Test
+    public void shouldStartExactlyOneUnsuffixedDispatcherThreadWhenConcurrencyIsAtOrBelowThePerDispatcherMinimum() {
+
+        final Endpoint endpoint = new DefaultEndpoint(EndpointURL.parse(
+            "start-endpoint?concurrency=" + EventDrivenConsumerService.MIN_PERMITS_PER_DISPATCHER));
+        final EventDrivenConsumer consumer = new EventDrivenConsumer(endpoint);
+        final EventDrivenConsumerService concurrentSubject = new EventDrivenConsumerService(consumer);
+        concurrentSubject.setFlowName("one-dispatcher-flow");
+        concurrentSubject.setProcessorName("test-processor");
+        concurrentSubject.setExchangeFactory(TEST_EXCHANGE_FACTORY);
+
+        final ExecutorService sharedPool = Executors.newFixedThreadPool(EventDrivenConsumerService.MIN_PERMITS_PER_DISPATCHER);
+        concurrentSubject.setSourceWorkerPool(sharedPool);
+        concurrentSubject.setNext(new TestFlowNode() {
+            @Override
+            public void process(Exchange exchange) {
+                // no-op: this test only cares about how many dispatcher threads got created
+            }
+        });
+
+        try {
+            concurrentSubject.start();
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> hasThreadNamed("pipelite-event-one-dispatcher-flow"));
+
+            // Exactly one dispatcher: PooledDispatchStrategy only suffixes thread names ("-0",
+            // "-1", ...) when dispatcherCount > 1, so a single, unsuffixed
+            // "pipelite-event-one-dispatcher-flow" thread confirms both the count AND the naming.
+            Assert.assertEquals(1, countThreadsNamed("pipelite-event-one-dispatcher-flow"));
+        } finally {
+            concurrentSubject.stop();
+            sharedPool.shutdownNow();
+        }
+    }
+
+    @Test
+    public void shouldStartMultipleDispatcherThreadsWhenConcurrencyProvidesEnoughHeadroom() {
+
+        final int cores = Runtime.getRuntime().availableProcessors();
+        Assume.assumeTrue("requires a multi-core environment to exercise dispatcherCount > 1", cores > 1);
+
+        // Comfortably past the point where dispatcherCountFor(...) caps out at `cores` dispatchers,
+        // regardless of how many cores this particular machine has.
+        final int concurrency = cores * EventDrivenConsumerService.MIN_PERMITS_PER_DISPATCHER * 10;
+        final int expectedDispatchers = EventDrivenConsumerService.dispatcherCountFor(concurrency);
+
+        final Endpoint endpoint = new DefaultEndpoint(EndpointURL.parse("start-endpoint?concurrency=" + concurrency));
+        final EventDrivenConsumer consumer = new EventDrivenConsumer(endpoint);
+        final EventDrivenConsumerService concurrentSubject = new EventDrivenConsumerService(consumer);
+        concurrentSubject.setFlowName("multi-dispatch-flow");
+        concurrentSubject.setProcessorName("test-processor");
+        concurrentSubject.setExchangeFactory(TEST_EXCHANGE_FACTORY);
+
+        final ExecutorService sharedPool = Executors.newFixedThreadPool(concurrency);
+        concurrentSubject.setSourceWorkerPool(sharedPool);
+        concurrentSubject.setNext(new TestFlowNode() {
+            @Override
+            public void process(Exchange exchange) {
+                // no-op: this test only cares about how many dispatcher threads got created
+            }
+        });
+
+        try {
+            concurrentSubject.start();
+            Awaitility.await().atMost(5, TimeUnit.SECONDS)
+                .until(() -> countThreadsNamed("pipelite-event-multi-dispatch-flow") == expectedDispatchers);
+
+            Assert.assertEquals(
+                "expected " + expectedDispatchers + " dispatcher thread(s) for concurrency=" + concurrency + " on a " + cores + "-core machine",
+                expectedDispatchers, countThreadsNamed("pipelite-event-multi-dispatch-flow"));
+        } finally {
+            concurrentSubject.stop();
+            sharedPool.shutdownNow();
+        }
     }
 
     @Test
