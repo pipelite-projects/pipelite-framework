@@ -15,6 +15,7 @@
  */
 package io.pipelite.spi.endpoint;
 
+import io.pipelite.spi.flow.concurrent.QueuePressureGate;
 import io.pipelite.spi.flow.exchange.Exchange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,15 @@ public class EventDrivenConsumer extends DefaultConsumer {
 
     private final AtomicLong exchangeCount;
 
+    /**
+     * See {@link QueuePressureGate}: the queue above is unbounded in practice (confirmed
+     * empirically, see its own comment), so nothing short of this gate ever signals "slow down"
+     * back to whoever is calling {@link #process(Exchange)} — an HTTP handler thread, a {@code
+     * link://}-producing flow, etc. Sized off {@code queueSize}, which until now only affected
+     * {@code PriorityBlockingQueue}'s initial array size and had no other effect.
+     */
+    private final QueuePressureGate pressureGate;
+
     public EventDrivenConsumer(Endpoint endpoint) {
         this(endpoint, DEFAULT_QUEUE_SIZE);
     }
@@ -54,12 +64,12 @@ public class EventDrivenConsumer extends DefaultConsumer {
         // behaves as plain FIFO in practice. PriorityBlockingQueue guards both put() and take()
         // with a single shared lock (needed to maintain its heap invariant), which becomes
         // severely contended with multiple concurrent consumer threads (see MultiConsumerTask);
-        // LinkedBlockingQueue's separate put/take locks don't have this problem. queueSize is
-        // unused here: the queue was already confirmed unbounded in practice (PriorityBlockingQueue
-        // ignores its "capacity" constructor arg for anything but initial array sizing), so this
-        // keeps that same de-facto-unbounded behavior rather than silently introducing a real cap.
+        // LinkedBlockingQueue's separate put/take locks don't have this problem. The queue itself
+        // is left unbounded here deliberately (see QueuePressureGate above for why): a hard JDK
+        // queue capacity would throw/reject on overflow instead of applying backpressure.
         queue = new LinkedBlockingQueue<>();
         exchangeCount = new AtomicLong(0);
+        pressureGate = QueuePressureGate.withDefaultHysteresis(queueSize);
     }
 
     @Override
@@ -75,6 +85,13 @@ public class EventDrivenConsumer extends DefaultConsumer {
             // throw before this thread gets to postProcessExchange, so a downstream ExceptionHandler
             // reading FLOW_EXECUTION_LAST_EXECUTED_PROCESSOR_PROPERTY_NAME sees it still unset.
             postProcessExchange(exchange);
+            // The poison pill bypasses backpressure deliberately: shutdown should never be delayed
+            // by load, and something is by definition still draining the queue (the very threads
+            // this pill is meant to stop), so pressure would eventually release on its own anyway —
+            // there's no reason for doStop() to wait for that.
+            if (!isPoisonPill(exchange)) {
+                pressureGate.beforeEnqueue(queue::size);
+            }
             queue.put(PriorityExchange.withNormalPriority(exchange, exchangeNumber));
             /*
             synchronized (this){
@@ -125,7 +142,9 @@ public class EventDrivenConsumer extends DefaultConsumer {
      * submitted to the shared source worker pool.
      */
     PriorityExchange takeNext() throws InterruptedException {
-        return queue.take();
+        final PriorityExchange result = queue.take();
+        pressureGate.afterDequeue(queue::size);
+        return result;
     }
 
     boolean isPoisonPill(Exchange exchange) {
