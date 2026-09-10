@@ -111,6 +111,20 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
         return Math.max(1, Math.min(Runtime.getRuntime().availableProcessors(), concurrency / MIN_PERMITS_PER_DISPATCHER));
     }
 
+    /**
+     * Runs the pipeline for {@code exchange} synchronously on the calling thread, bypassing this
+     * service's own queue/{@link DispatchStrategy} entirely. Exposed (protected, not public) for
+     * a subclass that manages its own intake and completion tracking itself — today only {@code
+     * KafkaConsumerService} (see issue #64): it must know a record's pipeline execution has
+     * actually finished, not merely been handed off to be run later, before it is safe to commit
+     * that record's offset. A subclass using this should not also call {@code doStart()}/{@code
+     * super.doStart()} — that would start a {@link DispatchStrategy} whose queue nothing ever
+     * feeds, wasting a permanently-idle thread.
+     */
+    protected void dispatchToNext(Exchange exchange) {
+        eventDrivenConsumer.dispatchToNext(exchange);
+    }
+
     @Override
     public void doStop() {
         if (dispatchStrategy != null) {
