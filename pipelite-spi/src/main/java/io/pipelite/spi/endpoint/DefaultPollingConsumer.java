@@ -15,6 +15,7 @@
  */
 package io.pipelite.spi.endpoint;
 
+import io.pipelite.spi.flow.concurrent.QueuePressureGate;
 import io.pipelite.spi.flow.exchange.Exchange;
 
 import java.util.concurrent.BlockingQueue;
@@ -23,9 +24,18 @@ import java.util.concurrent.TimeUnit;
 
 public class DefaultPollingConsumer extends AbstractConsumer implements PollingConsumer {
 
+    /**
+     * Independent of the queue's own JDK capacity (which defaults to {@code Integer.MAX_VALUE} —
+     * effectively unbounded, see the default constructor below): the gate is what actually applies
+     * backpressure, not the queue itself. See {@link QueuePressureGate}.
+     */
+    private static final int DEFAULT_PRESSURE_HIGH_WATERMARK = 20;
+
     private final Object LOCK = new Object();
 
     protected final BlockingQueue<Exchange> queue;
+
+    private final QueuePressureGate pressureGate;
 
     public DefaultPollingConsumer(Endpoint endpoint) {
         this(endpoint, Integer.MAX_VALUE);
@@ -34,12 +44,17 @@ public class DefaultPollingConsumer extends AbstractConsumer implements PollingC
     public DefaultPollingConsumer(Endpoint endpoint, int queueSize) {
         super(endpoint);
         queue = new LinkedBlockingDeque<>(queueSize);
+        pressureGate = QueuePressureGate.withDefaultHysteresis(DEFAULT_PRESSURE_HIGH_WATERMARK);
     }
 
     @Override
     public Exchange receive() {
         synchronized (LOCK){
-            return queue.poll();
+            final Exchange exchange = queue.poll();
+            if (exchange != null) {
+                pressureGate.afterDequeue(queue::size);
+            }
+            return exchange;
         }
     }
 
@@ -47,7 +62,11 @@ public class DefaultPollingConsumer extends AbstractConsumer implements PollingC
     public Exchange receive(long timeout) {
         synchronized (LOCK) {
             try {
-                return queue.poll(timeout, TimeUnit.MILLISECONDS);
+                final Exchange exchange = queue.poll(timeout, TimeUnit.MILLISECONDS);
+                if (exchange != null) {
+                    pressureGate.afterDequeue(queue::size);
+                }
+                return exchange;
             } catch (InterruptedException exception) {
                 Thread.currentThread().interrupt();
                 return null;
@@ -62,6 +81,15 @@ public class DefaultPollingConsumer extends AbstractConsumer implements PollingC
 
     @Override
     public void consume(Exchange exchange) {
+        // Deliberately outside the synchronized(LOCK) block below: blocking here while holding
+        // LOCK would deadlock against receive()/receive(timeout), which need that same lock to
+        // dequeue and release pressure via afterDequeue(...).
+        try {
+            pressureGate.beforeEnqueue(queue::size);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return;
+        }
         synchronized (LOCK){
             try{
                 queue.put(exchange);
