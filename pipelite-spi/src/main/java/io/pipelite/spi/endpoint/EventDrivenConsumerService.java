@@ -125,6 +125,34 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
         eventDrivenConsumer.dispatchToNext(exchange);
     }
 
+    /**
+     * Runs {@code exchange} through {@code target} — an arbitrary node belonging to this
+     * service's own flow, not necessarily its head — under this flow's own {@link
+     * DispatchStrategy} (its {@code concurrency(n)} budget, if any), instead of on the calling
+     * thread entirely outside that accounting. Public, unlike {@link #dispatchToNext(Exchange)}:
+     * the caller here is not a subclass but another flow's own machinery — {@code
+     * SupplyExchangeProcessor}, resuming a retry at the specific node that previously failed (see
+     * issue #61). See {@link DispatchStrategy#dispatch} for why this is generally
+     * <strong>not</strong> synchronous — a {@link PooledDispatchStrategy}-backed flow returns
+     * once {@code target.process(exchange)} is submitted, not once it finishes, so that draining
+     * several pending retries in one batch is never serialized by one flow's concurrency budget.
+     * Falls back to running {@code target} directly, ungated, if this service has not been
+     * started yet (no {@link DispatchStrategy} to delegate to) — should not happen in normal
+     * operation, since nothing can fail and reach a retry before {@code PipeliteContext#start()}
+     * has already started every flow, but fails safe rather than throwing if it somehow does.
+     */
+    public void dispatchToNode(FlowNode target, Exchange exchange) {
+        if (dispatchStrategy == null) {
+            if (logger.isWarnEnabled()) {
+                logger.warn("dispatchToNode(...) called before this service started - running '{}' ungated, " +
+                    "outside any concurrency budget", target.getProcessorName());
+            }
+            target.process(exchange);
+            return;
+        }
+        dispatchStrategy.dispatch(target, exchange);
+    }
+
     @Override
     public void doStop() {
         if (dispatchStrategy != null) {

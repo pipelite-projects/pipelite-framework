@@ -37,6 +37,17 @@ public class ScheduledPollingConsumerService extends AbstractService implements 
     protected static final String PERIOD_PROPERTY_NAME = "period";
     protected static final String TIME_UNIT_PROPERTY_NAME = "timeUnit";
 
+    /**
+     * Default of 1 reproduces today's exact behavior for every existing consumer built on this
+     * class, several of which depend on it: {@code TimePollingConsumer#receive()} never returns
+     * null (it fires unconditionally on every call), so a consumer that opts into a batch size
+     * greater than 1 must genuinely be able to signal "nothing more right now" via a null return
+     * — draining until null is only safe for a {@link PollingConsumer} with that contract (e.g.
+     * {@code RetryPollingConsumer}, backed by a repository that legitimately empties out).
+     */
+    protected static final String BATCH_SIZE_PROPERTY_NAME = "batchSize";
+    private static final int DEFAULT_BATCH_SIZE = 1;
+
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
     protected final PollingConsumer pollingConsumer;
@@ -63,10 +74,18 @@ public class ScheduledPollingConsumerService extends AbstractService implements 
         final String timeUnitAsText = endpointProperties.getOrDefault(TIME_UNIT_PROPERTY_NAME, TimeUnit.MILLISECONDS.name());
         final TimeUnit timeUnit = TimeUnit.valueOf(timeUnitAsText);
 
+        final int batchSize = endpointProperties.getAsIntegerOrDefault(BATCH_SIZE_PROPERTY_NAME, DEFAULT_BATCH_SIZE);
+
         ScheduledFuture<?> consumer = consumerPool.scheduleAtFixedRate(() -> {
             try {
-                final Exchange exchange = pollingConsumer.receive();
-                if (exchange != null) {
+                // Bounded, not "drain until empty": a backlog larger than batchSize is simply
+                // finished across further ticks, rather than one tick monopolizing this consumer's
+                // single-threaded executor for however long an unbounded drain would take.
+                for (int i = 0; i < batchSize; i++) {
+                    final Exchange exchange = pollingConsumer.receive();
+                    if (exchange == null) {
+                        break;
+                    }
                     pollingConsumer.process(exchange);
                 }
             } catch (Throwable t) {

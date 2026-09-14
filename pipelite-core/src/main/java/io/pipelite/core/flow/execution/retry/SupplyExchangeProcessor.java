@@ -22,12 +22,15 @@ import io.pipelite.core.flow.execution.dump.SerializedFlowExecutionDump;
 import io.pipelite.core.support.serialization.BaseEncoding;
 import io.pipelite.core.support.serialization.ByteArrayToObjectConverter;
 import io.pipelite.spi.context.IOKeys;
+import io.pipelite.spi.endpoint.EventDrivenConsumerService;
 import io.pipelite.spi.flow.AbstractFlowNode;
 import io.pipelite.spi.flow.Flow;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Optional;
 
 /**
  * Resumes a failed flow's execution. Prefers resuming directly at the {@code FlowNode} that
@@ -37,6 +40,16 @@ import org.slf4j.LoggerFactory;
  * source) only when the failed processor's identity or the flow itself can't be resolved, e.g.
  * a dump produced before this resume mechanism existed, or a failure that didn't originate
  * inside a processor's own catch block.
+ * <p>
+ * The direct-resume path runs through the target flow's own {@link EventDrivenConsumerService}
+ * (its {@link io.pipelite.spi.endpoint} dispatch strategy) when the target flow has one, instead
+ * of always running on the retry-channel's own thread — see issue #61: a retry previously ran
+ * entirely outside the target flow's own {@code concurrency(n)} budget, serialized on {@code
+ * RetryService}'s single thread regardless of how much parallelism that flow was actually
+ * configured for. Falls back to a direct, ungated call when the target flow's consumer isn't an
+ * {@code EventDrivenConsumerService} (e.g. a {@code ScheduledPollingConsumerService}-based source
+ * such as {@code file://}, or an adapter like Kafka's that deliberately bypasses its own dispatch
+ * strategy per issue #64) — there is no {@code concurrency(n)} budget to inherit there either way.
  */
 public class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContextAware {
 
@@ -64,11 +77,12 @@ public class SupplyExchangeProcessor extends AbstractFlowNode implements Pipelit
 
         final String failedProcessor = executionDump.getFailedProcessor();
         if (failedProcessor != null) {
-            final FlowNode target = pipeliteContext.tryFindFlow(executionDump.getSourceEndpointResource())
+            final Optional<Flow> flowHolder = pipeliteContext.tryFindFlow(executionDump.getSourceEndpointResource());
+            final FlowNode target = flowHolder
                 .flatMap(flow -> FlowNodeLocator.findByProcessorName(flow, failedProcessor))
                 .orElse(null);
             if (target != null) {
-                target.process(recoveredExchange);
+                dispatch(flowHolder.get(), target, recoveredExchange);
                 return;
             }
             if (sysLogger.isWarnEnabled()) {
@@ -84,6 +98,24 @@ public class SupplyExchangeProcessor extends AbstractFlowNode implements Pipelit
         final String endpointURL = String.format("link://%s", executionDump.getSourceEndpointResource());
         pipeliteContext.supplyExchange(endpointURL, recoveredExchange);
 
+    }
+
+    /**
+     * Runs {@code target} through the target flow's own {@code EventDrivenConsumerService} —
+     * under its {@code concurrency(n)} budget — when it has one, so a resumed retry competes for
+     * the same permits as fresh messages instead of running for free, serialized on the
+     * retry-channel's own thread. That path is generally asynchronous (see {@code
+     * DispatchStrategy#dispatch}) — returns once submitted, not once {@code target} has actually
+     * finished, so several pending retries can genuinely be in flight at once instead of one at a
+     * time. The fallback path (no {@code EventDrivenConsumerService}, nothing to inherit
+     * concurrency from) remains a direct, synchronous call, same as before issue #61.
+     */
+    private static void dispatch(Flow flow, FlowNode target, Exchange exchange) {
+        if (flow.isConsumerOfType(EventDrivenConsumerService.class)) {
+            flow.getConsumerAs(EventDrivenConsumerService.class).dispatchToNode(target, exchange);
+        } else {
+            target.process(exchange);
+        }
     }
 
     @Override

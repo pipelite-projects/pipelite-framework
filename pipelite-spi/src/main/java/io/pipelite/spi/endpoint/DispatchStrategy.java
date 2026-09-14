@@ -15,6 +15,9 @@
  */
 package io.pipelite.spi.endpoint;
 
+import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.FlowNode;
+
 /**
  * Owns the lifecycle of however many threads are needed to drain an {@link EventDrivenConsumer}'s
  * queue and run its pipeline for each dequeued {@code Exchange}. {@link EventDrivenConsumerService}
@@ -42,4 +45,27 @@ interface DispatchStrategy {
      * behavior {@link EventDrivenConsumerService} already had before this was extracted.
      */
     void stop(long timeoutMillis);
+
+    /**
+     * Runs {@code exchange} through {@code target} (an arbitrary node in this strategy's own
+     * flow — not necessarily {@code consumer}'s own head), under this same strategy's concurrency
+     * accounting, instead of {@code consumer}'s queue feeding it in the usual way. Added for
+     * issue #61's actual root cause (see {@code 2026-Q3-pipelite-retry-concurrency-design.md} in
+     * the pipelite-framework-analysis repository): a retry resumed via {@code
+     * SupplyExchangeProcessor}'s direct-jump mechanism previously ran serialized on the
+     * retry-channel's own single thread, entirely outside the target flow's own {@code
+     * concurrency(n)} budget — one at a time, regardless of how much of that budget was actually
+     * free.
+     * <p>
+     * <strong>Not synchronous in general</strong> — {@link PooledDispatchStrategy} returns once
+     * {@code target.process(exchange)} has been submitted to its shared pool, not once it has
+     * run, so that a caller draining a batch of several pending retries (see issue #61) is never
+     * itself blocked by one flow's concurrency budget being momentarily exhausted; {@link
+     * InlineDispatchStrategy} has no pool to submit to and genuinely runs {@code target}
+     * synchronously, which is harmless there since it is only ever used at {@code
+     * concurrency<=1}, where nothing could run concurrently with it anyway. A caller that needs
+     * to know when {@code target}'s processing has actually finished — not merely started or been
+     * submitted — cannot rely on this method's return to mean that in general.
+     */
+    void dispatch(FlowNode target, Exchange exchange);
 }

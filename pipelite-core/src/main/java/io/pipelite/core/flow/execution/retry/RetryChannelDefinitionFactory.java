@@ -30,6 +30,19 @@ import io.pipelite.spi.flow.exchange.FlowNode;
 
 public class RetryChannelDefinitionFactory {
 
+    /**
+     * Bounds how many pending dumps {@code RetryService} drains per scheduling tick (default
+     * period 1s), instead of exactly one regardless of backlog size (issue #61). Not unbounded
+     * ("drain until empty"): each drained dump costs its own {@code
+     * FlowExecutionDumpRepository#poll()} call, which for the default file-backed repository is an
+     * O(n) scan/parse of every still-pending dump (see {@code FileFlowExecutionDumpRepository}'s
+     * own Javadoc) - a single tick draining an arbitrarily large backlog in one go would spend an
+     * unbounded amount of time before yielding back to the scheduler. 50 is a "generous but finite"
+     * bound in the same spirit as this codebase's other defaults (e.g. {@code
+     * FlowExecutionDumpInMemoryRepository#DEFAULT_MAX_SIZE}), not a tuned figure.
+     */
+    private static final int RETRY_BATCH_SIZE = 50;
+
     private final FlowExecutionDumpRepository dumpRepository;
     private final PipeliteContext pipeliteContext;
 
@@ -57,7 +70,8 @@ public class RetryChannelDefinitionFactory {
     }
 
     private static void setSourceDefinition(Builder<FlowDefinitionImpl> builder, String channelName){
-        builder.with(t -> t.setSourceDefinition(new TypedSourceDefinitionImpl(channelName, RetryEndpoint.class)));
+        final String url = String.format("%s?batchSize=%d", channelName, RETRY_BATCH_SIZE);
+        builder.with(t -> t.setSourceDefinition(new TypedSourceDefinitionImpl(url, RetryEndpoint.class)));
     }
 
     private static void addDefaultProcessorNodeDefinition(Builder<FlowDefinitionImpl> builder, String processorName, Processor processor){

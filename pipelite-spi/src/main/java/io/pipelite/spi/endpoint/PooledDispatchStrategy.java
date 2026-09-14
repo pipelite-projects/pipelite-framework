@@ -17,6 +17,7 @@ package io.pipelite.spi.endpoint;
 
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.spi.flow.exchange.FlowNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -113,6 +114,47 @@ final class PooledDispatchStrategy implements DispatchStrategy {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    /**
+     * Asynchronous: submits the whole acquire-run-release unit to {@code pool} and returns
+     * immediately, without waiting for {@code target.process(exchange)} to actually run, let
+     * alone finish. This is deliberate and load-bearing for issue #61's actual point — a retry
+     * backlog must be able to have more than one entry genuinely in flight at once, gated only by
+     * the flow's own {@code concurrency(n)} budget, not serialized one-at-a-time on the caller's
+     * thread (today, always {@code RetryService}'s single thread draining a batch per tick, see
+     * {@code ScheduledPollingConsumerService}). A blocking, wait-for-completion implementation
+     * was tried first and rejected: it satisfied the semaphore accounting but left every retry in
+     * a batch running strictly sequentially regardless of how much of the flow's budget was
+     * actually free — not the throughput fix #61 exists for. The permit is acquired inside the
+     * submitted task, not before submitting it, so a caller with a full batch of retries to start
+     * is never itself blocked waiting for one flow's permits to free up — submission is
+     * unconditional and cheap; only the actual execution waits on the semaphore, and it waits on
+     * a pool thread, not the caller's.
+     * <p>
+     * A caller that must know when {@code target}'s processing has actually finished (e.g. to
+     * safely remove a retry-channel dump only once the outcome is settled, see issue #58) cannot
+     * rely on this method's return for that — it needs a completion signal from {@code target}'s
+     * own processing instead, not from submission.
+     */
+    @Override
+    public void dispatch(FlowNode target, Exchange exchange) {
+        pool.execute(() -> {
+            try {
+                semaphore.acquire();
+                try {
+                    target.process(exchange);
+                } finally {
+                    semaphore.release();
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Throwable t) {
+                if (logger.isErrorEnabled()) {
+                    logger.error("Unhandled error dispatching an Exchange to an explicit target node", t);
+                }
+            }
+        });
     }
 
     @Override
