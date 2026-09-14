@@ -69,4 +69,13 @@ public interface FlowExecutionDump {
     void setDeadLetterFlowName(String deadLetterFlowName);
     String getDeadLetterFlowName();
 
+    /**
+     * This dump's own claim state — see {@link FlowExecutionDumpStatus}. A newly created dump
+     * always starts {@link FlowExecutionDumpStatus#PENDING}; callers should not set this directly
+     * to claim a dump, that's what {@link FlowExecutionDumpRepository#tryClaim(String)} is for —
+     * this setter exists for repository implementations parsing a dump back from storage.
+     */
+    void setStatus(FlowExecutionDumpStatus status);
+    FlowExecutionDumpStatus getStatus();
+
 }

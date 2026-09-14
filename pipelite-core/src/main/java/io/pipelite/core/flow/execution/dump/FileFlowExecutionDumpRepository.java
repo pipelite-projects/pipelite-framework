@@ -20,6 +20,7 @@ import io.pipelite.common.support.fs.LockedFileStore;
 import io.pipelite.common.support.fs.PipeliteHome;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
+import io.pipelite.core.flow.execution.FlowExecutionDumpStatus;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -30,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 /**
@@ -51,16 +53,22 @@ import java.util.stream.Stream;
  * retry-channel's default one-poll-per-second cadence ({@code ScheduledPollingConsumerService}),
  * not a tight loop.
  * <p>
- * No cross-process coordination guards {@link #poll()} itself — only each individual file's
- * read/write is locked. Two processes sharing the same directory could both pick the same dump as
- * "oldest" before either removes it, causing an at-least-once (not exactly-once) redelivery. This
- * is expected and acceptable between replicas of the <em>same</em> logical application (any
- * replica is equally entitled to resolve any pending dump), and is still a strict improvement
- * over the in-memory repository, which has no cross-process story at all. It is a different,
- * more serious problem for two genuinely <em>different</em> applications to collide on this
- * directory at all (one application's retry-channel attempting to resolve a dump whose {@code
- * flowName} only exists in the other's flow registry) — see {@link PipeliteHome}'s {@code
- * pipelite.application.id} for how to namespace two such applications apart.
+ * {@link #poll()} itself is not exclusive — nothing stops two callers, in this JVM or another
+ * process sharing this directory, from both being handed the same dump if both call {@code poll()}
+ * before either has claimed it. What actually excludes a dump from being handed out twice is its
+ * own {@link io.pipelite.core.flow.execution.FlowExecutionDumpStatus}, set via {@link
+ * #tryClaim(String)} — a single {@link LockedFileStore#readAndWriteLocked} read-check-write, whose
+ * {@code FileChannel} lock is held for the whole operation and enforced by the OS across processes,
+ * not just this JVM. A caller must always follow up a {@code poll()} with a {@code tryClaim(id)}
+ * before acting on what it returned, and treat a {@code false} result as "someone else already has
+ * this one" rather than a plain no-op. A crash between a successful claim and the eventual {@link
+ * #remove(String)} leaves that dump durably {@code IN_PROGRESS} and therefore unreachable via
+ * {@code poll()} forever — no lease/expiry exists yet to reclaim it automatically; tracked as a
+ * follow-up, not solved here. It is a different, more serious problem for two genuinely
+ * <em>different</em> applications to collide on this directory at all (one application's
+ * retry-channel attempting to resolve a dump whose {@code flowName} only exists in the other's flow
+ * registry) — see {@link PipeliteHome}'s {@code pipelite.application.id} for how to namespace two
+ * such applications apart.
  */
 public class FileFlowExecutionDumpRepository implements FlowExecutionDumpRepository {
 
@@ -79,6 +87,7 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
     private static final String DEAD_LETTER_FLOW_NAME_KEY = "deadLetterFlowName";
     private static final String EXCHANGE_DATA_KEY = "exchangeData";
     private static final String ENCODING_KEY = "encoding";
+    private static final String STATUS_KEY = "status";
 
     private final Path directory;
     private final LockedFileStore store;
@@ -106,6 +115,7 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
                 .map(path -> store.readLocked(path.getFileName().toString()))
                 .flatMap(Optional::stream)
                 .map(FileFlowExecutionDumpRepository::parse)
+                .filter(dump -> dump.getStatus() == FlowExecutionDumpStatus.PENDING)
                 .min(Comparator.comparing(FlowExecutionDump::getCreationTime));
         } catch (IOException exception) {
             throw new IllegalStateException(String.format("Unable to list directory '%s'", directory), exception);
@@ -133,6 +143,34 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
         store.deleteLocked(fileName(id));
     }
 
+    @Override
+    public boolean tryClaim(String id) {
+        final AtomicBoolean claimed = new AtomicBoolean(false);
+        // readAndWriteLocked holds one FileLock (in-JVM + OS-level, see LockedFileStore's own
+        // Javadoc) across the whole read-check-write, so two callers racing to claim the same id -
+        // whether two threads in this JVM or two separate process instances sharing this directory
+        // - can't both observe PENDING and both win, the same guarantee tryClaim's own contract
+        // requires.
+        store.readAndWriteLocked(fileName(id), current -> {
+            if (!current.isPresent()) {
+                // Nothing to claim - already resolved and removed by whoever's attempt finished
+                // first, or never existed. readAndWriteLocked requires a String back regardless;
+                // "" round-trips as still-absent (parse() is never called on it since poll()/
+                // tryLoad() both go through readLocked, which already treats an empty file as
+                // absent - same convention this repository uses everywhere else).
+                return "";
+            }
+            final FlowExecutionDump dump = parse(current.get());
+            if (dump.getStatus() != FlowExecutionDumpStatus.PENDING) {
+                return current.get();
+            }
+            dump.setStatus(FlowExecutionDumpStatus.IN_PROGRESS);
+            claimed.set(true);
+            return format((SerializedFlowExecutionDump) dump);
+        });
+        return claimed.get();
+    }
+
     private static String fileName(String id) {
         return id + FILE_EXTENSION;
     }
@@ -153,6 +191,7 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
         putIfNotNull(properties, DEAD_LETTER_FLOW_NAME_KEY, dump.getDeadLetterFlowName());
         putIfNotNull(properties, EXCHANGE_DATA_KEY, dump.getExchangeData());
         putIfNotNull(properties, ENCODING_KEY, dump.getEncoding());
+        properties.setProperty(STATUS_KEY, dump.getStatus().name());
 
         final StringWriter writer = new StringWriter();
         try {
@@ -201,6 +240,11 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
         dump.setMaxAttempts(Integer.parseInt(properties.getProperty(MAX_ATTEMPTS_KEY)));
         dump.setDeadLetterFlowName(properties.getProperty(DEAD_LETTER_FLOW_NAME_KEY));
         dump.setExchangeData(properties.getProperty(EXCHANGE_DATA_KEY), properties.getProperty(ENCODING_KEY));
+        // Defaults to PENDING for a file written before this field existed - never actually
+        // happens today (nothing has shipped yet), kept as a safe default rather than a hard
+        // parse failure on an unrecognized/missing value.
+        final String statusText = properties.getProperty(STATUS_KEY);
+        dump.setStatus(statusText != null ? FlowExecutionDumpStatus.valueOf(statusText) : FlowExecutionDumpStatus.PENDING);
 
         return dump;
     }

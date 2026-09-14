@@ -17,6 +17,7 @@ package io.pipelite.core.flow.execution.dump;
 
 import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
+import io.pipelite.core.flow.execution.FlowExecutionDumpStatus;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,7 @@ import java.util.Comparator;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Backed by a plain in-heap map: a saved dump does not survive a process crash or restart — every
@@ -69,6 +71,7 @@ public class FlowExecutionDumpInMemoryRepository implements FlowExecutionDumpRep
     public Optional<FlowExecutionDump> poll() {
         return dumps.values()
             .stream()
+            .filter(dump -> dump.getStatus() == FlowExecutionDumpStatus.PENDING)
             .min(Comparator.comparing(FlowExecutionDump::getCreationTime));
     }
 
@@ -91,6 +94,22 @@ public class FlowExecutionDumpInMemoryRepository implements FlowExecutionDumpRep
     @Override
     public void remove(String id) {
         dumps.remove(id);
+    }
+
+    @Override
+    public boolean tryClaim(String id) {
+        final AtomicBoolean claimed = new AtomicBoolean(false);
+        // computeIfPresent runs atomically per key on a ConcurrentHashMap - the check (status ==
+        // PENDING) and the mutation (setStatus(IN_PROGRESS)) happen as one indivisible step, so two
+        // concurrent callers racing to claim the same id can't both observe PENDING and both win.
+        dumps.computeIfPresent(id, (key, dump) -> {
+            if (dump.getStatus() == FlowExecutionDumpStatus.PENDING) {
+                dump.setStatus(FlowExecutionDumpStatus.IN_PROGRESS);
+                claimed.set(true);
+            }
+            return dump;
+        });
+        return claimed.get();
     }
 
 }

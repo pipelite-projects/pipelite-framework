@@ -74,6 +74,11 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
             pendingIds.remove(id);
         }
 
+        @Override
+        public boolean tryClaim(String id) {
+            return delegate.tryClaim(id);
+        }
+
         int pendingCount() {
             return pendingIds.size();
         }

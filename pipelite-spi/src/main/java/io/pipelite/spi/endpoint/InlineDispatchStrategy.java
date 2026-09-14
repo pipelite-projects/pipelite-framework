@@ -17,6 +17,7 @@ package io.pipelite.spi.endpoint;
 
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.spi.flow.exchange.FlowNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,6 +96,25 @@ final class InlineDispatchStrategy implements DispatchStrategy {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
+        }
+    }
+
+    /**
+     * No semaphore, no pool, nothing to gate here — this strategy is only ever used for {@code
+     * concurrency<=1} (see {@code EventDrivenConsumerService#doStart}), so there is no budget for
+     * a retry to inherit beyond what running it inline already provides. Unlike {@link
+     * PooledDispatchStrategy#dispatch}, this genuinely blocks the caller until {@code target} has
+     * finished — there is no pool here to submit async work to. Harmless in practice: at {@code
+     * concurrency<=1} nothing else could have run concurrently with it anyway, so a caller
+     * draining several pending retries in one batch (issue #61) gains nothing from async
+     * submission for a flow that has no concurrency to offer in the first place.
+     */
+    @Override
+    public void dispatch(FlowNode target, Exchange exchange, Runnable onComplete) {
+        try {
+            target.process(exchange);
+        } finally {
+            onComplete.run();
         }
     }
 

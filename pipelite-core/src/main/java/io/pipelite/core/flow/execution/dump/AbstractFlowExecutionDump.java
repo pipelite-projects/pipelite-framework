@@ -17,6 +17,7 @@ package io.pipelite.core.flow.execution.dump;
 
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
+import io.pipelite.core.flow.execution.FlowExecutionDumpStatus;
 
 import java.time.LocalDateTime;
 import java.util.Objects;
@@ -35,6 +36,7 @@ public abstract class AbstractFlowExecutionDump implements FlowExecutionDump {
     private String stackTrace;
     private int maxAttempts = 3;
     private String deadLetterFlowName;
+    private FlowExecutionDumpStatus status = FlowExecutionDumpStatus.PENDING;
 
     private transient Throwable failureException;
 
@@ -146,6 +148,16 @@ public abstract class AbstractFlowExecutionDump implements FlowExecutionDump {
     @Override
     public String getDeadLetterFlowName() {
         return deadLetterFlowName;
+    }
+
+    @Override
+    public void setStatus(FlowExecutionDumpStatus status) {
+        this.status = status;
+    }
+
+    @Override
+    public FlowExecutionDumpStatus getStatus() {
+        return status;
     }
 
     @Override
