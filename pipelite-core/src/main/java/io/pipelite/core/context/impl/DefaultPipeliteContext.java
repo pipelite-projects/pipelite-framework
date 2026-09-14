@@ -15,6 +15,8 @@
  */
 package io.pipelite.core.context.impl;
 
+import io.pipelite.common.support.Preconditions;
+import io.pipelite.common.support.fs.PipeliteHome;
 import io.pipelite.core.config.DefaultDependencyRegistry;
 import io.pipelite.core.config.DependencyRegistry;
 import io.pipelite.core.config.EndpointURLPropertyResolver;
@@ -27,8 +29,8 @@ import io.pipelite.core.flow.RetryChannelExceptionHandler;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.core.flow.split.AggregateInMemoryRepository;
 import io.pipelite.core.flow.split.AggregateRepository;
+import io.pipelite.core.flow.execution.dump.FileFlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpFactory;
-import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.core.flow.execution.retry.RetryChannelDefinitionFactory;
 import io.pipelite.core.flow.execution.retry.RetryService;
 import io.pipelite.core.support.LogUtils;
@@ -65,6 +67,13 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
     private static final String RETRY_CHANNEL_NAME = "retry-channel";
 
+    // Namespaced under a dedicated "state/" prefix, sibling to (never inside) any channel
+    // adapter's own PipeliteHome subfolder (e.g. "file-channel-adapter") - reserved for the
+    // core framework's own durable state, leaving room for future concerns of the same kind
+    // (e.g. issue #53's split/aggregate state) without ever colliding with an adapter's folder
+    // or the PipeliteHome root itself. See issue #68.
+    private static final String FLOW_EXECUTION_DUMPS_HOME_SUBFOLDER = "state/flow-execution-dumps";
+
     private static final int DEFAULT_MAX_SOURCE_WORKER_POOL_SIZE = 200;
     private static final String SOURCE_WORKER_POOL_THREAD_ROLE = "pool";
     private static final long SOURCE_WORKER_POOL_SHUTDOWN_TIMEOUT_SECONDS = 30L;
@@ -86,9 +95,11 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     private final ExchangeFactory exchangeFactory;
     private final AggregateRepository aggregateRepository;
 
-    private final FlowExecutionDumpRepository executionDumpRepository;
+    // Not final: ConfigurablePipeliteContext#setFlowExecutionDumpRepository(...) may replace the
+    // default before start() - see registerFlows(), which reads this field live rather than
+    // capturing it early (unlike the RetryChannelDefinitionFactory bug this replaced, see #68).
+    private FlowExecutionDumpRepository executionDumpRepository;
     private final FlowExecutionDumpFactory executionDumpFactory;
-    private final RetryChannelDefinitionFactory retryChannelDefinitionFactory;
 
     private int maxSourceWorkerPoolSize = DEFAULT_MAX_SOURCE_WORKER_POOL_SIZE;
     private ExecutorService sourceWorkerPool;
@@ -112,8 +123,12 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
         flowFactory = new FlowFactory(this);
 
         executionDumpFactory = new FlowExecutionDumpFactory(new DistributedIdentityGeneratorImpl(), new Base64ObjectSerializer());
-        executionDumpRepository = new FlowExecutionDumpInMemoryRepository();
-        retryChannelDefinitionFactory = new RetryChannelDefinitionFactory(executionDumpRepository, this);
+        // Durable by default (issue #68): a retry-channel dump is a redelivery guarantee, and an
+        // in-memory-only implementation quietly breaks that guarantee on the one occasion it
+        // matters (a crash while dumps are pending). Callers that genuinely want zero I/O instead
+        // (e.g. a short-lived test) can still opt back into FlowExecutionDumpInMemoryRepository
+        // via setFlowExecutionDumpRepository(...), same as any other override.
+        executionDumpRepository = new FileFlowExecutionDumpRepository(PipeliteHome.resolve(FLOW_EXECUTION_DUMPS_HOME_SUBFOLDER));
     }
 
     @Override
@@ -127,6 +142,11 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
             throw new IllegalArgumentException("size must be a positive integer, got " + size);
         }
         this.maxSourceWorkerPoolSize = size;
+    }
+
+    @Override
+    public void setFlowExecutionDumpRepository(FlowExecutionDumpRepository repository) {
+        this.executionDumpRepository = Preconditions.notNull(repository, "repository is required and cannot be null");
     }
 
     @Override
@@ -376,6 +396,12 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
                 // Create the retry-channel if not already done
                 if(!flowRegistry.isRegistered(RETRY_CHANNEL_NAME)){
+                    // Built here rather than once in the constructor: executionDumpRepository may
+                    // have been swapped by setFlowExecutionDumpRepository(...) any time before
+                    // start(), and this factory must bake in whatever is current now, not
+                    // whatever was current at construction time (see #68).
+                    final RetryChannelDefinitionFactory retryChannelDefinitionFactory =
+                        new RetryChannelDefinitionFactory(executionDumpRepository, this);
                     final FlowDefinition retryChannelDefinition = retryChannelDefinitionFactory.createDefinition(RETRY_CHANNEL_NAME);
                     final Flow retryChannel = flowFactory.createFlow(retryChannelDefinition);
                     flowRegistry.addFlow(retryChannel);

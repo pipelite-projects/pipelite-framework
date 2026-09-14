@@ -16,6 +16,7 @@
 package io.pipelite.core.context;
 
 import io.pipelite.core.config.EndpointURLPropertyResolver;
+import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 
 /**
  * Extension of {@link PipeliteContext} that exposes configuration hooks for
@@ -40,5 +41,15 @@ public interface ConfigurablePipeliteContext extends PipeliteContext {
      * even with zero configuration.
      */
     void setMaxSourceWorkerPoolSize(int size);
+
+    /**
+     * Overrides the retry-channel's dump repository — by default a file-backed one under {@code
+     * PipeliteHome} (durable across a crash or restart, see issue #68). Pass a {@code
+     * FlowExecutionDumpInMemoryRepository} instead to opt back into the old zero-I/O, crash-loses-
+     * state behavior (e.g. for a short-lived test). Must be called before
+     * {@link PipeliteContext#start()}, which is when the retry-channel and its dependents are
+     * actually wired up.
+     */
+    void setFlowExecutionDumpRepository(FlowExecutionDumpRepository repository);
 
 }

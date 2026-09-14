@@ -15,7 +15,8 @@
  */
 package io.pipelite.core;
 
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.ConfigurablePipeliteContext;
+import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
@@ -38,11 +39,14 @@ import static org.junit.Assert.assertEquals;
  */
 public class PipeliteSplitAggregateExceptionHandlingTest {
 
-    private PipeliteContext context;
+    private ConfigurablePipeliteContext context;
 
     @Before
     public void setup() {
-        context = Pipelite.createContext();
+        context = (ConfigurablePipeliteContext) Pipelite.createContext();
+        // Retry-routing mechanics only, not persistence - in-memory keeps this hermetic
+        // (DefaultPipeliteContext's own default is now file-backed under PipeliteHome, #68).
+        context.setFlowExecutionDumpRepository(new FlowExecutionDumpInMemoryRepository());
     }
 
     @Test

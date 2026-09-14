@@ -86,6 +86,24 @@ public class LockedFileStore {
     }
 
     /**
+     * Deletes {@code fileName} if it exists, under the same two-layer locking as every other
+     * method here — a plain {@code Files.deleteIfExists} would bypass both the in-JVM lock and
+     * the OS-level {@code FileChannel} lock this class exists to provide, letting it race a
+     * concurrent {@link #readLocked(String)}/{@link #writeLocked(String, String)} on the same
+     * file name from another thread in this JVM.
+     */
+    public void deleteLocked(String fileName) {
+        withLocks(fileName, file -> {
+            try {
+                Files.deleteIfExists(file);
+                return null;
+            } catch (IOException exception) {
+                throw new IllegalStateException(String.format("Unable to delete locked file '%s'", file), exception);
+            }
+        });
+    }
+
+    /**
      * Atomically applies {@code transform} to the current content of {@code fileName} (empty if
      * the file is new or empty) and writes back what it returns — a single lock held for the
      * whole read-modify-write, unlike calling {@link #readLocked(String)} followed by

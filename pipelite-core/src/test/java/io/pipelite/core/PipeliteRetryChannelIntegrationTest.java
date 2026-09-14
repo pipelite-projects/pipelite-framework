@@ -15,7 +15,8 @@
  */
 package io.pipelite.core;
 
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.ConfigurablePipeliteContext;
+import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.awaitility.Awaitility;
@@ -27,11 +28,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 public class PipeliteRetryChannelIntegrationTest {
 
-    private PipeliteContext pipeliteContext;
+    private ConfigurablePipeliteContext pipeliteContext;
 
     @Before
     public void setup(){
-        pipeliteContext = Pipelite.createContext();
+        pipeliteContext = (ConfigurablePipeliteContext) Pipelite.createContext();
+        // This test only cares about retry-count/routing mechanics, not persistence - in-memory
+        // keeps it hermetic (DefaultPipeliteContext's own default is now file-backed under
+        // PipeliteHome, see issue #68).
+        pipeliteContext.setFlowExecutionDumpRepository(new FlowExecutionDumpInMemoryRepository());
     }
 
     @Test

@@ -21,6 +21,8 @@ import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import io.pipelite.spi.flow.process.ExchangePreProcessor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -34,6 +36,8 @@ public class ScheduledPollingConsumerService extends AbstractService implements 
     protected static final String INITIAL_DELAY_PROPERTY_NAME = "initialDelay";
     protected static final String PERIOD_PROPERTY_NAME = "period";
     protected static final String TIME_UNIT_PROPERTY_NAME = "timeUnit";
+
+    private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
     protected final PollingConsumer pollingConsumer;
     protected final ScheduledExecutorService consumerPool;
@@ -60,9 +64,21 @@ public class ScheduledPollingConsumerService extends AbstractService implements 
         final TimeUnit timeUnit = TimeUnit.valueOf(timeUnitAsText);
 
         ScheduledFuture<?> consumer = consumerPool.scheduleAtFixedRate(() -> {
-            final Exchange exchange = pollingConsumer.receive();
-            if(exchange != null){
-                pollingConsumer.process(exchange);
+            try {
+                final Exchange exchange = pollingConsumer.receive();
+                if (exchange != null) {
+                    pollingConsumer.process(exchange);
+                }
+            } catch (Throwable t) {
+                // ScheduledExecutorService#scheduleAtFixedRate silently cancels every future
+                // execution of this task the first time it throws - with no log, no exception
+                // anywhere, the periodic poll just stops forever. Mirrors the same resilience
+                // discipline already applied to EventDrivenConsumerService's dispatch strategies
+                // (#49/#50) and KafkaConsumerTask's poll loop (#64): one bad poll/process must
+                // not permanently kill this consumer.
+                if (sysLogger.isErrorEnabled()) {
+                    sysLogger.error("Unhandled error in the scheduled poll loop", t);
+                }
             }
         }, initialDelay, period, timeUnit);
         addScheduledWorker(consumer);
