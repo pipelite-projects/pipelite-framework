@@ -140,17 +140,24 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
      * started yet (no {@link DispatchStrategy} to delegate to) — should not happen in normal
      * operation, since nothing can fail and reach a retry before {@code PipeliteContext#start()}
      * has already started every flow, but fails safe rather than throwing if it somehow does.
+     * {@code onComplete} runs once {@code target.process(exchange)} has actually finished (see
+     * {@link DispatchStrategy#dispatch} — not merely been submitted), including on this fallback
+     * path.
      */
-    public void dispatchToNode(FlowNode target, Exchange exchange) {
+    public void dispatchToNode(FlowNode target, Exchange exchange, Runnable onComplete) {
         if (dispatchStrategy == null) {
             if (logger.isWarnEnabled()) {
                 logger.warn("dispatchToNode(...) called before this service started - running '{}' ungated, " +
                     "outside any concurrency budget", target.getProcessorName());
             }
-            target.process(exchange);
+            try {
+                target.process(exchange);
+            } finally {
+                onComplete.run();
+            }
             return;
         }
-        dispatchStrategy.dispatch(target, exchange);
+        dispatchStrategy.dispatch(target, exchange, onComplete);
     }
 
     @Override

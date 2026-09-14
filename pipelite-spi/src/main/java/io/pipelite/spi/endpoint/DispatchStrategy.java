@@ -63,9 +63,15 @@ interface DispatchStrategy {
      * itself blocked by one flow's concurrency budget being momentarily exhausted; {@link
      * InlineDispatchStrategy} has no pool to submit to and genuinely runs {@code target}
      * synchronously, which is harmless there since it is only ever used at {@code
-     * concurrency<=1}, where nothing could run concurrently with it anyway. A caller that needs
-     * to know when {@code target}'s processing has actually finished — not merely started or been
-     * submitted — cannot rely on this method's return to mean that in general.
+     * concurrency<=1}, where nothing could run concurrently with it anyway.
+     * <p>
+     * {@code onComplete} is the way a caller learns {@code target}'s processing has actually
+     * finished rather than merely started or been submitted (see issue #58: a caller like {@code
+     * SupplyExchangeProcessor} must not remove a retry-channel dump until the attempt's outcome is
+     * genuinely settled). It runs exactly once per call, after {@code target.process(exchange)}
+     * returns or throws — on the pool thread for {@link PooledDispatchStrategy}, on the calling
+     * thread for {@link InlineDispatchStrategy} — never if {@code target} is never actually
+     * attempted (e.g. the dispatching thread is interrupted before submission runs).
      */
-    void dispatch(FlowNode target, Exchange exchange);
+    void dispatch(FlowNode target, Exchange exchange, Runnable onComplete);
 }

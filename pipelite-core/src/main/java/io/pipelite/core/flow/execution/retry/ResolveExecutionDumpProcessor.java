@@ -24,6 +24,17 @@ import io.pipelite.dsl.process.Processor;
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.exchange.Exchange;
 
+/**
+ * Resolves the {@link FlowExecutionDump} a retry-channel exchange carries (or, failing that,
+ * loads it by id) and makes it the exchange's payload. Deliberately does <strong>not</strong>
+ * remove it from {@code dumpRepository} — doing so here, before the retry attempt has actually
+ * run, would leave a message with no durable record of it at all for the entire duration of the
+ * attempt (issue #58): a crash between this resolution and the attempt's own outcome (success, or
+ * a new dump saved for a further attempt) would lose it silently, exactly the class of gap #68
+ * closed for the "waiting to be retried" window but not for "actively being retried". Removal now
+ * happens later, only once an outcome is actually known — see {@link RetryStrategyFilter} (attempts
+ * exhausted) and {@link SupplyExchangeProcessor} (resupply attempted).
+ */
 public class ResolveExecutionDumpProcessor implements Processor {
 
     private final FlowExecutionDumpRepository dumpRepository;
@@ -38,7 +49,7 @@ public class ResolveExecutionDumpProcessor implements Processor {
 
         final Exchange exchange = (Exchange)ioContext;
 
-        FlowExecutionDump flowExecutionDump = exchange.getInputPayloadAs(FlowExecutionDump.class);
+        final FlowExecutionDump flowExecutionDump = exchange.getInputPayloadAs(FlowExecutionDump.class);
 
         if(flowExecutionDump == null){
 
@@ -46,13 +57,11 @@ public class ResolveExecutionDumpProcessor implements Processor {
             Preconditions.notNull(executionDumpId, String.format("Exchange property %s is required and cannot be null",
                 IOKeys.FLOW_EXECUTION_DUMP_ID_PROPERTY_NAME));
 
-            flowExecutionDump = dumpRepository.tryLoad(executionDumpId)
+            final FlowExecutionDump loaded = dumpRepository.tryLoad(executionDumpId)
                 .orElseThrow(() -> new IllegalStateException(String.format("Unrecognized flow-execution-dump id '%s'", executionDumpId)));
-            ioContext.setOutputPayload(flowExecutionDump);
+            ioContext.setOutputPayload(loaded);
 
         }
-
-        dumpRepository.remove(flowExecutionDump.getId());
 
     }
 

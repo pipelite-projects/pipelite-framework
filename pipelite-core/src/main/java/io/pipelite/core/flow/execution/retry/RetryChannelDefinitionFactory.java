@@ -62,8 +62,8 @@ public class RetryChannelDefinitionFactory {
 
         setSourceDefinition(builder, retryChannelName);
         addDefaultProcessorNodeDefinition(builder, "resolve-execution-dump", new ResolveExecutionDumpProcessor(dumpRepository));
-        addDefaultProcessorNodeDefinition(builder, "retry-strategy-filter", new RetryStrategyFilter(pipeliteContext));
-        addFlowNodeDefinition(builder, "supply-exchange", new SupplyExchangeProcessor());
+        addDefaultProcessorNodeDefinition(builder, "retry-strategy-filter", new RetryStrategyFilter(pipeliteContext, dumpRepository));
+        addFlowNodeDefinition(builder, "supply-exchange", new SupplyExchangeProcessor(dumpRepository));
 
         return builder.build();
 

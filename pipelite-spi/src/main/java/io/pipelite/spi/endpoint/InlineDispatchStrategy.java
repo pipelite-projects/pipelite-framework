@@ -110,8 +110,12 @@ final class InlineDispatchStrategy implements DispatchStrategy {
      * submission for a flow that has no concurrency to offer in the first place.
      */
     @Override
-    public void dispatch(FlowNode target, Exchange exchange) {
-        target.process(exchange);
+    public void dispatch(FlowNode target, Exchange exchange, Runnable onComplete) {
+        try {
+            target.process(exchange);
+        } finally {
+            onComplete.run();
+        }
     }
 
     @Override

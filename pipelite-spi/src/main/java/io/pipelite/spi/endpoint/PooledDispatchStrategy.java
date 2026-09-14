@@ -134,25 +134,31 @@ final class PooledDispatchStrategy implements DispatchStrategy {
      * <p>
      * A caller that must know when {@code target}'s processing has actually finished (e.g. to
      * safely remove a retry-channel dump only once the outcome is settled, see issue #58) cannot
-     * rely on this method's return for that — it needs a completion signal from {@code target}'s
-     * own processing instead, not from submission.
+     * rely on this method's return for that — {@code onComplete} is the actual completion signal,
+     * run on the pool thread once {@code target.process(exchange)} returns or throws. It does not
+     * run if the permit is never acquired (thread interrupted while waiting) — {@code target} was
+     * never attempted in that case, so whatever {@code onComplete} guards (e.g. a dump removal)
+     * must not happen either; the caller's state is left exactly as if this dispatch had not been
+     * submitted, safe to retry on a later tick.
      */
     @Override
-    public void dispatch(FlowNode target, Exchange exchange) {
+    public void dispatch(FlowNode target, Exchange exchange, Runnable onComplete) {
         pool.execute(() -> {
             try {
                 semaphore.acquire();
-                try {
-                    target.process(exchange);
-                } finally {
-                    semaphore.release();
-                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                return;
+            }
+            try {
+                target.process(exchange);
             } catch (Throwable t) {
                 if (logger.isErrorEnabled()) {
                     logger.error("Unhandled error dispatching an Exchange to an explicit target node", t);
                 }
+            } finally {
+                semaphore.release();
+                onComplete.run();
             }
         });
     }
