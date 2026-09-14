@@ -18,6 +18,7 @@ package io.pipelite.core.flow.execution.retry;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
+import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.dump.SerializedFlowExecutionDump;
 import io.pipelite.core.support.serialization.BaseEncoding;
 import io.pipelite.core.support.serialization.ByteArrayToObjectConverter;
@@ -44,11 +45,14 @@ public class RetryStrategyFilter implements Processor {
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
     private final PipeliteContext pipeliteContext;
+    private final FlowExecutionDumpRepository dumpRepository;
     private final ByteArrayToObjectConverter converter;
 
-    public RetryStrategyFilter(PipeliteContext pipeliteContext) {
+    public RetryStrategyFilter(PipeliteContext pipeliteContext, FlowExecutionDumpRepository dumpRepository) {
         Preconditions.notNull(pipeliteContext, "pipeliteContext is required and cannot be null");
+        Preconditions.notNull(dumpRepository, "dumpRepository is required and cannot be null");
         this.pipeliteContext = pipeliteContext;
+        this.dumpRepository = dumpRepository;
         this.converter = new ByteArrayToObjectConverter();
     }
 
@@ -78,6 +82,12 @@ public class RetryStrategyFilter implements Processor {
                     }
                 }
             }
+
+            // Execution stops here either way (dead-lettered, warned about, or silently dropped
+            // per the documented no-dead-letter-configured fallback) - every one of those outcomes
+            // is final for this dump, so it is now safe to remove (see #58: removing any earlier,
+            // before the outcome was known, is exactly the gap this filter exists to close).
+            dumpRepository.remove(executionDump.getId());
         }
 
     }
