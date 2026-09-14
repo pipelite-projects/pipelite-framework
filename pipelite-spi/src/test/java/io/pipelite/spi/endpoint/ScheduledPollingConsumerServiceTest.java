@@ -98,4 +98,21 @@ public class ScheduledPollingConsumerServiceTest {
         service.stop();
     }
 
+    /**
+     * Regression coverage for the reviewer-requested cap on {@code batchSize} (PR #75): before
+     * this, an arbitrarily large query-string value would make a single scheduled tick drain that
+     * many items sequentially on the shared {@code consumerPool} thread before yielding back to
+     * the scheduler.
+     */
+    @Test
+    public void shouldFailFastWhenBatchSizeExceedsMax() {
+
+        final DefaultPollingConsumer pollingConsumer = new DefaultPollingConsumer(
+            new DefaultEndpoint(EndpointURL.parse("start-endpoint?batchSize=" + (ScheduledPollingConsumerService.MAX_BATCH_SIZE + 1))));
+        consumerPool = Executors.newSingleThreadScheduledExecutor();
+        final ScheduledPollingConsumerService service = new ScheduledPollingConsumerService(pollingConsumer, consumerPool);
+
+        Assert.assertThrows(IllegalArgumentException.class, service::start);
+    }
+
 }
