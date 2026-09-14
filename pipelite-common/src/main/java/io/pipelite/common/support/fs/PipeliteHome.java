@@ -16,6 +16,7 @@
 package io.pipelite.common.support.fs;
 
 import java.nio.file.Path;
+import java.util.Optional;
 
 /**
  * Resolves the shared root directory under which any Pipelite component may keep its own
@@ -23,11 +24,23 @@ import java.nio.file.Path;
  * then {@code PIPELITE_HOME} environment variable, then {@code ~/.pipelite}.
  * <p>
  * Purely computes paths: it never creates directories or touches the filesystem.
+ * <p>
+ * {@link #resolve(String)} additionally namespaces its result under an optional application id
+ * ({@code pipelite.application.id} system property, then {@code PIPELITE_APPLICATION_ID}
+ * environment variable — unset by default) so two <em>different</em> Pipelite applications that
+ * happen to share the same machine/home directory without ever customizing {@code pipelite.home}
+ * don't silently share (and corrupt) each other's durable state — e.g. one application's
+ * retry-channel trying to resolve a dump whose {@code flowName} only exists in the other
+ * application's flow registry. Set it to something stable and unique per logical application
+ * (not per replica/instance — multiple replicas of the <em>same</em> application are expected to
+ * share this id and, with it, its durable state).
  */
 public final class PipeliteHome {
 
     private static final String HOME_PROPERTY = "pipelite.home";
     private static final String HOME_ENV = "PIPELITE_HOME";
+    private static final String APPLICATION_ID_PROPERTY = "pipelite.application.id";
+    private static final String APPLICATION_ID_ENV = "PIPELITE_APPLICATION_ID";
     private static final String DEFAULT_DIR_NAME = ".pipelite";
 
     private PipeliteHome() {
@@ -46,7 +59,21 @@ public final class PipeliteHome {
     }
 
     public static Path resolve(String subfolder) {
-        return resolve().resolve(subfolder);
+        return resolveApplicationId()
+            .map(applicationId -> resolve().resolve(applicationId).resolve(subfolder))
+            .orElseGet(() -> resolve().resolve(subfolder));
+    }
+
+    private static Optional<String> resolveApplicationId() {
+        final String sysProp = System.getProperty(APPLICATION_ID_PROPERTY);
+        if (sysProp != null && !sysProp.isBlank()) {
+            return Optional.of(sysProp);
+        }
+        final String env = System.getenv(APPLICATION_ID_ENV);
+        if (env != null && !env.isBlank()) {
+            return Optional.of(env);
+        }
+        return Optional.empty();
     }
 
 }

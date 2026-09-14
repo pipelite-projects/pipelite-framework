@@ -26,6 +26,14 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Backed by a plain in-heap map: a saved dump does not survive a process crash or restart — every
+ * message waiting on the retry channel at that point is silently lost. No longer {@code
+ * DefaultPipeliteContext}'s default (see {@link FileFlowExecutionDumpRepository}, which is, as of
+ * issue #68) — kept for callers that deliberately want zero I/O cost over durability, e.g. a
+ * short-lived test, wired explicitly via {@code ConfigurablePipeliteContext#
+ * setFlowExecutionDumpRepository(...)}.
+ */
 public class FlowExecutionDumpInMemoryRepository implements FlowExecutionDumpRepository {
 
     /**

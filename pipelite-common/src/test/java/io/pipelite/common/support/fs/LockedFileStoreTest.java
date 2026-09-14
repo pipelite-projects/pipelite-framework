@@ -115,6 +115,30 @@ public class LockedFileStoreTest {
     }
 
     @Test
+    public void shouldDeleteAnExistingFile() {
+        subject.writeLocked("state.txt", "value");
+        subject.deleteLocked("state.txt");
+        // Checked before any readLocked(...) call on purpose: readLocked's own CREATE-if-missing
+        // behavior (see shouldCreateDirectoryLazilyOnFirstRead) would otherwise recreate an empty
+        // file here and mask a real deletion failure.
+        Assert.assertFalse(Files.exists(directory.resolve("state.txt")));
+    }
+
+    @Test
+    public void shouldNotThrowWhenDeletingAFileThatDoesNotExist() {
+        subject.deleteLocked("never-written.txt");
+    }
+
+    @Test
+    public void shouldNotAffectOtherFilesWhenDeletingOne() {
+        subject.writeLocked("a.txt", "value-a");
+        subject.writeLocked("b.txt", "value-b");
+        subject.deleteLocked("a.txt");
+        Assert.assertEquals(Optional.empty(), subject.readLocked("a.txt"));
+        Assert.assertEquals(Optional.of("value-b"), subject.readLocked("b.txt"));
+    }
+
+    @Test
     public void shouldCreateDirectoryLazilyOnFirstReadAndWrite() {
         Assert.assertFalse(Files.exists(directory));
         subject.readAndWriteLocked("state.txt", current -> "value");

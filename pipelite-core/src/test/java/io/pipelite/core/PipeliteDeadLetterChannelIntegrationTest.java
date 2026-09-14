@@ -15,8 +15,9 @@
  */
 package io.pipelite.core;
 
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.core.definition.DuplicateProcessorNameException;
+import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.exchange.Exchange;
@@ -40,11 +41,15 @@ import static org.junit.Assert.fail;
  */
 public class PipeliteDeadLetterChannelIntegrationTest {
 
-    private PipeliteContext pipeliteContext;
+    private ConfigurablePipeliteContext pipeliteContext;
 
     @Before
     public void setup(){
-        pipeliteContext = Pipelite.createContext();
+        pipeliteContext = (ConfigurablePipeliteContext) Pipelite.createContext();
+        // Retry-routing/dead-letter mechanics only, not persistence - in-memory keeps this
+        // hermetic (DefaultPipeliteContext's own default is now file-backed under PipeliteHome,
+        // see issue #68).
+        pipeliteContext.setFlowExecutionDumpRepository(new FlowExecutionDumpInMemoryRepository());
     }
 
     @Test

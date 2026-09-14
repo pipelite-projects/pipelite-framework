@@ -27,6 +27,7 @@ public class PipeliteHomeTest {
     @After
     public void cleanup() {
         System.clearProperty("pipelite.home");
+        System.clearProperty("pipelite.application.id");
     }
 
     @Test
@@ -59,6 +60,38 @@ public class PipeliteHomeTest {
         final Path resolved = PipeliteHome.resolve("subfolder");
         Assert.assertFalse(Files.exists(resolved));
         Assert.assertFalse(Files.exists(resolved.getParent()));
+    }
+
+    @Test
+    public void shouldNotNamespaceBareHomeByApplicationId() {
+        System.setProperty("pipelite.home", "/custom/pipelite-home");
+        System.setProperty("pipelite.application.id", "order-service");
+        // Only resolve(subfolder) namespaces by application id - the bare root is unaffected,
+        // since nothing writes directly under it.
+        Assert.assertEquals(Path.of("/custom/pipelite-home"), PipeliteHome.resolve());
+    }
+
+    @Test
+    public void shouldNamespaceSubfolderByApplicationIdSystemPropertyWhenSet() {
+        System.setProperty("pipelite.home", "/custom/pipelite-home");
+        System.setProperty("pipelite.application.id", "order-service");
+        Assert.assertEquals(Path.of("/custom/pipelite-home", "order-service", "file-channel-adapter"),
+            PipeliteHome.resolve("file-channel-adapter"));
+    }
+
+    @Test
+    public void shouldIgnoreBlankApplicationIdAndFallBackToUnnamespacedSubfolder() {
+        System.setProperty("pipelite.home", "/custom/pipelite-home");
+        System.setProperty("pipelite.application.id", "   ");
+        Assert.assertEquals(Path.of("/custom/pipelite-home", "file-channel-adapter"),
+            PipeliteHome.resolve("file-channel-adapter"));
+    }
+
+    @Test
+    public void shouldResolveSubfolderWithoutNamespacingWhenNoApplicationIdIsConfigured() {
+        System.setProperty("pipelite.home", "/custom/pipelite-home");
+        Assert.assertEquals(Path.of("/custom/pipelite-home", "file-channel-adapter"),
+            PipeliteHome.resolve("file-channel-adapter"));
     }
 
 }
