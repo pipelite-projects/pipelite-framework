@@ -15,9 +15,11 @@
  */
 package io.pipelite.core.flow.execution.retry;
 
+import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.flow.FlowNodeLocator;
+import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.dump.SerializedFlowExecutionDump;
 import io.pipelite.core.support.serialization.BaseEncoding;
 import io.pipelite.core.support.serialization.ByteArrayToObjectConverter;
@@ -37,17 +39,33 @@ import org.slf4j.LoggerFactory;
  * source) only when the failed processor's identity or the flow itself can't be resolved, e.g.
  * a dump produced before this resume mechanism existed, or a failure that didn't originate
  * inside a processor's own catch block.
+ * <p>
+ * Also owns removing the resumed {@code FlowExecutionDump} from {@code dumpRepository} — not
+ * {@code ResolveExecutionDumpProcessor}, which only resolves it (see #58). The direct-resume path
+ * ({@link FlowNodeLocator#findByProcessorName}) is synchronous: by the time {@code
+ * target.process(...)} returns, the attempt's outcome is already fully settled (success, or a new
+ * dump already durably saved by {@code RetryChannelExceptionHandler} for a further attempt), so
+ * removing the old dump right after is safe. The fallback path ({@code
+ * pipeliteContext.supplyExchange(...)}, used only when the failed processor or its flow can't be
+ * resolved) is not equally safe to remove after — it merely enqueues the exchange on the target
+ * flow's own in-memory consumer and returns immediately, the same "accepted but not yet actually
+ * processed" gap issue #70 (durable inbox) exists to close generically. Removal happens there too,
+ * for consistency with today's behavior, but that narrow path still carries a smaller version of
+ * #58's original crash window until #70 lands.
  */
 public class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContextAware {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
     private final ByteArrayToObjectConverter converter;
+    private final FlowExecutionDumpRepository dumpRepository;
 
     private PipeliteContext pipeliteContext;
 
-    public SupplyExchangeProcessor() {
-        converter = new ByteArrayToObjectConverter();
+    public SupplyExchangeProcessor(FlowExecutionDumpRepository dumpRepository) {
+        Preconditions.notNull(dumpRepository, "dumpRepository is required and cannot be null");
+        this.dumpRepository = dumpRepository;
+        this.converter = new ByteArrayToObjectConverter();
     }
 
     @Override
@@ -69,6 +87,10 @@ public class SupplyExchangeProcessor extends AbstractFlowNode implements Pipelit
                 .orElse(null);
             if (target != null) {
                 target.process(recoveredExchange);
+                // Safe here: target.process(...) is synchronous, so the attempt's outcome
+                // (success, or a new dump already saved for a further attempt) is already
+                // settled by the time control returns - see this class's own Javadoc.
+                dumpRepository.remove(executionDump.getId());
                 return;
             }
             if (sysLogger.isWarnEnabled()) {
@@ -83,6 +105,10 @@ public class SupplyExchangeProcessor extends AbstractFlowNode implements Pipelit
 
         final String endpointURL = String.format("link://%s", executionDump.getSourceEndpointResource());
         pipeliteContext.supplyExchange(endpointURL, recoveredExchange);
+        // Not equally safe: supplyExchange(...) only enqueues on the target flow's own in-memory
+        // consumer here (see this class's own Javadoc) - removed anyway for consistency with
+        // today's behavior on this narrow, already-degraded fallback path.
+        dumpRepository.remove(executionDump.getId());
 
     }
 
