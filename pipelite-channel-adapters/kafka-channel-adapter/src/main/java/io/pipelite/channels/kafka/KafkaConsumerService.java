@@ -50,14 +50,13 @@ public class KafkaConsumerService extends EventDrivenConsumerService {
     private Thread kafkaConsumerTask;
 
     /**
-     * Fully synchronous, single-threaded poll/process/commit loop — see issue #64. Deliberately
-     * does not go through {@code consume()}/{@code process()} (the enqueue path {@link
-     * EventDrivenConsumerService} normally uses): those would hand the Exchange off to a separate
-     * {@code DispatchStrategy} thread and return immediately, making it impossible to know when a
-     * given record has actually finished the pipeline — exactly what allowed offsets to be
-     * auto-committed before processing completed. Calling {@link #dispatchToNext(Exchange)}
-     * directly instead runs the pipeline right here, so the commit below is only ever reached
-     * once every record in the batch has genuinely finished.
+     * Poll/write-through/commit loop — see issue #71 (revisiting #64). Goes through {@code
+     * process()} (the same durable write-through + enqueue path {@link EventDrivenConsumerService}
+     * normally uses for every other adapter), not the pipeline itself: a record is safe to commit
+     * once it has been durably captured in the {@code DurableInbox} (issue #70), not once its
+     * whole downstream pipeline has finished. This restores the standard queue/{@code
+     * DispatchStrategy} concurrency model for Kafka (see {@link #doStart()}) — the poll loop no
+     * longer blocks on pipeline latency, only on the (fast, local) durable write.
      */
     public final class KafkaConsumerTask implements Runnable {
 
@@ -97,15 +96,22 @@ public class KafkaConsumerService extends EventDrivenConsumerService {
 
         /**
          * Package-visible so it can be exercised directly in tests without a real or mocked
-         * {@code poll()} cycle. Runs every record in {@code records} through the pipeline, in
-         * order, on the calling thread, then commits the whole batch's offsets together — but
-         * only if every record reached a terminal state (success, or routed to a configured
-         * retry/error channel inside the pipeline itself; see {@code
-         * EventDrivenConsumer#dispatchToNext}). If any record's failure had no configured
-         * retry/error channel to resolve it, the entire batch's commit is skipped: on a later
-         * restart, the consumer group resumes from the last successfully committed offset, so
-         * that record — and everything after it in this batch — is redelivered, rather than
-         * either being silently lost (today's bug) or retried indefinitely within this same run.
+         * {@code poll()} cycle. Durably writes every record in {@code records} to the source's
+         * {@code DurableInbox} and enqueues it for standard dispatch (issue #71: {@link
+         * EventDrivenConsumerService#process(Exchange)} — write-through then {@code queue.put}),
+         * in order, on the calling (poll) thread, then commits the whole batch's offsets together
+         * — but only if every record was durably captured. Downstream pipeline execution itself
+         * happens later, asynchronously, on this consumer's own {@code DispatchStrategy} thread
+         * (started by {@link #doStart()} like any other adapter) — a pipeline failure there no
+         * longer blocks or reverts this commit, since the record is already safe in the inbox and
+         * will be retried/dead-lettered via the exact same recovery path any other durable-inbox
+         * entry uses on restart (see {@code DefaultPipeliteContext#recoverPendingInboxEntries}).
+         * <p>
+         * If a record's write-through itself fails (e.g. local disk I/O error - not a pipeline
+         * failure), the entire batch's commit is skipped: on a later restart, the consumer group
+         * resumes from the last successfully committed offset, so that record — and everything
+         * after it in this batch — is redelivered, rather than either being silently lost (the
+         * original #64 bug) or left permanently uncommitted.
          */
         void processBatch(ConsumerRecords<?, ?> records) {
             boolean batchFullyHandled = true;
@@ -115,21 +121,21 @@ public class KafkaConsumerService extends EventDrivenConsumerService {
                 final Exchange exchange = exchangeFactory.createExchange(recordValue);
                 exchange.putHeader(KafkaConstants.KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME, recordKey);
                 try {
-                    dispatchToNext(exchange);
+                    process(exchange);
                 } catch (Throwable t) {
                     batchFullyHandled = false;
                     if (sysLogger.isErrorEnabled()) {
-                        sysLogger.error("Unhandled error processing a Kafka record with no configured " +
-                            "retry/error channel - its offset (and any after it in this batch) will not " +
-                            "be committed, and will be redelivered after a restart", t);
+                        sysLogger.error("Unhandled error durably writing a Kafka record to the inbox - its " +
+                            "offset (and any after it in this batch) will not be committed, and will be " +
+                            "redelivered after a restart", t);
                     }
                 }
             }
             if (batchFullyHandled) {
                 kafkaConsumer.commitSync();
             } else if (sysLogger.isWarnEnabled()) {
-                sysLogger.warn("Skipping offset commit for this poll batch: at least one record had no " +
-                    "configured retry/error channel to resolve its failure");
+                sysLogger.warn("Skipping offset commit for this poll batch: at least one record could not " +
+                    "be durably written to the inbox");
             }
         }
 
@@ -179,11 +185,15 @@ public class KafkaConsumerService extends EventDrivenConsumerService {
 
         kafkaConsumerTask.start();
 
-        // Deliberately does NOT call super.doStart(): that would start an
-        // EventDrivenConsumerService DispatchStrategy (a dispatcher thread over this consumer's
-        // own queue) that would sit permanently idle — KafkaConsumerTask runs the pipeline
-        // synchronously on its own poll thread via dispatchToNext(...) (see #64), never going
-        // through consume()/process() (the enqueue path) at all.
+        // Issue #71: now calls super.doStart() like every other EventDrivenConsumerService
+        // subclass. KafkaConsumerTask only writes through to the durable inbox and enqueues (see
+        // processBatch(...) above) - actual pipeline execution is drained from the queue by the
+        // standard DispatchStrategy this starts, exactly as for any other adapter. Always
+        // InlineDispatchStrategy in practice: DefaultEndpointFactory rejects concurrency/
+        // executorType params for any protocol-backed (channel-adapter) source, Kafka included,
+        // so the #66 same-partition-ordering constraint is preserved structurally, not by any
+        // Kafka-specific check here.
+        super.doStart();
     }
 
     @Override

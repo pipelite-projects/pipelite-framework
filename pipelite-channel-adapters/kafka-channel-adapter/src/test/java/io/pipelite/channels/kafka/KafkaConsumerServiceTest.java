@@ -18,6 +18,7 @@ package io.pipelite.channels.kafka;
 import io.pipelite.dsl.Headers;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
+import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.FlowNode;
@@ -25,14 +26,19 @@ import io.pipelite.spi.flow.exchange.Message;
 import io.pipelite.spi.flow.exchange.SimpleMessage;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import io.pipelite.spi.flow.process.ExchangePreProcessor;
+import io.pipelite.spi.inbox.SegmentedLogDurableInbox;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -46,13 +52,19 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 /**
- * Covers the #64 fix directly: {@code processBatch(...)} must commit a poll batch's offsets only
- * once every record in it has actually finished the pipeline, and must skip the commit entirely
- * if any record fails with nowhere configured to route the failure. Exercised without a real or
- * mocked {@code poll()} cycle via the package-private test-seam constructor and {@code
+ * Covers the #71 fix directly: {@code processBatch(...)} must durably write every record in a
+ * poll batch to the source's {@code DurableInbox} (issue #70) and commit the batch's offsets once
+ * that write-through has succeeded for the whole batch — never waiting for, or being undone by,
+ * downstream pipeline outcome, which now runs later and asynchronously off this consumer's own
+ * queue (see {@code KafkaConsumerService#doStart}). Only a failure of the durable write itself
+ * (not a downstream pipeline failure) may skip the commit. Exercised without a real or mocked
+ * {@code poll()} cycle via the package-private test-seam constructor and {@code
  * processBatch(...)}'s package visibility.
  */
 public class KafkaConsumerServiceTest {
+
+    @Rule
+    public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private static final ExchangeFactory TEST_EXCHANGE_FACTORY = new ExchangeFactory() {
         @Override public Exchange createExchange() { return createExchange(null, null); }
@@ -128,54 +140,49 @@ public class KafkaConsumerServiceTest {
     }
 
     @Test
-    public void shouldCommitOnceEveryRecordInTheBatchSucceeds() {
+    public void shouldDurablyEnqueueAndCommitOnceForTheWholeBatchWithoutRunningThePipeline() {
         final AtomicInteger processedCount = new AtomicInteger(0);
         service.setNext(countingFlowNode(processedCount));
 
         final KafkaConsumerService.KafkaConsumerTask task = service.new KafkaConsumerTask(Duration.ofMillis(100));
         task.processBatch(batchOf(5));
 
-        Assert.assertEquals("every record in the batch must have reached the pipeline", 5, processedCount.get());
+        // processBatch(...) only writes through + enqueues (issue #71) - actual pipeline
+        // execution is drained from the queue later by this consumer's own DispatchStrategy
+        // (started by doStart(), never called in this unit test), so it must not have run yet.
+        Assert.assertEquals("pipeline execution must be decoupled from the offset commit", 0, processedCount.get());
         verify(mockKafkaConsumer, times(1)).commitSync();
     }
 
     @Test
-    public void shouldNotCommitWhenARecordFailsWithNoRetryOrErrorChannel() {
-        service.setNext(failingAtFlowNode(2)); // fails on the 3rd record (index 2) of 5
+    public void shouldCommitEvenWhenTheDownstreamPipelineWouldEventuallyFail() {
+        // Issue #71's actual behavior change: a downstream pipeline failure no longer blocks (or
+        // undoes) the commit - the record is already durably captured in the inbox by the time
+        // processBatch(...) returns, and a later pipeline failure is handled like any other
+        // durable-inbox entry (retry/dead-letter on restart), not by withholding this commit.
+        // failingAtFlowNode is never actually invoked here (see the test above) - it stands in
+        // for "this node would throw if it ever ran", proving that alone cannot affect the commit.
+        service.setNext(failingAtFlowNode(2));
 
         final KafkaConsumerService.KafkaConsumerTask task = service.new KafkaConsumerTask(Duration.ofMillis(100));
         task.processBatch(batchOf(5));
 
-        verify(mockKafkaConsumer, never()).commitSync();
+        verify(mockKafkaConsumer, times(1)).commitSync();
     }
 
     @Test
-    public void shouldStillAttemptRemainingRecordsInTheBatchAfterOneFails() {
-        // Best-effort within the run, even though the whole batch's commit is skipped either way
-        // (see shouldNotCommitWhenARecordFailsWithNoRetryOrErrorChannel) - a batch-wide abort on
-        // the first failure would silently skip records 4 and 5 without even attempting them.
-        final AtomicInteger attempts = new AtomicInteger(0);
-        service.setNext(new FlowNode() {
-            @Override
-            public void process(Exchange exchange) {
-                final int current = attempts.incrementAndGet();
-                if (current == 3) {
-                    throw new RuntimeException("simulated failure on record 3");
-                }
-            }
-            @Override public void setFlowName(String flowName) { }
-            @Override public void setSourceEndpointResource(String sourceEndpointResource) { }
-            @Override public void setProcessorName(String processorName) { }
-            @Override public void setNext(FlowNode next) { }
-            @Override public boolean hasNext() { return false; }
-            @Override public void addExchangePreProcessor(ExchangePreProcessor exchangePreProcessor) { }
-            @Override public void addExchangePostProcessor(ExchangePostProcessor exchangePostProcessor) { }
-        });
+    public void shouldSkipCommitWhenARecordCannotBeDurablyWritten() throws IOException {
+        // A plain file where the inbox needs a directory: Files.createDirectories(...) fails,
+        // surfacing as an IllegalStateException out of enqueue()/process() - stands in for a
+        // real local disk I/O failure, the one failure mode that must still withhold the commit
+        // (see the companion design doc's §4 durability tradeoff).
+        final Path blockedDirectory = temporaryFolder.newFile("blocked-inbox-directory").toPath();
+        service.setDurableInbox(new SegmentedLogDurableInbox(
+            blockedDirectory, "test-resource", new DistributedIdentityGeneratorImpl()));
 
         final KafkaConsumerService.KafkaConsumerTask task = service.new KafkaConsumerTask(Duration.ofMillis(100));
-        task.processBatch(batchOf(5));
+        task.processBatch(batchOf(3));
 
-        Assert.assertEquals("all 5 records must have been attempted despite record 3 failing", 5, attempts.get());
         verify(mockKafkaConsumer, never()).commitSync();
     }
 
