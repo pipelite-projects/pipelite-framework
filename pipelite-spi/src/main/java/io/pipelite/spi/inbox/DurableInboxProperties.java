@@ -13,21 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.support.serialization;
+package io.pipelite.spi.inbox;
 
-import java.util.Base64;
+/**
+ * {@code EndpointURL} query-string parameter name for the per-source durable-inbox opt-out (issue
+ * #70) — mirrors {@code SourceConcurrencyProperties}' own role for {@code concurrency}/{@code
+ * executorType}. Resolved once at flow-build time (see {@code FlowFactory.createFlow}); default
+ * on, since the whole point of #70 is a durability guarantee callers get without opting in.
+ */
+public final class DurableInboxProperties {
 
-public class Base64Encoder implements BaseEncoder {
+    public static final String ENABLED = "durableInbox";
 
-    @Override
-    public String encode(byte[] byteArray) {
-        return Base64.getEncoder()
-            .encodeToString(byteArray);
+    private DurableInboxProperties() {
     }
 
-    @Override
-    public byte[] decode(String text) {
-        return Base64.getDecoder()
-            .decode(text);
-    }
 }

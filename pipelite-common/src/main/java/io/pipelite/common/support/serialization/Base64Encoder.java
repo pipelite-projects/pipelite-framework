@@ -13,15 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.support.serialization;
+package io.pipelite.common.support.serialization;
 
-public class ByteArrayReadException extends RuntimeException {
+import java.util.Base64;
 
-    public ByteArrayReadException(String message) {
-        super(message);
+public class Base64Encoder implements BaseEncoder {
+
+    @Override
+    public String encode(byte[] byteArray) {
+        return Base64.getEncoder()
+            .encodeToString(byteArray);
     }
 
-    public ByteArrayReadException(String message, Throwable cause) {
-        super(message, cause);
+    @Override
+    public byte[] decode(String text) {
+        return Base64.getDecoder()
+            .decode(text);
     }
 }

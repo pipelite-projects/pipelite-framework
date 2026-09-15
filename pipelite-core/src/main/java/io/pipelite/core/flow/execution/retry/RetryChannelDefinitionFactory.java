@@ -27,6 +27,7 @@ import io.pipelite.core.flow.process.DefaultProcessorNode;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.process.Processor;
 import io.pipelite.spi.flow.exchange.FlowNode;
+import io.pipelite.spi.inbox.DurableInboxProperties;
 
 public class RetryChannelDefinitionFactory {
 
@@ -70,7 +71,12 @@ public class RetryChannelDefinitionFactory {
     }
 
     private static void setSourceDefinition(Builder<FlowDefinitionImpl> builder, String channelName){
-        final String url = String.format("%s?batchSize=%d", channelName, RETRY_BATCH_SIZE);
+        // durableInbox=false (issue #70): this internal flow's own "messages" are
+        // FlowExecutionDumps already durably tracked end-to-end by FlowExecutionDumpRepository
+        // (issue #68) - wrapping them in a second, redundant durable-inbox layer would violate
+        // the "exactly one mechanism owns a message at a time" invariant the inbox design relies
+        // on, for no benefit (nothing is ever lost here that #68 doesn't already cover).
+        final String url = String.format("%s?batchSize=%d&%s=false", channelName, RETRY_BATCH_SIZE, DurableInboxProperties.ENABLED);
         builder.with(t -> t.setSourceDefinition(new TypedSourceDefinitionImpl(url, RetryEndpoint.class)));
     }
 

@@ -31,15 +31,19 @@ import io.pipelite.core.flow.split.AggregateInMemoryRepository;
 import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.core.flow.execution.dump.FileFlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpFactory;
+import io.pipelite.core.flow.execution.inbox.DurableInboxDeadLetterWriter;
+import io.pipelite.core.flow.execution.inbox.FileDurableInboxDeadLetterWriter;
 import io.pipelite.core.flow.execution.retry.RetryChannelDefinitionFactory;
 import io.pipelite.core.flow.execution.retry.RetryService;
 import io.pipelite.core.support.LogUtils;
-import io.pipelite.core.support.serialization.Base64ObjectSerializer;
+import io.pipelite.common.support.serialization.Base64ObjectSerializer;
+import io.pipelite.common.support.serialization.ByteArrayToObjectConverter;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelConfigurer;
 import io.pipelite.spi.channel.ChannelURL;
+import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.context.Service;
 import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.Endpoint;
@@ -53,11 +57,16 @@ import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.MessageFactory;
+import io.pipelite.spi.inbox.DurableInbox;
+import io.pipelite.spi.inbox.DurableInboxProvider;
+import io.pipelite.spi.inbox.InboxEntry;
+import io.pipelite.spi.inbox.SegmentedLogDurableInboxProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -73,6 +82,11 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     // (e.g. issue #53's split/aggregate state) without ever colliding with an adapter's folder
     // or the PipeliteHome root itself. See issue #68.
     private static final String FLOW_EXECUTION_DUMPS_HOME_SUBFOLDER = "state/flow-execution-dumps";
+
+    // Same "state/" namespacing convention as FLOW_EXECUTION_DUMPS_HOME_SUBFOLDER above, its own
+    // sibling subfolder (issue #70) — each source resource gets its own further subdirectory
+    // under this one, named by SegmentedLogDurableInboxProvider (see its own Javadoc).
+    private static final String DURABLE_INBOX_HOME_SUBFOLDER = "state/inbox";
 
     private static final int DEFAULT_MAX_SOURCE_WORKER_POOL_SIZE = 200;
     private static final String SOURCE_WORKER_POOL_THREAD_ROLE = "pool";
@@ -100,6 +114,19 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     // capturing it early (unlike the RetryChannelDefinitionFactory bug this replaced, see #68).
     private FlowExecutionDumpRepository executionDumpRepository;
     private final FlowExecutionDumpFactory executionDumpFactory;
+
+    // Not final, same reasoning as executionDumpRepository above: ConfigurablePipeliteContext#
+    // setDurableInboxProvider(...) may replace the default before start().
+    private DurableInboxProvider durableInboxProvider;
+
+    // Not final, same reasoning as durableInboxProvider above: ConfigurablePipeliteContext#
+    // setDurableInboxDeadLetterWriter(...) may replace the default before start().
+    private DurableInboxDeadLetterWriter durableInboxDeadLetterWriter;
+
+    // Symmetric with EventDrivenConsumer/DefaultPollingConsumer's own ObjectToByteArrayConverter
+    // (issue #70's write-through hook) - recovery here is the read-back side of that same,
+    // Exchange-agnostic byte[] encoding, not a new format.
+    private final ByteArrayToObjectConverter inboxPayloadToExchangeConverter = new ByteArrayToObjectConverter();
 
     private int maxSourceWorkerPoolSize = DEFAULT_MAX_SOURCE_WORKER_POOL_SIZE;
     private ExecutorService sourceWorkerPool;
@@ -129,6 +156,23 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
         // (e.g. a short-lived test) can still opt back into FlowExecutionDumpInMemoryRepository
         // via setFlowExecutionDumpRepository(...), same as any other override.
         executionDumpRepository = new FileFlowExecutionDumpRepository(PipeliteHome.resolve(FLOW_EXECUTION_DUMPS_HOME_SUBFOLDER));
+
+        // Default-on, local, single-process durable inbox (issue #70) — protects a message from
+        // intake until it reaches a terminal state, closing the gap #68 left open (that only
+        // covers a message already routed to a retry channel). setDurableInboxProvider(...) can
+        // swap this for a shared/distributed one (e.g. Redis-backed, issue #72).
+        durableInboxProvider = new SegmentedLogDurableInboxProvider(
+            PipeliteHome.resolve(DURABLE_INBOX_HOME_SUBFOLDER), new DistributedIdentityGeneratorImpl());
+
+        // Default-on, local dead-letter sink for a durable-inbox entry whose payload fails to
+        // deserialize during recovery (issue #70) - see recoverPendingInboxEntries(...) below.
+        // Same shared directory as durableInboxProvider above, not a separate subfolder - a dead
+        // letter's file name (<hash>_dlq, see FileDurableInboxDeadLetterWriter) already can't
+        // collide with a live segment's own (<hash>_<seq>.log). setDurableInboxDeadLetterWriter(...)
+        // can swap this for something else entirely (a pluggable interface, unlike
+        // DurableInbox/DurableInboxProvider - see its own Javadoc).
+        durableInboxDeadLetterWriter = new FileDurableInboxDeadLetterWriter(
+            PipeliteHome.resolve(DURABLE_INBOX_HOME_SUBFOLDER));
     }
 
     @Override
@@ -147,6 +191,21 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     @Override
     public void setFlowExecutionDumpRepository(FlowExecutionDumpRepository repository) {
         this.executionDumpRepository = Preconditions.notNull(repository, "repository is required and cannot be null");
+    }
+
+    @Override
+    public void setDurableInboxProvider(DurableInboxProvider provider) {
+        this.durableInboxProvider = Preconditions.notNull(provider, "provider is required and cannot be null");
+    }
+
+    @Override
+    public DurableInboxProvider getDurableInboxProvider() {
+        return durableInboxProvider;
+    }
+
+    @Override
+    public void setDurableInboxDeadLetterWriter(DurableInboxDeadLetterWriter writer) {
+        this.durableInboxDeadLetterWriter = Preconditions.notNull(writer, "writer is required and cannot be null");
     }
 
     @Override
@@ -437,8 +496,78 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
                 serviceManager.registerService(service);
             }
             channelAdapterManager.notifyFlowRegisterd(flow);
+
+            // Durable-inbox recovery (issue #70): must happen here, while this flow's consumer
+            // still only has entries recovered onto its queue and nothing else - registerFlows()
+            // runs entirely before serviceManager.startServices() (see start()), so no dispatch/
+            // poll thread has started draining that queue yet, preserving FIFO order between
+            // recovered and genuinely new traffic. A no-op for a source that opted out (its
+            // DurableInbox is a NoOpDurableInbox with nothing to recover) or the retry-channel's
+            // own flow (never reaches this line at all - see the isRetryable() branch above).
+            recoverPendingInboxEntries(flow);
         });
 
+    }
+
+    private void recoverPendingInboxEntries(Flow flow) {
+        final String resourceKey = flow.getEndpointURI();
+        final DurableInbox durableInbox = durableInboxProvider.forResource(resourceKey);
+        final List<InboxEntry> pending = durableInbox.pendingEntries();
+        if (pending.isEmpty()) {
+            return;
+        }
+        if (sysLogger.isInfoEnabled()) {
+            sysLogger.info("Recovering {} unacknowledged durable-inbox entr{} for flow '{}'",
+                pending.size(), pending.size() == 1 ? "y" : "ies", flow.getName());
+        }
+        for (InboxEntry entry : pending) {
+            // Isolated per entry (issue #70 follow-up): a payload that fails to deserialize -
+            // typically because its class shape changed between the run that wrote it and this
+            // one, expected during iterative development - must never abort recovery for every
+            // other entry in this flow, let alone every other flow (an unhandled exception here
+            // would otherwise propagate out of registerFlows() and prevent the whole context from
+            // starting at all, over a single message).
+            final Exchange exchange;
+            try {
+                exchange = inboxPayloadToExchangeConverter.convert(entry.getPayload(), Exchange.class);
+            } catch (RuntimeException conversionFailure) {
+                deadLetterAndAcknowledge(resourceKey, durableInbox, entry, conversionFailure, flow.getName());
+                continue;
+            }
+            // Tags the resupplied Exchange with its ORIGINAL entry id before it re-enters
+            // consume()/process() - both recognize this specific property (see its own Javadoc on
+            // why it is distinct from DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME) and resume that entry
+            // instead of writing a new, duplicate one that would leave this original entry pending
+            // forever.
+            exchange.setProperty(IOKeys.DURABLE_INBOX_RESUPPLIED_ENTRY_ID_PROPERTY_NAME, entry.getId());
+            flow.supply(exchange);
+        }
+    }
+
+    private void deadLetterAndAcknowledge(String resourceKey, DurableInbox durableInbox, InboxEntry entry,
+                                           RuntimeException conversionFailure, String flowName) {
+        try {
+            durableInboxDeadLetterWriter.write(resourceKey, entry, conversionFailure);
+            // Only acknowledged once safely dead-lettered: otherwise the entry would simply
+            // disappear (durableInbox.acknowledge(...) alone, with no dead-letter write, is
+            // indistinguishable from silent data loss) - the two must happen together, in this
+            // order, or not at all.
+            durableInbox.acknowledge(entry.getId());
+            if (sysLogger.isErrorEnabled()) {
+                sysLogger.error("Durable-inbox entry '{}' for flow '{}' could not be deserialized " +
+                        "and has been dead-lettered - metadata: {}",
+                    entry.getId(), flowName, entry.getMetadata(), conversionFailure);
+            }
+        } catch (RuntimeException deadLetterFailure) {
+            // Left pending on purpose: better to retry (and fail) the dead-letter write again on
+            // the next restart than to lose track of the entry entirely by acknowledging it
+            // without ever having safely recorded it anywhere else.
+            if (sysLogger.isErrorEnabled()) {
+                sysLogger.error("Durable-inbox entry '{}' for flow '{}' failed to deserialize AND " +
+                        "could not be dead-lettered - left pending, will be retried on next restart",
+                    entry.getId(), flowName, deadLetterFailure);
+            }
+        }
     }
 
 }
