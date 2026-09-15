@@ -21,6 +21,7 @@ import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import io.pipelite.spi.flow.process.ExchangePreProcessor;
+import io.pipelite.spi.inbox.DurableInbox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +32,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-public class ScheduledPollingConsumerService extends AbstractService implements PollingConsumer {
+public class ScheduledPollingConsumerService extends AbstractService implements PollingConsumer, DurableInboxAware {
 
     protected static final String INITIAL_DELAY_PROPERTY_NAME = "initialDelay";
     protected static final String PERIOD_PROPERTY_NAME = "period";
@@ -213,5 +214,18 @@ public class ScheduledPollingConsumerService extends AbstractService implements 
     @Override
     public void setExceptionHandler(ExceptionHandler exceptionHandler) {
         pollingConsumer.setExceptionHandler(exceptionHandler);
+    }
+
+    /**
+     * {@code pollingConsumer} is typed as the general {@link PollingConsumer} interface, not
+     * every implementation durably records its intake (issue #70) — {@code instanceof}-guarded
+     * the same way {@code FlowNodeConfigurer.injectDependencies} already treats other optional
+     * {@code *Aware} capabilities, rather than widening {@link PollingConsumer} itself.
+     */
+    @Override
+    public void setDurableInbox(DurableInbox durableInbox) {
+        if (pollingConsumer instanceof DurableInboxAware) {
+            ((DurableInboxAware) pollingConsumer).setDurableInbox(durableInbox);
+        }
     }
 }

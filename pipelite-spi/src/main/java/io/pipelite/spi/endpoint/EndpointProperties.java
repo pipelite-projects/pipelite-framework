@@ -47,4 +47,9 @@ public class EndpointProperties extends HashMap<String, String> {
         return valueAsText != null ? Long.parseLong(valueAsText) : defaultValue;
     }
 
+    public Boolean getAsBooleanOrDefault(String key, boolean defaultValue){
+        final String valueAsText = get(key);
+        return valueAsText != null ? Boolean.parseBoolean(valueAsText) : defaultValue;
+    }
+
 }

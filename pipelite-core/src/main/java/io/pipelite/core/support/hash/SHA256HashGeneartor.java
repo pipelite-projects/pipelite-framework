@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.support.hash;
 
-import io.pipelite.core.support.serialization.BaseEncoding;
+import io.pipelite.common.support.serialization.BaseEncoding;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;

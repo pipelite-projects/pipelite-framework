@@ -21,6 +21,7 @@ import io.pipelite.spi.channel.ChannelConfigurer;
 import io.pipelite.spi.flow.Flow;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.spi.inbox.DurableInboxProvider;
 
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -80,6 +81,13 @@ public interface PipeliteContext {
     ExchangeFactory getExchangeFactory();
 
     AggregateRepository getAggregateRepository();
+
+    /**
+     * Resolves the per-source {@code DurableInbox} a consumer durably records its intake with
+     * (issue #70) — called once per source at flow-build time (see {@code FlowFactory}), never
+     * on the hot path.
+     */
+    DurableInboxProvider getDurableInboxProvider();
 
     /**
      * The shared, application-wide worker pool used by internal (no-protocol) {@code fromSource}

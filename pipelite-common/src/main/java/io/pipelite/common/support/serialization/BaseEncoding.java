@@ -13,24 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.support.serialization;
+package io.pipelite.common.support.serialization;
 
-public class Base64ObjectSerializer implements ObjectSerializer {
+public class BaseEncoding {
 
-    private final ObjectToByteArrayConverter byteArrayConverter;
+    private BaseEncoding(){}
 
-    public Base64ObjectSerializer() {
-        this.byteArrayConverter = new ObjectToByteArrayConverter();
+    public static BaseEncoder base16(){
+        return new Base16Encoder();
     }
 
-    @Override
-    public String getEncoding() {
-        return "base64";
+    public static BaseEncoder base64(){
+        return new Base64Encoder();
     }
 
-    @Override
-    public String serializeObject(Object input) {
-        final byte[] content = byteArrayConverter.convert(input);
-        return BaseEncoding.base64().encode(content);
-    }
 }

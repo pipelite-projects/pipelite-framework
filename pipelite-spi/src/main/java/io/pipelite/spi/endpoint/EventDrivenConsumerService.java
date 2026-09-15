@@ -28,13 +28,14 @@ import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import io.pipelite.spi.flow.process.ExchangePreProcessor;
+import io.pipelite.spi.inbox.DurableInbox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadFactory;
 
-public class EventDrivenConsumerService extends AbstractService implements Consumer, ExchangeFactoryAware, SourceWorkerPoolAware {
+public class EventDrivenConsumerService extends AbstractService implements Consumer, ExchangeFactoryAware, SourceWorkerPoolAware, DurableInboxAware {
 
     private static final String DEFAULT_ROLE = "event";
     private static final long SHUTDOWN_TIMEOUT_MILLIS = 30_000L;
@@ -234,6 +235,18 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
     @Override
     public void setExceptionHandler(ExceptionHandler exceptionHandler) {
         eventDrivenConsumer.setExceptionHandler(exceptionHandler);
+    }
+
+    /**
+     * Delegates unconditionally, including for a subclass like {@code KafkaConsumerService} that
+     * never actually calls {@code eventDrivenConsumer.process()}/{@code consume()} (issue #64) —
+     * harmless: the entry-id property this wiring depends on is never set on a Kafka-sourced
+     * Exchange, so the acknowledge hook stays provably inert there rather than needing a
+     * Kafka-specific opt-out.
+     */
+    @Override
+    public void setDurableInbox(DurableInbox durableInbox) {
+        eventDrivenConsumer.setDurableInbox(durableInbox);
     }
 
     @Override

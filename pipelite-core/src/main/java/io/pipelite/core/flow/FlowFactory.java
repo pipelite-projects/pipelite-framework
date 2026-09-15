@@ -26,6 +26,7 @@ import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.ProcessorDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
 import io.pipelite.spi.endpoint.Consumer;
+import io.pipelite.spi.endpoint.DurableInboxAware;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
@@ -33,6 +34,9 @@ import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.Flow;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.FlowNode;
+import io.pipelite.spi.inbox.DurableInbox;
+import io.pipelite.spi.inbox.DurableInboxProperties;
+import io.pipelite.spi.inbox.NoOpDurableInbox;
 
 import java.util.Iterator;
 import java.util.Objects;
@@ -76,6 +80,7 @@ public class FlowFactory {
         consumer.tag(consumerTag);
         consumer.setExceptionHandler(exceptionHandler);
         injectDependencies(consumer);
+        wireDurableInbox(consumer, sourceEndpointURL);
         setPrePostProcessors(consumer);
 
         Iterator<ProcessorDefinition> processorsIterator = flowDefinition.iterateProcessorDefinitions();
@@ -134,6 +139,26 @@ public class FlowFactory {
 
     private void injectDependencies(Object flowNode){
         FlowNodeConfigurer.injectDependencies(flowNode, context);
+    }
+
+    /**
+     * Only the source consumer needs a {@code DurableInbox} (issue #70) — never a processor or
+     * producer further down the chain, since intake/acknowledge only ever happen at the queue
+     * boundary a consumer owns — so this is a separate, consumer-only step rather than folded
+     * into {@link FlowNodeConfigurer#injectDependencies}, which every node in the chain goes
+     * through. Resolved once here, at flow-build time, per this class's own Javadoc on why {@code
+     * DurableInbox#enqueue} itself takes no resource-identifying parameter.
+     */
+    private void wireDurableInbox(Consumer consumer, EndpointURL sourceEndpointURL) {
+        if (!(consumer instanceof DurableInboxAware)) {
+            return;
+        }
+        final boolean enabled = sourceEndpointURL.getProperties()
+            .getAsBooleanOrDefault(DurableInboxProperties.ENABLED, true);
+        final DurableInbox durableInbox = enabled
+            ? context.getDurableInboxProvider().forResource(sourceEndpointURL.getResource())
+            : NoOpDurableInbox.INSTANCE;
+        ((DurableInboxAware) consumer).setDurableInbox(durableInbox);
     }
 
     private void setPrePostProcessors(FlowNode flowNode){

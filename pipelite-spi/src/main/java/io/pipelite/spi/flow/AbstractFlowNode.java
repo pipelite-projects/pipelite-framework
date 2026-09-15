@@ -100,6 +100,16 @@ public abstract class AbstractFlowNode implements FlowNode {
         this.sourceEndpointResource = sourceEndpointResource;
     }
 
+    /**
+     * Public (not just accessible to subclasses) for the same reason as {@link #getFlowName()} —
+     * a sibling class in another package (e.g. whatever wires a per-source {@code DurableInbox}
+     * onto a consumer at flow-build time, see issue #70) needs to read this value through an
+     * object reference without itself extending this class.
+     */
+    public String getSourceEndpointResource() {
+        return sourceEndpointResource;
+    }
+
     @Override
     public void setProcessorName(String processorName) {
         this.processorName = processorName;

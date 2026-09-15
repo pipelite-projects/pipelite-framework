@@ -39,6 +39,32 @@ public class IOKeys {
      */
     public static final String FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME = "X-FlowExecution-Failed-Processor";
 
+    /**
+     * Set on an {@code Exchange} by the durable-inbox write-through hook in {@code
+     * EventDrivenConsumer#process}/{@code DefaultPollingConsumer#consume} (issue #70) once {@code
+     * DurableInbox#enqueue} returns a non-null id — absent when durability is disabled for that
+     * source ({@code NoOpDurableInbox}). Read back by the acknowledge hook in {@code
+     * dispatchToNext}/{@code process} and by {@code RetryChannelExceptionHandler} at the moment a
+     * failure is handed off to a retry channel, so both know which inbox entry to acknowledge.
+     */
+    public static final String DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME = "X-DurableInbox-Entry-Id";
+
+    /**
+     * Set by {@code DefaultPipeliteContext#recoverPendingInboxEntries} on a freshly-deserialized
+     * {@code Exchange} before resupplying it through the same {@code consume()}/{@code process()}
+     * path a brand-new message would take, naming the ALREADY-durable entry id it must resume as
+     * rather than duplicate. Deliberately a distinct property from {@link
+     * #DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME} above: that one is also (over)written whenever this
+     * same shared {@code Exchange} instance is forwarded uncopied into a completely different
+     * flow's own consumer (e.g. a plain {@code .toSink("link://...")}), which legitimately DOES
+     * need its own fresh entry in ITS OWN inbox — conflating the two would make that destination
+     * silently skip its own durability instead. The write-through hook consumes this property
+     * (copying its value into {@link #DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME} instead of enqueueing
+     * a new entry) and removes it immediately, so it can never leak into a later, unrelated
+     * forward of the same Exchange to a different flow.
+     */
+    public static final String DURABLE_INBOX_RESUPPLIED_ENTRY_ID_PROPERTY_NAME = "X-DurableInbox-Resupplied-Entry-Id";
+
     private IOKeys(){
     }
 }

@@ -13,11 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.support.serialization;
+package io.pipelite.common.support.serialization;
 
-public interface BaseEncoder {
+public class ByteArrayWriteException extends RuntimeException {
 
-    String encode(byte[] byteArray);
-    byte[] decode(String text);
+    public ByteArrayWriteException(String message) {
+        super(message);
+    }
 
+    public ByteArrayWriteException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

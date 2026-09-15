@@ -13,15 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.support.serialization;
+package io.pipelite.common.support.serialization;
 
-public class ByteArrayWriteException extends RuntimeException {
+public class ByteArrayReadException extends RuntimeException {
 
-    public ByteArrayWriteException(String message) {
+    public ByteArrayReadException(String message) {
         super(message);
     }
 
-    public ByteArrayWriteException(String message, Throwable cause) {
+    public ByteArrayReadException(String message, Throwable cause) {
         super(message, cause);
     }
 }

@@ -17,6 +17,8 @@ package io.pipelite.core.context;
 
 import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
+import io.pipelite.core.flow.execution.inbox.DurableInboxDeadLetterWriter;
+import io.pipelite.spi.inbox.DurableInboxProvider;
 
 /**
  * Extension of {@link PipeliteContext} that exposes configuration hooks for
@@ -51,5 +53,24 @@ public interface ConfigurablePipeliteContext extends PipeliteContext {
      * actually wired up.
      */
     void setFlowExecutionDumpRepository(FlowExecutionDumpRepository repository);
+
+    /**
+     * Overrides the durable-inbox provider used to protect a message from intake until it
+     * reaches a terminal state (issue #70) — by default a local, segmented-log-backed provider
+     * under {@code PipeliteHome}. Pass a provider backed by a shared store (e.g. Redis, issue
+     * #72) for genuine multi-instance coordination; the local default only guards a single
+     * process. Must be called before {@link PipeliteContext#start()}, which is when sources are
+     * actually wired up.
+     */
+    void setDurableInboxProvider(DurableInboxProvider provider);
+
+    /**
+     * Overrides where a durable-inbox entry goes when its payload fails to deserialize during
+     * recovery (issue #70) — most commonly a payload class whose shape changed between the run
+     * that wrote the entry and the run trying to read it back. By default a local, file-based
+     * writer under {@code PipeliteHome}, one file per dead-lettered entry. Must be called before
+     * {@link PipeliteContext#start()}, which is when recovery actually runs.
+     */
+    void setDurableInboxDeadLetterWriter(DurableInboxDeadLetterWriter writer);
 
 }

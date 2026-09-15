@@ -15,18 +15,23 @@
  */
 package io.pipelite.spi.endpoint;
 
+import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
+import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.concurrent.QueuePressureGate;
 import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.inbox.DurableInbox;
+import io.pipelite.spi.inbox.NoOpDurableInbox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class EventDrivenConsumer extends DefaultConsumer {
+public class EventDrivenConsumer extends DefaultConsumer implements DurableInboxAware {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
@@ -38,9 +43,25 @@ public class EventDrivenConsumer extends DefaultConsumer {
 
     private static final String MDC_FLOW_NAME_KEY = "pipelite.flowName";
 
+    // Debug-only (issue #70): identify a pending inbox entry without deserializing its
+    // Java-serialized payload - exchangeId is the same value already written to
+    // MDC_EXCHANGE_ID_KEY above, so it can be grepped straight out of application logs.
+    private static final String METADATA_EXCHANGE_ID_KEY = "exchangeId";
+
+    private static final String METADATA_FLOW_NAME_KEY = "flowName";
+
+    private static final ObjectToByteArrayConverter EXCHANGE_TO_BYTES = new ObjectToByteArrayConverter();
+
     protected final BlockingQueue<PriorityExchange> queue;
 
     private final AtomicLong exchangeCount;
+
+    /**
+     * Defaults to a no-op so every write-through/acknowledge call site below can stay
+     * unconditional (see {@link NoOpDurableInbox}) — real wiring happens via {@link
+     * #setDurableInbox} at flow-build time, only for sources that didn't opt out (issue #70).
+     */
+    private DurableInbox durableInbox = NoOpDurableInbox.INSTANCE;
 
     /**
      * See {@link QueuePressureGate}: the queue above is unbounded in practice (confirmed
@@ -73,6 +94,11 @@ public class EventDrivenConsumer extends DefaultConsumer {
     }
 
     @Override
+    public void setDurableInbox(DurableInbox durableInbox) {
+        this.durableInbox = durableInbox;
+    }
+
+    @Override
     public void process(Exchange exchange) {
         final long exchangeNumber = exchangeCount.incrementAndGet();
         try {
@@ -91,6 +117,23 @@ public class EventDrivenConsumer extends DefaultConsumer {
             // there's no reason for doStop() to wait for that.
             if (!isPoisonPill(exchange)) {
                 pressureGate.beforeEnqueue(queue::size);
+                // Durable write-through (issue #70), same happens-before reasoning as
+                // postProcessExchange above: must complete before queue.put so the dispatch thread
+                // that dequeues this Exchange already sees the entry-id property. A no-op when
+                // durability is disabled for this source (NoOpDurableInbox).
+                final String resupliedEntryId = exchange.getProperty(IOKeys.DURABLE_INBOX_RESUPPLIED_ENTRY_ID_PROPERTY_NAME, String.class);
+                if (resupliedEntryId != null) {
+                    // A recovery resupply (see IOKeys' own Javadoc on this property) - resume the
+                    // ORIGINAL entry instead of writing a new, duplicate one.
+                    exchange.setProperty(IOKeys.DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME, resupliedEntryId);
+                    exchange.removeProperty(IOKeys.DURABLE_INBOX_RESUPPLIED_ENTRY_ID_PROPERTY_NAME);
+                } else {
+                    final String entryId = durableInbox.enqueue(EXCHANGE_TO_BYTES.convert(exchange),
+                        inboxMetadata(exchange.getInput().getId(), getFlowName()));
+                    if (entryId != null) {
+                        exchange.setProperty(IOKeys.DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME, entryId);
+                    }
+                }
             }
             queue.put(PriorityExchange.withNormalPriority(exchange, exchangeNumber));
             /*
@@ -152,6 +195,23 @@ public class EventDrivenConsumer extends DefaultConsumer {
     }
 
     /**
+     * {@code flowName} is {@code null} until {@link #setFlowName} is called (e.g. a consumer
+     * built directly in a test rather than via {@code FlowFactory}) - {@code Map.of} would throw
+     * on a null value, so entries are only included when actually available instead of forcing a
+     * placeholder into a debug-only field.
+     */
+    private static Map<String, String> inboxMetadata(String exchangeId, String flowName) {
+        final Map<String, String> metadata = new java.util.LinkedHashMap<>();
+        if (exchangeId != null) {
+            metadata.put(METADATA_EXCHANGE_ID_KEY, exchangeId);
+        }
+        if (flowName != null) {
+            metadata.put(METADATA_FLOW_NAME_KEY, flowName);
+        }
+        return metadata;
+    }
+
+    /**
      * Dispatches {@code exchange} to {@code next}, i.e. runs the pipeline attached to this
      * consumer synchronously to completion. Named distinctly from {@link #process(Exchange)}
      * (overridden in this class to mean "enqueue") so callers outside this class — which can't
@@ -169,8 +229,25 @@ public class EventDrivenConsumer extends DefaultConsumer {
         final String previousFlowName = MDC.get(MDC_FLOW_NAME_KEY);
         MDC.put(MDC_EXCHANGE_ID_KEY, exchange.getInput().getId());
         MDC.put(MDC_FLOW_NAME_KEY, getFlowName());
+        // Captured BEFORE dispatch, not read back off `exchange` after (issue #70): a node
+        // further down this flow's own chain (a plain, uncopied `.toSink("link://...")` producer,
+        // unlike e.g. WireTapProcessorNode, which deliberately taps a copy) can hand this exact
+        // Exchange instance straight to a DIFFERENT flow's consumer, whose own write-through hook
+        // overwrites this same property with ITS OWN entry id before control ever returns here -
+        // verified as a real, reproduced bug (PipeliteFlowLinkIntegrationTest's origin-flow entry
+        // silently never acknowledged), not a theoretical one.
+        final String entryId = exchange.getProperty(IOKeys.DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME, String.class);
         try {
             super.process(exchange);
+            // Terminal state (issue #70): super.process(...) returning at all - whether the
+            // pipeline actually succeeded, or a RuntimeException was caught and routed to a retry
+            // channel by AbstractProcessorNode's own exceptionHandler branch - means nothing more
+            // will ever act on this Exchange from here. Only a genuinely unhandled exception
+            // escaping all the way up here skips this line, leaving the entry pending for
+            // redelivery on restart - the correct at-least-once outcome.
+            if (entryId != null) {
+                durableInbox.acknowledge(entryId);
+            }
         } finally {
             if (previousCorrelationId != null) {
                 MDC.put(MDC_EXCHANGE_ID_KEY, previousCorrelationId);
