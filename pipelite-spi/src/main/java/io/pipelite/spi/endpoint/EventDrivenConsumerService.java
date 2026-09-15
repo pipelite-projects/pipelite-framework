@@ -113,26 +113,11 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
     }
 
     /**
-     * Runs the pipeline for {@code exchange} synchronously on the calling thread, bypassing this
-     * service's own queue/{@link DispatchStrategy} entirely. Exposed (protected, not public) for
-     * a subclass that manages its own intake and completion tracking itself — today only {@code
-     * KafkaConsumerService} (see issue #64): it must know a record's pipeline execution has
-     * actually finished, not merely been handed off to be run later, before it is safe to commit
-     * that record's offset. A subclass using this should not also call {@code doStart()}/{@code
-     * super.doStart()} — that would start a {@link DispatchStrategy} whose queue nothing ever
-     * feeds, wasting a permanently-idle thread.
-     */
-    protected void dispatchToNext(Exchange exchange) {
-        eventDrivenConsumer.dispatchToNext(exchange);
-    }
-
-    /**
      * Runs {@code exchange} through {@code target} — an arbitrary node belonging to this
      * service's own flow, not necessarily its head — under this flow's own {@link
      * DispatchStrategy} (its {@code concurrency(n)} budget, if any), instead of on the calling
-     * thread entirely outside that accounting. Public, unlike {@link #dispatchToNext(Exchange)}:
-     * the caller here is not a subclass but another flow's own machinery — {@code
-     * SupplyExchangeProcessor}, resuming a retry at the specific node that previously failed (see
+     * thread entirely outside that accounting. The caller here is another flow's own machinery —
+     * {@code SupplyExchangeProcessor}, resuming a retry at the specific node that previously failed (see
      * issue #61). See {@link DispatchStrategy#dispatch} for why this is generally
      * <strong>not</strong> synchronous — a {@link PooledDispatchStrategy}-backed flow returns
      * once {@code target.process(exchange)} is submitted, not once it finishes, so that draining
