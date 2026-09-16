@@ -37,7 +37,6 @@ public class DefaultEndpoint implements Endpoint, ExchangeFactoryAware {
         Objects.requireNonNull(endpointURL, "endpointURL is required and cannot be null");
         this.endpointURL = endpointURL;
         this.channel = channel;
-        //isSink = false;
     }
 
     @Override

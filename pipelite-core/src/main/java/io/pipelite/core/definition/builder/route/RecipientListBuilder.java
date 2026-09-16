@@ -66,11 +66,6 @@ public class RecipientListBuilder implements RecipientListOperations, RecipientL
         }
         return this;
     }
-/*
-    @Override
-    public OtherwiseOperations otherwise(String recipient) {
-        return null;
-    }*/
 
     @Override
     public RecipientList end() {
