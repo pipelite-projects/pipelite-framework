@@ -28,6 +28,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.zip.CRC32;
 
 public class SegmentedLogDurableInboxTest {
 
@@ -189,6 +190,44 @@ public class SegmentedLogDurableInboxTest {
         final String newId = afterCrash.enqueue("after-recovery".getBytes(StandardCharsets.UTF_8), Map.of());
         Assert.assertEquals(2, afterCrash.pendingEntries().size());
         Assert.assertNotEquals(goodId, newId);
+    }
+
+    @Test
+    public void shouldFailFastOnAnUnrecognizedCodecVersionInsteadOfMisreadingIt() throws Exception {
+
+        // Issue #80: a record/tombstone body now starts with a 1-byte codec version. A frame
+        // claiming a version this build has never heard of (99) - as opposed to a torn/corrupted
+        // frame, which the CRC check already handles separately - must fail loudly rather than be
+        // silently misinterpreted through whatever codec happens to be current.
+        final Path directory = directory();
+        Files.createDirectories(directory);
+        final Path segment = directory.resolve(RESOURCE_PREFIX + "_00000000000000000000.log");
+
+        final byte frameType = 1; // FRAME_TYPE_RECORD
+        final byte bogusCodecVersion = (byte) 99;
+        final byte[] arbitraryCodecBody = "irrelevant, never reached".getBytes(StandardCharsets.UTF_8);
+
+        final byte[] typeAndBody = new byte[2 + arbitraryCodecBody.length];
+        typeAndBody[0] = frameType;
+        typeAndBody[1] = bogusCodecVersion;
+        System.arraycopy(arbitraryCodecBody, 0, typeAndBody, 2, arbitraryCodecBody.length);
+
+        final CRC32 crc = new CRC32();
+        crc.update(typeAndBody);
+
+        try (RandomAccessFile raf = new RandomAccessFile(segment.toFile(), "rw")) {
+            raf.writeInt(typeAndBody.length);
+            raf.write(typeAndBody);
+            raf.writeInt((int) crc.getValue());
+        }
+
+        final DurableInbox inbox = new SegmentedLogDurableInbox(directory, RESOURCE_PREFIX, new SequentialIdentityGenerator());
+        try {
+            inbox.pendingEntries();
+            Assert.fail("expected an IllegalStateException for the unrecognized codec version");
+        } catch (IllegalStateException expected) {
+            Assert.assertTrue(expected.getMessage().contains("99"));
+        }
     }
 
     @Test

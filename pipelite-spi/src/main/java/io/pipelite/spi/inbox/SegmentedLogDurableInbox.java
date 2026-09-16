@@ -17,12 +17,9 @@ package io.pipelite.spi.inbox;
 
 import io.pipelite.spi.flow.exchange.IdentityGenerator;
 
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -60,6 +57,12 @@ import java.util.zip.CRC32;
  * frame boundary instead of misinterpreting whatever partial bytes follow it — the same technique
  * write-ahead logs universally use.
  * <p>
+ * {@code body} itself (issue #80) is {@code [1B codec version][bytes produced by that version's
+ * InboxFrameCodec]} — RECORD and TOMBSTONE bodies alike. Writes always use {@link #CURRENT_CODEC};
+ * reads dispatch on the version byte via {@link #resolveCodec(int)}, so the on-disk record/
+ * tombstone layout can evolve later (a new field, a different payload encoding) by adding a new
+ * {@link InboxFrameCodec} implementation without losing the ability to read what's already there.
+ * <p>
  * <strong>Concurrency</strong>: every mutating/scanning operation is guarded by a single
  * intra-JVM lock on this instance — adequate for the message-level (not sub-microsecond) append
  * rate a single source's inbox sees. <strong>Not safe for two processes to share the same
@@ -93,6 +96,11 @@ public final class SegmentedLogDurableInbox implements DurableInbox {
 
     private static final byte FRAME_TYPE_RECORD = 1;
     private static final byte FRAME_TYPE_TOMBSTONE = 2;
+
+    private static final InboxFrameCodec CURRENT_CODEC = InboxFrameCodecV1.INSTANCE;
+    private static final Map<Integer, InboxFrameCodec> KNOWN_CODECS = Map.of(
+        InboxFrameCodecV1.INSTANCE.version(), InboxFrameCodecV1.INSTANCE
+    );
 
     private final Path directory;
     private final String namePrefix;
@@ -133,7 +141,8 @@ public final class SegmentedLogDurableInbox implements DurableInbox {
         synchronized (lock) {
             ensureInitialized();
             final String id = identityGenerator.nextIdAsText();
-            final long segmentSeq = appendFrame(FRAME_TYPE_RECORD, encodeRecordBody(id, metadata, payload));
+            final long segmentSeq = appendFrame(FRAME_TYPE_RECORD,
+                withCodecVersion(CURRENT_CODEC.encodeRecord(id, metadata, payload)));
             pendingById.put(id, new SegmentedLogInboxEntry(id, payload, metadata));
             segmentByEntryId.put(id, segmentSeq);
             pendingCountBySegment.merge(segmentSeq, 1, Integer::sum);
@@ -159,7 +168,7 @@ public final class SegmentedLogDurableInbox implements DurableInbox {
                 // explicitly safe to call more than once, see this class's own interface Javadoc.
                 return;
             }
-            appendFrame(FRAME_TYPE_TOMBSTONE, encodeTombstoneBody(entryId));
+            appendFrame(FRAME_TYPE_TOMBSTONE, withCodecVersion(CURRENT_CODEC.encodeTombstone(entryId)));
             pendingById.remove(entryId);
             final Long segmentSeq = segmentByEntryId.remove(entryId);
             if (segmentSeq != null) {
@@ -271,13 +280,15 @@ public final class SegmentedLogDurableInbox implements DurableInbox {
     private void applyFrame(long segmentSeq, byte[] typeAndBody) {
         final byte type = typeAndBody[0];
         final byte[] body = java.util.Arrays.copyOfRange(typeAndBody, 1, typeAndBody.length);
+        final InboxFrameCodec codec = resolveCodec(Byte.toUnsignedInt(body[0]));
+        final byte[] codecBody = java.util.Arrays.copyOfRange(body, 1, body.length);
         if (type == FRAME_TYPE_RECORD) {
-            final DecodedRecord record = decodeRecordBody(body);
-            pendingById.put(record.id, new SegmentedLogInboxEntry(record.id, record.payload, record.metadata));
-            segmentByEntryId.put(record.id, segmentSeq);
+            final DecodedRecord record = codec.decodeRecord(codecBody);
+            pendingById.put(record.id(), new SegmentedLogInboxEntry(record.id(), record.payload(), record.metadata()));
+            segmentByEntryId.put(record.id(), segmentSeq);
             pendingCountBySegment.merge(segmentSeq, 1, Integer::sum);
         } else if (type == FRAME_TYPE_TOMBSTONE) {
-            final String id = decodeTombstoneBody(body);
+            final String id = codec.decodeTombstone(codecBody);
             pendingById.remove(id);
             final Long originalSegment = segmentByEntryId.remove(id);
             if (originalSegment != null) {
@@ -352,68 +363,24 @@ public final class SegmentedLogDurableInbox implements DurableInbox {
         return crc.getValue();
     }
 
-    // --- record/tombstone body encoding ---------------------------------------------------------
-    // Metadata keys/values are written via DataOutputStream#writeUTF (a 2-byte length prefix, max
-    // ~64KB) - fine for short operational key/values, not for the payload itself, which carries
-    // an arbitrary-size serialized Exchange and is therefore length-prefixed as raw bytes instead.
+    // --- record/tombstone body versioning (issue #80) -------------------------------------------
+    // The body layout itself (id/metadata/payload for a RECORD, just the id for a TOMBSTONE) is
+    // owned by InboxFrameCodec, one implementation per format version - this class only owns
+    // prefixing/stripping the version byte uniformly for both frame types.
 
-    private static byte[] encodeRecordBody(String id, Map<String, String> metadata, byte[] payload) {
-        try {
-            final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-            final DataOutputStream out = new DataOutputStream(buffer);
-            out.writeUTF(id);
-            final Map<String, String> safeMetadata = metadata != null ? metadata : Map.of();
-            out.writeShort(safeMetadata.size());
-            for (Map.Entry<String, String> entry : safeMetadata.entrySet()) {
-                out.writeUTF(entry.getKey());
-                out.writeUTF(entry.getValue());
-            }
-            out.writeInt(payload.length);
-            out.write(payload);
-            return buffer.toByteArray();
-        } catch (IOException exception) {
-            throw new IllegalStateException("Unable to encode inbox record", exception);
+    private static byte[] withCodecVersion(byte[] codecBody) {
+        final byte[] versioned = new byte[1 + codecBody.length];
+        versioned[0] = (byte) CURRENT_CODEC.version();
+        System.arraycopy(codecBody, 0, versioned, 1, codecBody.length);
+        return versioned;
+    }
+
+    private static InboxFrameCodec resolveCodec(int version) {
+        final InboxFrameCodec codec = KNOWN_CODECS.get(version);
+        if (codec == null) {
+            throw new IllegalStateException(String.format("Unrecognized inbox frame codec version %d", version));
         }
-    }
-
-    private static DecodedRecord decodeRecordBody(byte[] body) {
-        try {
-            final java.io.DataInputStream in = new java.io.DataInputStream(new java.io.ByteArrayInputStream(body));
-            final String id = in.readUTF();
-            final int metadataCount = in.readUnsignedShort();
-            final Map<String, String> metadata = new LinkedHashMap<>();
-            for (int i = 0; i < metadataCount; i++) {
-                final String key = in.readUTF();
-                final String value = in.readUTF();
-                metadata.put(key, value);
-            }
-            final int payloadLength = in.readInt();
-            final byte[] payload = new byte[payloadLength];
-            in.readFully(payload);
-            return new DecodedRecord(id, metadata, payload);
-        } catch (IOException exception) {
-            throw new IllegalStateException("Unable to decode inbox record", exception);
-        }
-    }
-
-    private static byte[] encodeTombstoneBody(String id) {
-        return id.getBytes(StandardCharsets.UTF_8);
-    }
-
-    private static String decodeTombstoneBody(byte[] body) {
-        return new String(body, StandardCharsets.UTF_8);
-    }
-
-    private static final class DecodedRecord {
-        final String id;
-        final Map<String, String> metadata;
-        final byte[] payload;
-
-        DecodedRecord(String id, Map<String, String> metadata, byte[] payload) {
-            this.id = id;
-            this.metadata = metadata;
-            this.payload = payload;
-        }
+        return codec;
     }
 
 }
