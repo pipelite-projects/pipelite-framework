@@ -34,9 +34,6 @@ import java.util.concurrent.TimeUnit;
 
 public class KafkaConsumerService extends EventDrivenConsumerService {
 
-    protected static final String PERIOD_PROPERTY_NAME = "period";
-    protected static final String TIME_UNIT_PROPERTY_NAME = "timeUnit";
-
     // Fully qualified: org.apache.kafka.clients.consumer.Consumer would otherwise collide with
     // io.pipelite.spi.endpoint.Consumer, wildcard-imported below. Typed against the interface
     // (KafkaConsumer implements it) rather than the concrete class deliberately - among other
@@ -175,8 +172,8 @@ public class KafkaConsumerService extends EventDrivenConsumerService {
             final Endpoint endpoint = getEndpoint();
             final EndpointProperties endpointProperties = endpoint.getProperties();
 
-            final Long period = endpointProperties.getAsLongOrDefault(PERIOD_PROPERTY_NAME, 100L);
-            final String timeUnitAsText = endpointProperties.getOrDefault(TIME_UNIT_PROPERTY_NAME, TimeUnit.MILLISECONDS.name());
+            final Long period = endpointProperties.getAsLongOrDefault(PollingProperties.PERIOD, 100L);
+            final String timeUnitAsText = endpointProperties.getOrDefault(PollingProperties.TIME_UNIT, TimeUnit.MILLISECONDS.name());
             final TimeUnit timeUnit = TimeUnit.valueOf(timeUnitAsText);
 
             final Duration pollDuration = Duration.of(period, timeUnit.toChronoUnit());
@@ -201,6 +198,14 @@ public class KafkaConsumerService extends EventDrivenConsumerService {
         super.doStop();
     }
 
+    /**
+     * Deliberately reads {@code group.id}/{@code auto.offset.reset} as Kafka's own dotted {@link
+     * ConsumerConfig} key names straight from the query string, alongside pipelite's own camelCase
+     * {@code period}/{@code timeUnit} in the same URL - not an oversight. Kafka's config surface is
+     * already its own well-known convention; reusing its exact key names here means a value copied
+     * from Kafka's own docs works unchanged, and {@link KafkaSourceConfigurer} exists precisely to
+     * offer a typed alternative to reading either convention as a raw string.
+     */
     private static Map<String, Object> createKafkaProperties(KafkaChannelConfiguration configuration, EndpointURL endpointURL) {
 
         final EndpointProperties endpointProperties = endpointURL.getProperties();

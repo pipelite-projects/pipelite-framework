@@ -62,16 +62,16 @@ public abstract class PollingSourceConfigurer extends SourceConfigurer {
     @Override
     protected void contributeQueryParameters(Map<String, String> parameters) {
         if (initialDelay != null) {
-            parameters.put(ScheduledPollingConsumerService.INITIAL_DELAY_PROPERTY_NAME, String.valueOf(initialDelay));
+            parameters.put(PollingProperties.INITIAL_DELAY, String.valueOf(initialDelay));
         }
         if (period != null) {
-            parameters.put(ScheduledPollingConsumerService.PERIOD_PROPERTY_NAME, String.valueOf(period));
+            parameters.put(PollingProperties.PERIOD, String.valueOf(period));
         }
         if (timeUnit != null) {
-            parameters.put(ScheduledPollingConsumerService.TIME_UNIT_PROPERTY_NAME, timeUnit.name());
+            parameters.put(PollingProperties.TIME_UNIT, timeUnit.name());
         }
         if (batchSize != null) {
-            parameters.put(ScheduledPollingConsumerService.BATCH_SIZE_PROPERTY_NAME, String.valueOf(batchSize));
+            parameters.put(PollingProperties.BATCH_SIZE, String.valueOf(batchSize));
         }
     }
 

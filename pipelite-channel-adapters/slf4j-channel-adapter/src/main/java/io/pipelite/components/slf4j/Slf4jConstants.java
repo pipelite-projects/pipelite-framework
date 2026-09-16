@@ -13,19 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.spi.inbox;
+package io.pipelite.components.slf4j;
 
-/**
- * {@code EndpointURL} query-string parameter name for the per-source durable-inbox opt-out (issue
- * #70) — mirrors {@code SourceConcurrencyProperties}' own role for {@code concurrency}/{@code
- * executorType}. Resolved once at flow-build time (see {@code FlowFactory.createFlow}); default
- * on, since the whole point of #70 is a durability guarantee callers get without opting in.
- */
-public final class DurableInboxProperties {
+public class Slf4jConstants {
 
-    public static final String DURABLE_INBOX = "durableInbox";
-
-    private DurableInboxProperties() {
-    }
+    public static final String MESSAGE_PROPERTY_NAME = "message";
+    public static final String LEVEL_PROPERTY_NAME = "level";
 
 }

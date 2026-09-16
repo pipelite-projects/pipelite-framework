@@ -154,7 +154,7 @@ public class FlowFactory {
             return;
         }
         final boolean enabled = sourceEndpointURL.getProperties()
-            .getAsBooleanOrDefault(DurableInboxProperties.ENABLED, true);
+            .getAsBooleanOrDefault(DurableInboxProperties.DURABLE_INBOX, true);
         final DurableInbox durableInbox = enabled
             ? context.getDurableInboxProvider().forResource(sourceEndpointURL.getResource())
             : NoOpDurableInbox.INSTANCE;

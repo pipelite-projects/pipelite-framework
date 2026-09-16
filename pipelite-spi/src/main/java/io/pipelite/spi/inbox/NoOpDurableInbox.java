@@ -21,7 +21,7 @@ import java.util.Map;
 
 /**
  * The {@link DurableInbox} wired onto a source that opted out via {@link
- * DurableInboxProperties#ENABLED}{@code =false} — makes the write-through/acknowledge hooks in
+ * DurableInboxProperties#DURABLE_INBOX}{@code =false} — makes the write-through/acknowledge hooks in
  * {@code EventDrivenConsumer}/{@code DefaultPollingConsumer} unconditional no-ops without either
  * of them needing a null check. Also what makes Kafka's incidental {@code DurableInboxAware}
  * wiring (inherited from {@code EventDrivenConsumerService}, never actually reached since {@code
