@@ -19,7 +19,17 @@ import io.pipelite.spi.flow.AbstractFlowNode;
 
 import java.util.Objects;
 
-public abstract class AbstractConsumer extends AbstractFlowNode implements Consumer {
+/**
+ * Sealed per the pre-v1.0.0 audit (issue #79, Tier 4 #13): confirmed the only direct extenders in
+ * the entire reactor are {@link DefaultConsumer} and {@link DefaultPollingConsumer} - both
+ * declared {@code non-sealed}, since real adapters extend them freely (that's the actual, intended
+ * extension point). Unlike {@code ExchangeFactory}/{@code MessageFactory}/{@code IdentityGenerator}
+ * (also flagged in #13), sealing this base is genuinely free: no test double or cross-module
+ * implementation of {@code AbstractConsumer} itself exists anywhere that a {@code permits} clause
+ * would have to name.
+ */
+public abstract sealed class AbstractConsumer extends AbstractFlowNode implements Consumer
+    permits DefaultConsumer, DefaultPollingConsumer {
 
     private final Endpoint endpoint;
 

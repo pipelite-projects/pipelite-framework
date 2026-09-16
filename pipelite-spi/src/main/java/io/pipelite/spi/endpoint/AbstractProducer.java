@@ -20,7 +20,14 @@ import io.pipelite.spi.flow.exchange.FlowNode;
 
 import java.util.Objects;
 
-public abstract class AbstractProducer extends AbstractFlowNode implements Producer {
+/**
+ * Sealed per the pre-v1.0.0 audit (issue #79, Tier 4 #13): confirmed the only extender in the
+ * entire reactor is {@link DefaultProducer} - no adapter extends this directly, they all build on
+ * {@code DefaultProducer} itself. Unlike {@code ExchangeFactory}/{@code MessageFactory}/{@code
+ * IdentityGenerator} (also flagged in #13), sealing this one is genuinely free: no test double or
+ * cross-module implementation exists anywhere that a {@code permits} clause would have to name.
+ */
+public abstract sealed class AbstractProducer extends AbstractFlowNode implements Producer permits DefaultProducer {
 
     protected final Endpoint endpoint;
 
