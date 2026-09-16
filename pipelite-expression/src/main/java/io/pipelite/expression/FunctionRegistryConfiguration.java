@@ -15,7 +15,7 @@
  */
 package io.pipelite.expression;
 
-import io.pipelite.expression.core.context.FunctionRegistry;
+import io.pipelite.expression.internal.context.FunctionRegistry;
 
 public interface FunctionRegistryConfiguration {
 

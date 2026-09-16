@@ -16,9 +16,9 @@
 package io.pipelite.expression.support;
 
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.expression.core.el.bean.BeanPropertyAccessException;
-import io.pipelite.expression.core.el.bean.BeanPropertyAccessStrategy;
-import io.pipelite.expression.core.el.bean.PropertyDescriptorAccessStrategy;
+import io.pipelite.expression.internal.el.bean.BeanPropertyAccessException;
+import io.pipelite.expression.internal.el.bean.BeanPropertyAccessStrategy;
+import io.pipelite.expression.internal.el.bean.PropertyDescriptorAccessStrategy;
 
 public class BeanWrapper {
 

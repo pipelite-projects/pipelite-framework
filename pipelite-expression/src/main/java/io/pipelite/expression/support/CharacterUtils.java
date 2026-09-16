@@ -15,7 +15,7 @@
  */
 package io.pipelite.expression.support;
 
-import io.pipelite.expression.core.el.Constants;
+import io.pipelite.expression.internal.el.Constants;
 
 public class CharacterUtils {
 

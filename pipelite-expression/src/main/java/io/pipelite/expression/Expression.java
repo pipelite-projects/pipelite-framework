@@ -15,7 +15,7 @@
  */
 package io.pipelite.expression;
 
-import io.pipelite.expression.core.context.EvaluationContext;
+import io.pipelite.expression.internal.context.EvaluationContext;
 
 public interface Expression {
 
