@@ -15,21 +15,14 @@
  */
 package io.pipelite.components.time;
 
-import io.pipelite.dsl.definition.SourceConfigurer;
-import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.endpoint.Endpoint;
-import io.pipelite.spi.endpoint.EndpointURL;
+import io.pipelite.spi.endpoint.PollingSourceConfigurer;
 
-public class TimeChannelAdapter implements ChannelAdapter {
-
-    @Override
-    public Endpoint createEndpoint(String url) {
-        return new TimeEndpoint(EndpointURL.parse(url), this);
-    }
-
-    @Override
-    public SourceConfigurer newSourceConfigurer() {
-        return new TimeSourceConfigurer();
-    }
-
+/**
+ * Time has no adapter-specific settings of its own — every configurable concern
+ * ({@code initialDelay}/{@code period}/{@code timeUnit}/{@code batchSize}) is already generic
+ * {@link PollingSourceConfigurer} territory. Still its own named, empty subclass (not used
+ * directly) so a mismatched configurer for this adapter still fails via the usual {@code
+ * ClassCastException} safety net - see {@link PollingSourceConfigurer}'s own Javadoc for why.
+ */
+public final class TimeSourceConfigurer extends PollingSourceConfigurer {
 }

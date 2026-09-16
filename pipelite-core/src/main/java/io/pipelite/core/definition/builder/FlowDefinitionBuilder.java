@@ -46,6 +46,7 @@ import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.exchange.FlowNode;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public class FlowDefinitionBuilder implements FlowOperations {
@@ -78,6 +79,22 @@ public class FlowDefinitionBuilder implements FlowOperations {
     @Override
     public SourceOperations fromSource(String url) {
         final SourceDefinition sourceDefinition = new SourceDefinitionImpl(url);
+        builder.with(target -> target.setSourceDefinition(sourceDefinition));
+        return this;
+    }
+
+    @Override
+    public <C extends SourceConfigurer> SourceOperations fromSource(String url, Consumer<C> configurer) {
+        Objects.requireNonNull(configurer, "configurer is required and cannot be null");
+        // Erased here, deliberately: the concrete configurer instance this callback actually
+        // expects isn't known until DefaultEndpointFactory resolves the real adapter for `url`,
+        // at PipeliteContext#start() - see SourceConfigurer's own Javadoc. Safe in practice: a
+        // mismatched configurer (e.g. a (FileSourceConfigurer) lambda supplied for a "kafka://"
+        // url) surfaces as a ClassCastException the moment the callback is finally invoked against
+        // the wrong concrete type, which DefaultEndpointFactory catches and rewraps clearly.
+        @SuppressWarnings("unchecked")
+        final Consumer<SourceConfigurer> erasedConfigurer = (Consumer<SourceConfigurer>) configurer;
+        final SourceDefinition sourceDefinition = new SourceDefinitionImpl(url, erasedConfigurer);
         builder.with(target -> target.setSourceDefinition(sourceDefinition));
         return this;
     }

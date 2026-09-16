@@ -13,23 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.components.time;
+package io.pipelite.components.http;
 
-import io.pipelite.dsl.definition.SourceConfigurer;
-import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.endpoint.Endpoint;
-import io.pipelite.spi.endpoint.EndpointURL;
+public final class HttpConstants {
 
-public class TimeChannelAdapter implements ChannelAdapter {
+    public static final String METHOD_PROPERTY_NAME = "method";
 
-    @Override
-    public Endpoint createEndpoint(String url) {
-        return new TimeEndpoint(EndpointURL.parse(url), this);
-    }
-
-    @Override
-    public SourceConfigurer newSourceConfigurer() {
-        return new TimeSourceConfigurer();
+    private HttpConstants() {
     }
 
 }

@@ -22,16 +22,21 @@ import io.pipelite.core.context.EndpointFactory;
 import io.pipelite.core.context.UnsupportedSourceConcurrencyException;
 import io.pipelite.core.definition.TypedSourceDefinition;
 import io.pipelite.dsl.definition.EndpointDefinition;
+import io.pipelite.dsl.definition.SourceConfigurer;
+import io.pipelite.dsl.definition.SourceDefinition;
 import io.pipelite.expression.support.ReflectionUtils;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelURL;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
+import io.pipelite.spi.endpoint.SourceConcurrencyConfigurer;
 import io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Map;
+import java.util.function.Consumer;
 
 public class DefaultEndpointFactory implements EndpointFactory {
 
@@ -62,9 +67,62 @@ public class DefaultEndpointFactory implements EndpointFactory {
         if(channelURL.hasProtocol()){
             rejectSourceConcurrencyParams(channelURL.getProtocol(), channelURL.getEndpointURL());
             final ChannelAdapter channel = channelAdapterManager.resolveChannel(channelURL.getProtocol());
-            return channel.createEndpoint(channelURL.getEndpointURL());
+            final String endpointURL = applySourceConfigurer(endpointDefinition, channel, channelURL.getEndpointURL());
+            return channel.createEndpoint(endpointURL);
         }
-        return new DefaultEndpoint(EndpointURL.parse(channelURL.getEndpointURL()));
+        final String endpointURL = applySourceConfigurer(endpointDefinition, null, channelURL.getEndpointURL());
+        return new DefaultEndpoint(EndpointURL.parse(endpointURL));
+    }
+
+    /**
+     * Lowers a {@code fromSource(url, configurer)} callback (see {@link SourceConfigurer}'s own
+     * Javadoc) into the exact same query-string shape {@code EndpointURL} already supports, so
+     * every downstream reader keeps working unchanged. A no-op for endpoints declared via the
+     * plain {@code fromSource(String)} overload ({@code getConfigurerCallback()} is {@code null}).
+     * {@code channel} is {@code null} for the no-protocol/internal case, which always uses {@link
+     * SourceConcurrencyConfigurer} directly rather than asking any {@code ChannelAdapter} for one.
+     */
+    private static String applySourceConfigurer(EndpointDefinition endpointDefinition, ChannelAdapter channel, String endpointURL) {
+
+        if (!(endpointDefinition instanceof SourceDefinition sourceDefinition)) {
+            return endpointURL;
+        }
+        final Consumer<SourceConfigurer> configurerCallback = sourceDefinition.getConfigurerCallback();
+        if (configurerCallback == null) {
+            return endpointURL;
+        }
+
+        final SourceConfigurer settings = channel != null ? channel.newSourceConfigurer() : new SourceConcurrencyConfigurer();
+        if (settings == null) {
+            throw new IllegalStateException(String.format(
+                "Endpoint '%s' does not support a SourceConfigurer", endpointURL));
+        }
+        try {
+            configurerCallback.accept(settings);
+        } catch (ClassCastException exception) {
+            throw new IllegalArgumentException(String.format(
+                "Wrong SourceConfigurer type supplied for endpoint '%s' - expected one accepting a %s",
+                endpointURL, settings.getClass().getSimpleName()), exception);
+        }
+
+        return mergeQueryParameters(endpointURL, settings.toQueryParameters());
+    }
+
+    private static String mergeQueryParameters(String endpointURL, Map<String, String> extraParameters) {
+        if (extraParameters.isEmpty()) {
+            return endpointURL;
+        }
+        final StringBuilder mergedURL = new StringBuilder(endpointURL);
+        mergedURL.append(endpointURL.indexOf('?') < 0 ? '?' : '&');
+        boolean first = true;
+        for (Map.Entry<String, String> parameter : extraParameters.entrySet()) {
+            if (!first) {
+                mergedURL.append('&');
+            }
+            mergedURL.append(parameter.getKey()).append('=').append(parameter.getValue());
+            first = false;
+        }
+        return mergedURL.toString();
     }
 
     /**
