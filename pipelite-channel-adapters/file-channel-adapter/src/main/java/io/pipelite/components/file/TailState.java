@@ -15,7 +15,7 @@
  */
 package io.pipelite.components.file;
 
-public final class TailState {
+final class TailState {
 
     public static final TailState INITIAL = new TailState(0L, 0L);
 
