@@ -25,22 +25,26 @@ public class Flow {
 
     private final String name;
     private final String endpointURI;
-    //private final Endpoint sourceEndpoint;
+    private final Endpoint sourceEndpoint;
     private final Consumer consumer;
 
     public Flow(String name, String endpointURI, Endpoint sourceEndpoint, Consumer consumer) {
-        this(name, endpointURI, consumer);
+        this.name = name;
+        this.endpointURI = endpointURI;
+        this.sourceEndpoint = sourceEndpoint;
+        this.consumer = consumer;
     }
 
     public Flow(String name, String endpointURI, Consumer consumer){
-        this.name = name;
-        this.endpointURI = endpointURI;
-        //this.sourceEndpoint = sourceEndpoint;
-        this.consumer = consumer;
+        this(name, endpointURI, null, consumer);
     }
 
     public String getName() {
         return name;
+    }
+
+    public Endpoint getSourceEndpoint() {
+        return sourceEndpoint;
     }
 
     public void supply(Exchange exchange){

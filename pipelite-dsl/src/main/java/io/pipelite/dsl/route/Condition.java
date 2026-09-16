@@ -15,6 +15,17 @@
  */
 package io.pipelite.dsl.route;
 
-public interface Condition {
+/**
+ * Not a third-party extension point. The only place a {@code Condition} is ever evaluated,
+ * {@code ExpressionConditionEvaluator} (in {@code pipelite-core}), hard-asserts {@code instanceof
+ * ExpressionCondition} and throws {@link IllegalStateException} for anything else — even {@link
+ * PayloadTypeCondition} is routed through a completely separate, content-based-routing code path,
+ * never through that evaluator. A third-party implementation of this interface would compile fine
+ * and fail at runtime the first time it was actually evaluated. {@code sealed} makes that
+ * impossibility a compile-time fact instead — mirrors the same fix already applied to {@code
+ * DurableInbox} (issue #70) for the same underlying reason: an interface that must stay visible
+ * outside its own package but is not actually meant for outside implementation.
+ */
+public sealed interface Condition permits ExpressionCondition, PayloadTypeCondition {
 
 }

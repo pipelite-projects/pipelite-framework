@@ -36,7 +36,7 @@ import java.util.Properties;
  * the original path. Locked I/O is delegated to {@link LockedFileStore}; this class owns the
  * resource-path-to-file-name mapping and the on-disk value format.
  */
-public class FileTailStateStore {
+class FileTailStateStore {
 
     private static final String STATE_FILE_EXTENSION = ".state";
     private static final String INDEX_FILE_NAME = "index.properties";

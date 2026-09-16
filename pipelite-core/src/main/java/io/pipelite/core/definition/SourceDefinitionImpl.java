@@ -15,12 +15,27 @@
  */
 package io.pipelite.core.definition;
 
+import io.pipelite.dsl.definition.SourceConfigurer;
 import io.pipelite.dsl.definition.SourceDefinition;
+
+import java.util.function.Consumer;
 
 public class SourceDefinitionImpl extends EndpointDefinitionImpl implements SourceDefinition {
 
+    private final Consumer<SourceConfigurer> configurerCallback;
+
     public SourceDefinitionImpl(String url) {
+        this(url, null);
+    }
+
+    public SourceDefinitionImpl(String url, Consumer<SourceConfigurer> configurerCallback) {
         super(url);
+        this.configurerCallback = configurerCallback;
+    }
+
+    @Override
+    public Consumer<SourceConfigurer> getConfigurerCallback() {
+        return configurerCallback;
     }
 
 }

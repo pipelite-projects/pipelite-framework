@@ -18,7 +18,7 @@ package io.pipelite.spi.endpoint;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.FlowNode;
 
-public class DefaultProducer extends AbstractProducer implements Producer {
+public non-sealed class DefaultProducer extends AbstractProducer implements Producer {
 
     public DefaultProducer(Endpoint endpoint) {
         super(endpoint);

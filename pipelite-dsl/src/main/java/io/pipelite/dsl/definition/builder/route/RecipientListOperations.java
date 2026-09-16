@@ -29,14 +29,9 @@ public interface RecipientListOperations {
         ToRecipientOperations toRecipients(String... recipients);
     }
 
-    interface ToRecipientOperations extends RecipientListOperations /*, OtherwiseOperations*/ {
+    interface ToRecipientOperations extends RecipientListOperations {
 
         RecipientList end();
-        //OtherwiseOperations otherwise(String recipient);
 
-    }
-
-    interface OtherwiseOperations {
-        RecipientList end();
     }
 }

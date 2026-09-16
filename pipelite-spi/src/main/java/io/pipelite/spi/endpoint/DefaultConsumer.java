@@ -19,7 +19,7 @@ import io.pipelite.spi.flow.exchange.Exchange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class DefaultConsumer extends AbstractConsumer implements Consumer {
+public non-sealed class DefaultConsumer extends AbstractConsumer implements Consumer {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 

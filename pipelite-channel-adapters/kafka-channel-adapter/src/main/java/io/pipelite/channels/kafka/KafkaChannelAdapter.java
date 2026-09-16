@@ -18,6 +18,7 @@ package io.pipelite.channels.kafka;
 import io.pipelite.channels.kafka.config.DefaultKafkaChannelConfiguration;
 import io.pipelite.channels.kafka.config.KafkaChannelConfiguration;
 import io.pipelite.channels.kafka.config.KafkaChannelConfigurer;
+import io.pipelite.dsl.definition.SourceConfigurer;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelConfigurer;
 import io.pipelite.spi.context.ContextEventListener;
@@ -58,6 +59,11 @@ public class KafkaChannelAdapter implements ChannelAdapter, ExchangeFactoryAware
         final KafkaEndpoint endpoint = new KafkaEndpoint(EndpointURL.parse(url), this, configuration);
         endpoints.add(endpoint);
         return endpoint;
+    }
+
+    @Override
+    public SourceConfigurer newSourceConfigurer() {
+        return new KafkaSourceConfigurer();
     }
 
     @Override

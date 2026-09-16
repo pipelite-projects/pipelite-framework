@@ -16,11 +16,11 @@
 package io.pipelite.expression.support;
 
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.expression.core.context.EvaluationContext;
-import io.pipelite.expression.core.context.FunctionRegistry;
-import io.pipelite.expression.core.context.OperatorRegistry;
-import io.pipelite.expression.core.context.StandardEvaluationContext;
-import io.pipelite.expression.core.context.VariableRegistryTreeMapImpl;
+import io.pipelite.expression.internal.context.EvaluationContext;
+import io.pipelite.expression.internal.context.FunctionRegistry;
+import io.pipelite.expression.internal.context.OperatorRegistry;
+import io.pipelite.expression.internal.context.StandardEvaluationContext;
+import io.pipelite.expression.internal.context.VariableRegistryTreeMapImpl;
 
 public class StandardEvaluationContextFactory implements EvaluationContextFactory {
 

@@ -27,7 +27,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
-public class DefaultPollingConsumer extends AbstractConsumer implements PollingConsumer, DurableInboxAware {
+public non-sealed class DefaultPollingConsumer extends AbstractConsumer implements PollingConsumer, DurableInboxAware {
 
     /**
      * Independent of the queue's own JDK capacity (which defaults to {@code Integer.MAX_VALUE} —

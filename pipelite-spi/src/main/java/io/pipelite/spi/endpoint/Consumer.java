@@ -22,7 +22,6 @@ import io.pipelite.spi.flow.exchange.FlowNode;
 public interface Consumer extends FlowNode {
 
     Endpoint getEndpoint();
-    //FlowNode getProcessor();
     void consume(Exchange exchange);
     void setExceptionHandler(ExceptionHandler exceptionHandler);
     void tag(String tag);

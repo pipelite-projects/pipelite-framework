@@ -15,6 +15,16 @@
  */
 package io.pipelite.dsl.definition;
 
+import java.util.function.Consumer;
+
 public interface SourceDefinition extends EndpointDefinition {
+
+    /**
+     * The lambda passed to {@code fromSource(url, configurer)}, erased to the common {@link
+     * SourceConfigurer} base type - {@code null} if this source was declared via the plain {@code
+     * fromSource(String)} overload. Applied by {@code DefaultEndpointFactory} once the concrete
+     * configurer instance for this source's actual adapter is known.
+     */
+    Consumer<SourceConfigurer> getConfigurerCallback();
 
 }

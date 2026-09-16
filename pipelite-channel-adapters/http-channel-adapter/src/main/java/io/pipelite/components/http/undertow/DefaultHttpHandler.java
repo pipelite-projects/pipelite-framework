@@ -16,6 +16,7 @@
 package io.pipelite.components.http.undertow;
 
 import io.pipelite.components.http.HttpChannelAdapter;
+import io.pipelite.components.http.HttpConstants;
 import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
@@ -23,24 +24,16 @@ import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.undertow.server.BlockingHttpExchange;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
-import io.undertow.util.HttpString;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
 public class DefaultHttpHandler implements HttpHandler, ExchangeFactoryAware {
-
-    private static final HttpString REQUEST_METHOD_POST = new HttpString("POST");
-    private static final HttpString REQUEST_METHOD_PUT = new HttpString("PUT");
-
-    private static final Collection<HttpString> ALLOWED_REQUEST_METHODS = Arrays.asList(REQUEST_METHOD_PUT, REQUEST_METHOD_POST);
 
     private final HttpChannelAdapter component;
 
@@ -53,23 +46,37 @@ public class DefaultHttpHandler implements HttpHandler, ExchangeFactoryAware {
     @Override
     public void handleRequest(HttpServerExchange httpServerExchange) throws IOException {
 
-        try(BlockingHttpExchange blockingHttpExchange = httpServerExchange.startBlocking()){
-            final InputStream requestBodyStream = blockingHttpExchange.getInputStream();
-            String requestBodyAsText = new BufferedReader(
-                new InputStreamReader(requestBodyStream, StandardCharsets.UTF_8))
-                .lines()
-                .collect(Collectors.joining("\n"));
-
+        try {
             final String resource = httpServerExchange.getRequestURI().replaceFirst("/", "");
             final Optional<Consumer> consumerHolder = component.tryResolveConsumer(resource);
 
-            if(consumerHolder.isPresent()){
+            if (consumerHolder.isEmpty()) {
+                httpServerExchange.setStatusCode(500);
+                return;
+            }
+
+            final Consumer consumer = consumerHolder.get();
+            // Per-resource, via HttpSourceConfigurer#method(...) - unset (null) means any method
+            // is accepted, same as before this existed. Replaces the previous
+            // ALLOWED_REQUEST_METHODS constant, which was declared but never actually checked
+            // anywhere (issue #62): a single hardcoded [POST, PUT] list shared by every resource,
+            // not a real per-endpoint restriction.
+            final String allowedMethod = consumer.getEndpoint().getProperties().get(HttpConstants.METHOD_PROPERTY_NAME);
+            if (allowedMethod != null && !httpServerExchange.getRequestMethod().toString().equalsIgnoreCase(allowedMethod)) {
+                httpServerExchange.setStatusCode(405);
+                return;
+            }
+
+            try (BlockingHttpExchange blockingHttpExchange = httpServerExchange.startBlocking()) {
+                final InputStream requestBodyStream = blockingHttpExchange.getInputStream();
+                String requestBodyAsText = new BufferedReader(
+                    new InputStreamReader(requestBodyStream, StandardCharsets.UTF_8))
+                    .lines()
+                    .collect(Collectors.joining("\n"));
+
                 final Exchange exchange = exchangeFactory.createExchange(requestBodyAsText);
-                final Consumer consumer = consumerHolder.get();
                 consumer.consume(exchange);
                 httpServerExchange.setStatusCode(201);
-            }else {
-                httpServerExchange.setStatusCode(500);
             }
         } finally {
             httpServerExchange.endExchange();

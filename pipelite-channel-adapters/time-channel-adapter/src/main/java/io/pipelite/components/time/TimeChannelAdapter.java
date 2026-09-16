@@ -15,6 +15,7 @@
  */
 package io.pipelite.components.time;
 
+import io.pipelite.dsl.definition.SourceConfigurer;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
@@ -24,6 +25,11 @@ public class TimeChannelAdapter implements ChannelAdapter {
     @Override
     public Endpoint createEndpoint(String url) {
         return new TimeEndpoint(EndpointURL.parse(url), this);
+    }
+
+    @Override
+    public SourceConfigurer newSourceConfigurer() {
+        return new TimeSourceConfigurer();
     }
 
 }

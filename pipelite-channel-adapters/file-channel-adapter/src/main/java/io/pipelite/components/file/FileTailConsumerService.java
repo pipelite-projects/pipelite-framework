@@ -24,7 +24,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.ScheduledExecutorService;
 
-public class FileTailConsumerService extends ScheduledPollingConsumerService implements ExchangeFactoryAware {
+class FileTailConsumerService extends ScheduledPollingConsumerService implements ExchangeFactoryAware {
 
     private final Path stateDirectory;
 

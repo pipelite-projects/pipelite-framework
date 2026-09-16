@@ -40,7 +40,7 @@ public sealed interface DurableInbox permits SegmentedLogDurableInbox, NoOpDurab
     /**
      * Durably persists {@code payload}/{@code metadata} before returning, then returns a
      * generated id for the new entry — {@code null} only for {@link NoOpDurableInbox}, meaning
-     * durability is disabled for this source (see {@link DurableInboxProperties#ENABLED}) and the
+     * durability is disabled for this source (see {@link DurableInboxProperties#DURABLE_INBOX}) and the
      * caller must not expect a later {@link #acknowledge} call for this entry to mean anything.
      */
     String enqueue(byte[] payload, Map<String, String> metadata);
