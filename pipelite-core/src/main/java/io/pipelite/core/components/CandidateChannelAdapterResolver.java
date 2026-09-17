@@ -22,18 +22,21 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
-public class CandidateChannelAdapterResolver {
+/**
+ * Package-private since #82: reached only via {@link ChannelAdapterDiscovery}.
+ */
+class CandidateChannelAdapterResolver {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
     private static final ResourceCandidateComponentsAnalyzer RESOURCE_COMPONENT_RESOLVER = new ResourceCandidateComponentsAnalyzer();
     private final FactoryComponentClasspathScanner factoryScanner;
 
-    public CandidateChannelAdapterResolver(){
+    CandidateChannelAdapterResolver(){
         factoryScanner = new FactoryComponentClasspathScanner();
     }
 
-    public Collection<CandidateComponentMetadata> findCandidates(){
+    Collection<CandidateComponentMetadata> findCandidates(){
 
         final Collection<URL> resourceURLs = factoryScanner.scanResources();
         return resourceURLs

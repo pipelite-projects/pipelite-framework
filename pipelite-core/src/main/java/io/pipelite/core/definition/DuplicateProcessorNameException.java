@@ -15,6 +15,8 @@
  */
 package io.pipelite.core.definition;
 
+import io.pipelite.core.definition.internal.FlowDefinitionImpl;
+
 /**
  * Thrown by {@link FlowDefinitionImpl#addProcessorDefinition} when a step name is reused
  * within the same flow. Required for correctness by name-based node lookup (see

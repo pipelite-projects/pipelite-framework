@@ -20,7 +20,10 @@ import io.pipelite.spi.channel.ChannelAdapter;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 
-public class ChannelAdapterFactory {
+/**
+ * Package-private since #82: reached only via {@link ChannelAdapterDiscovery}.
+ */
+class ChannelAdapterFactory {
 
     public ChannelAdapter instantiateAdapter(Class<? extends ChannelAdapter> componentType){
         try{

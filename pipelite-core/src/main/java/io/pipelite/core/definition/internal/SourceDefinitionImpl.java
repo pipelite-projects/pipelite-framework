@@ -13,26 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.definition;
+package io.pipelite.core.definition.internal;
 
-import io.pipelite.dsl.definition.ErrorChannelDefinition;
-import io.pipelite.spi.endpoint.EndpointURL;
+import io.pipelite.dsl.definition.SourceDefinition;
 
-public class ErrorChannelDefinitionImpl implements ErrorChannelDefinition {
+public class SourceDefinitionImpl extends EndpointDefinitionImpl implements SourceDefinition {
 
-    private final EndpointURL endpointURL;
-
-    public ErrorChannelDefinitionImpl(String endpointURL) {
-        this.endpointURL = EndpointURL.parse(endpointURL);
+    public SourceDefinitionImpl(String url) {
+        super(url);
     }
 
-    @Override
-    public String getEndpointURL() {
-        return endpointURL.getResource();
-    }
-
-    @Override
-    public ChannelType getErrorChannelType() {
-        return ChannelType.RETRY_CHANNEL;
-    }
 }

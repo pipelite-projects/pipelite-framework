@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.definition;
+package io.pipelite.core.definition.internal;
 
+import io.pipelite.core.definition.DuplicateProcessorNameException;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
 import io.pipelite.dsl.definition.*;
 import io.pipelite.spi.flow.ExceptionHandler;

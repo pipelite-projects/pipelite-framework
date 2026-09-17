@@ -19,12 +19,15 @@ import io.pipelite.spi.channel.ChannelAdapter;
 
 import java.util.Objects;
 
-public class CandidateComponentMetadata {
+/**
+ * Package-private since #82: reached only via {@link ChannelAdapterDiscovery}.
+ */
+class CandidateComponentMetadata {
 
     private final String protocolName;
     private final Class<? extends ChannelAdapter> channelAdapterType;
 
-    public CandidateComponentMetadata(String protocolName, Class<? extends ChannelAdapter> channelAdapterType) {
+    CandidateComponentMetadata(String protocolName, Class<? extends ChannelAdapter> channelAdapterType) {
         this.protocolName = protocolName;
         this.channelAdapterType = channelAdapterType;
     }

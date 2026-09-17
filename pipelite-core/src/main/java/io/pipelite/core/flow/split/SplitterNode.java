@@ -18,7 +18,7 @@ package io.pipelite.core.flow.split;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.flow.FlowNodeConfigurer;
-import io.pipelite.core.flow.process.DefaultProcessorNode;
+import io.pipelite.core.flow.process.ProcessorNodeFactory;
 import io.pipelite.dsl.Headers;
 import io.pipelite.dsl.split.SplitSegment;
 import io.pipelite.dsl.split.SplitStep;
@@ -46,8 +46,10 @@ import java.util.Objects;
  * sub-chain of {@code FlowNode}s once per collection item, not a single {@code Processor}
  * call, the same reason {@code RecipientListRouterNode} extends {@code AbstractFlowNode}
  * directly instead.
+ *
+ * <p>Package-private since #82: construct via {@link SplitNodeFactory#splitter(SplitSegment)}.
  */
-public class SplitterNode extends AbstractFlowNode implements PipeliteContextAware {
+class SplitterNode extends AbstractFlowNode implements PipeliteContextAware {
 
     private final FlowNode segmentHead;
     private final List<FlowNode> segmentNodes;   // for propagation, not for wiring
@@ -57,7 +59,7 @@ public class SplitterNode extends AbstractFlowNode implements PipeliteContextAwa
     private AggregateRepository aggregateRepository;
     private Aggregator aggregator;
 
-    public SplitterNode(SplitSegment segment) {
+    SplitterNode(SplitSegment segment) {
         Objects.requireNonNull(segment, "segment is required and cannot be null");
         this.collector = new SplitResultCollectorNode();
         this.segmentNodes = new ArrayList<>();
@@ -65,7 +67,7 @@ public class SplitterNode extends AbstractFlowNode implements PipeliteContextAwa
         FlowNode head = collector;
         FlowNode tail = null;
         for (SplitStep step : segment) {
-            final DefaultProcessorNode node = new DefaultProcessorNode(step.getProcessor());
+            final FlowNode node = ProcessorNodeFactory.wrap(step.getProcessor());
             node.setProcessorName(step.getName());
             segmentNodes.add(node);
             if (tail == null) {

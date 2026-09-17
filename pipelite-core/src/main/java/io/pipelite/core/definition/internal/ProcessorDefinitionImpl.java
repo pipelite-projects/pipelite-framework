@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.definition;
+package io.pipelite.core.definition.internal;
 
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.dsl.definition.ProcessorDefinition;

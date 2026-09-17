@@ -13,26 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.definition;
+package io.pipelite.core.definition.internal;
 
-import io.pipelite.dsl.definition.EndpointDefinition;
+import io.pipelite.dsl.definition.SinkDefinition;
 
-public class EndpointDefinitionImpl implements EndpointDefinition {
+public class SinkDefinitionImpl extends EndpointDefinitionImpl implements SinkDefinition {
 
-    private final String url;
-
-    public EndpointDefinitionImpl(String url) {
-        this.url = url;
+    public SinkDefinitionImpl(String url) {
+        super(url);
     }
-
-    @Override
-    public String getUrl() {
-        return url;
-    }
-
-    @Override
-    public String getFormattedUrl(){
-        return url.toLowerCase().replaceAll("/", "");
-    }
-
 }

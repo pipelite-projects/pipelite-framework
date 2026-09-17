@@ -26,7 +26,10 @@ import java.util.Collection;
 import java.util.Properties;
 import java.util.function.Function;
 
-public class ResourceCandidateComponentsAnalyzer implements Function<URL, Collection<CandidateComponentMetadata>> {
+/**
+ * Package-private since #82: reached only via {@link ChannelAdapterDiscovery}.
+ */
+class ResourceCandidateComponentsAnalyzer implements Function<URL, Collection<CandidateComponentMetadata>> {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 

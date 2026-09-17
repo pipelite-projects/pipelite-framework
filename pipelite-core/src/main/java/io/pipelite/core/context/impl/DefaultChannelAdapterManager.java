@@ -16,9 +16,7 @@
 package io.pipelite.core.context.impl;
 
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.core.components.CandidateComponentMetadata;
-import io.pipelite.core.components.CandidateChannelAdapterResolver;
-import io.pipelite.core.components.ChannelAdapterFactory;
+import io.pipelite.core.components.ChannelAdapterDiscovery;
 import io.pipelite.core.context.ChannelAdapterManager;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelConfigurer;
@@ -36,8 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DefaultChannelAdapterManager implements ChannelAdapterManager {
 
     private final ExchangeFactory exchangeFactory;
-    private final ChannelAdapterFactory channelAdapterFactory;
-    private final CandidateChannelAdapterResolver channelAdapterResolver;
+    private final ChannelAdapterDiscovery channelAdapterDiscovery;
     private final Map<String, ChannelAdapter> channelAdapters;
 
     private final Collection<ChannelConfigurer<?>> channelConfigurers;
@@ -45,22 +42,14 @@ public class DefaultChannelAdapterManager implements ChannelAdapterManager {
     public DefaultChannelAdapterManager(ExchangeFactory exchangeFactory) {
         Preconditions.notNull(exchangeFactory, "exchangeFactory is required and cannot be null");
         this.exchangeFactory = exchangeFactory;
-        this.channelAdapterFactory = new ChannelAdapterFactory();
-        this.channelAdapterResolver = new CandidateChannelAdapterResolver();
+        this.channelAdapterDiscovery = new ChannelAdapterDiscovery();
         this.channelAdapters = new ConcurrentHashMap<>();
         this.channelConfigurers = new ArrayList<>();
     }
 
     @Override
     public void scan() {
-
-        // Find component candidates
-        final Collection<CandidateComponentMetadata> candidateComponents = channelAdapterResolver.findCandidates();
-        // create and register components
-        candidateComponents.forEach(ccm -> {
-            final ChannelAdapter channel = channelAdapterFactory.instantiateAdapter(ccm.getChannelAdapterType());
-            registerChannelAdapter(ccm.getProtocolName(), channel);
-        });
+        channelAdapterDiscovery.discover().forEach(this::registerChannelAdapter);
     }
 
     @Override

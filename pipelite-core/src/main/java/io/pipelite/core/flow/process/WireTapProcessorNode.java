@@ -24,7 +24,10 @@ import io.pipelite.dsl.process.Processor;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 
-public class WireTapProcessorNode extends AbstractProcessorNode implements PipeliteContextAware {
+/**
+ * Package-private since #82: construct via {@link ProcessorNodeFactory#wireTap(String)}.
+ */
+class WireTapProcessorNode extends AbstractProcessorNode implements PipeliteContextAware {
 
     private static final class NoOpProcessor implements Processor {
         @Override
@@ -39,7 +42,7 @@ public class WireTapProcessorNode extends AbstractProcessorNode implements Pipel
     private PipeliteContext pipeliteContext;
     private ExchangeFactory exchangeFactory;
 
-    public WireTapProcessorNode(String endpointURL) {
+    WireTapProcessorNode(String endpointURL) {
         super(NO_OP_PROCESSOR);
         this.endpointURL = endpointURL;
     }

@@ -17,7 +17,6 @@ package io.pipelite.core;
 
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.core.context.PipeliteContext;
-import io.pipelite.core.flow.FlowFactory;
 import io.pipelite.dsl.definition.FlowDefinition;
 
 public class PipeliteHttpLogApplication {
@@ -31,8 +30,6 @@ public class PipeliteHttpLogApplication {
     }
 
     public void run(){
-
-        final FlowFactory flowFactory = new FlowFactory(context);
 
         final FlowDefinition flowDefinition01 = Pipelite.defineFlow("time-component-test")
             .fromSource("http://channel-01")

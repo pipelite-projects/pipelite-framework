@@ -25,7 +25,10 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 
-public class FactoryComponentClasspathScanner {
+/**
+ * Package-private since #82: reached only via {@link ChannelAdapterDiscovery}.
+ */
+class FactoryComponentClasspathScanner {
 
     private static final String PIPELITE_FACTORIES_RESOURCE_NAME = "META-INF/pipelite.factories";
 
@@ -33,7 +36,7 @@ public class FactoryComponentClasspathScanner {
 
     final ClassLoader classLoader = FactoryComponentClasspathScanner.class.getClassLoader();
 
-    public Collection<URL> scanResources(){
+    Collection<URL> scanResources(){
         try{
             final Enumeration<URL> resourceURLs = classLoader.getResources(PIPELITE_FACTORIES_RESOURCE_NAME);
             return Collections.list(resourceURLs);

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.flow.execution.retry;
+package io.pipelite.core.flow.execution.retry.internal;
 
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.PipeliteContext;
@@ -40,7 +40,11 @@ import java.util.Optional;
  * single instance shared by every flow's dumps and has no other way to know a given dump's
  * owning flow's configuration.
  */
-public class RetryStrategyFilter implements Processor {
+/**
+ * Package-private since #82: constructed only by {@link RetryChannelDefinitionFactory}, in this
+ * same package.
+ */
+class RetryStrategyFilter implements Processor {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
@@ -48,7 +52,7 @@ public class RetryStrategyFilter implements Processor {
     private final FlowExecutionDumpRepository dumpRepository;
     private final ByteArrayToObjectConverter converter;
 
-    public RetryStrategyFilter(PipeliteContext pipeliteContext, FlowExecutionDumpRepository dumpRepository) {
+    RetryStrategyFilter(PipeliteContext pipeliteContext, FlowExecutionDumpRepository dumpRepository) {
         Preconditions.notNull(pipeliteContext, "pipeliteContext is required and cannot be null");
         Preconditions.notNull(dumpRepository, "dumpRepository is required and cannot be null");
         this.pipeliteContext = pipeliteContext;
