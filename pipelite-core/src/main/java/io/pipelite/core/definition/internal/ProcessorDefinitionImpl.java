@@ -17,13 +17,14 @@ package io.pipelite.core.definition.internal;
 
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.dsl.definition.ProcessorDefinition;
+import io.pipelite.spi.flow.ExceptionHandler;
 
 public class ProcessorDefinitionImpl implements ProcessorDefinition {
 
     private final String processorName;
     private final FlowNode flowNode;
 
-    private Object exceptionHandler;
+    private ExceptionHandler exceptionHandler;
 
     public ProcessorDefinitionImpl(String processorName, FlowNode flowNode) {
         this.processorName = processorName;
@@ -44,12 +45,17 @@ public class ProcessorDefinitionImpl implements ProcessorDefinition {
     }
 
     @Override
-    public Object getExceptionHandler() {
-        return exceptionHandler;
+    public <T> T getExceptionHandler(Class<T> expectedType) {
+        if (exceptionHandler != null) {
+            if (expectedType.isAssignableFrom(exceptionHandler.getClass())) {
+                return expectedType.cast(exceptionHandler);
+            }
+            throw new ClassCastException(String.format("Unable to cast from %s to %s", exceptionHandler.getClass(), expectedType));
+        }
+        return null;
     }
 
-    @Override
-    public void setExceptionHandler(Object exceptionHandler) {
+    public void setExceptionHandler(ExceptionHandler exceptionHandler) {
         this.exceptionHandler = exceptionHandler;
     }
 }

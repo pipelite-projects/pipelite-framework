@@ -23,7 +23,7 @@ package io.pipelite.spi.inbox;
  */
 public final class DurableInboxProperties {
 
-    public static final String ENABLED = "durableInbox";
+    public static final String DURABLE_INBOX = "durableInbox";
 
     private DurableInboxProperties() {
     }

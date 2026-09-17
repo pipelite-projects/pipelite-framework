@@ -23,9 +23,6 @@ import org.slf4j.event.Level;
 
 public class Slf4jProducer extends DefaultProducer implements Producer {
 
-    private static final String MESSAGE_PROPERTY_NAME = "message";
-    private static final String LEVEL_PROPERTY_NAME = "level";
-
     private Logger logger = null;
 
     public Slf4jProducer(Endpoint endpoint) {
@@ -42,8 +39,8 @@ public class Slf4jProducer extends DefaultProducer implements Producer {
         }
 
         final EndpointProperties endpointProperties = endpoint.getProperties();
-        final String logMessage = endpointProperties.getOrDefault(MESSAGE_PROPERTY_NAME, "{}");
-        final String levelAsText = endpointProperties.getOrDefault(LEVEL_PROPERTY_NAME, Level.INFO.name());
+        final String logMessage = endpointProperties.getOrDefault(Slf4jConstants.MESSAGE_PROPERTY_NAME, "{}");
+        final String levelAsText = endpointProperties.getOrDefault(Slf4jConstants.LEVEL_PROPERTY_NAME, Level.INFO.name());
         final Level level = Level.valueOf(levelAsText);
         final Object inputPayload = exchange.getInputPayloadAs(Object.class);
         logger.atLevel(level).log(logMessage, inputPayload);

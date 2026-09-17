@@ -19,7 +19,15 @@ public interface ProcessorDefinition {
 
     <T> T getProcessor(Class<T> processorType);
     String getProcessorName();
-    Object getExceptionHandler();
-    void setExceptionHandler(Object exceptionHandler);
+
+    /**
+     * Mirrors {@link FlowDefinition#getExceptionHandler(Class)} exactly, for the same reason:
+     * the actual value is always an {@code io.pipelite.spi.flow.ExceptionHandler}, but that type
+     * cannot be named here directly - {@code pipelite-dsl} cannot depend on {@code pipelite-spi}
+     * (module dependency direction is the other way around). The setter counterpart is not part
+     * of this interface either, for the same reason; it lives only on the concrete
+     * {@code pipelite-core} implementation, exactly like {@code FlowDefinitionImpl#setExceptionHandler}.
+     */
+    <T> T getExceptionHandler(Class<T> expectedType);
 
 }

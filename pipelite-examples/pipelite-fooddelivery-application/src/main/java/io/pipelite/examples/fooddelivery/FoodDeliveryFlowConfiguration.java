@@ -16,13 +16,19 @@
 package io.pipelite.examples.fooddelivery;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.pipelite.channels.kafka.KafkaSourceConfigurer;
+import io.pipelite.components.file.FileSourceConfigurer;
+import io.pipelite.components.http.HttpSourceConfigurer;
+import io.pipelite.components.time.TimeSourceConfigurer;
 import io.pipelite.core.Pipelite;
 import io.pipelite.dsl.annotation.DefineFlow;
 import io.pipelite.dsl.annotation.FlowConfiguration;
 import io.pipelite.dsl.definition.FlowDefinition;
+import io.pipelite.spi.endpoint.SourceConcurrencyConfigurer;
 
 import java.math.BigDecimal;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Seven flows: a {@code time://}-driven load generator, two ingress channels (HTTP + tailed file)
@@ -43,7 +49,7 @@ import java.util.concurrent.ThreadLocalRandom;
  *                               │   kafka://order-events  (publish)
  *                               │       │
  *                               │       ▼
- *                               │   kafka://order-events?group.id=dispatch-service  (consume)
+ *                               │   kafka://order-events, groupId=dispatch-service  (consume)
  *                               │       │
  *                               └─► link://dispatch-start (concurrency=3, "dispatch coordinators")
  *                                       │  .withRetryChannel(maxAttempts=2)
@@ -59,12 +65,15 @@ import java.util.concurrent.ThreadLocalRandom;
  *                                             ─► file://.../rejected-orders.log
  * </pre>
  *
- * <p>{@code concurrency} is only accepted on the two bare, protocol-less {@code link://} target
- * sources ({@code kitchen-start}, {@code dispatch-start}) — {@code DefaultEndpointFactory}
- * rejects it fast on any {@code http://}/{@code file://}/{@code kafka://}/{@code time://} URL.
- * The Kafka hop exists specifically so the dispatch stage gets its own, separately-sized
- * concurrency budget: a single flow can't declare {@code concurrency} on both ends of a
- * channel-adapter boundary.
+ * <p>Every {@code fromSource(...)} below uses the typed {@code SourceConfigurer} mechanism
+ * (issue #79) instead of hand-built query strings — e.g. {@code (KafkaSourceConfigurer c) ->
+ * c.groupId(...)} rather than {@code "kafka://order-events?group.id=..."}. {@code
+ * SourceConcurrencyConfigurer.concurrency(...)} is only exposed for the two bare, protocol-less {@code
+ * link://} target sources ({@code kitchen-start}, {@code dispatch-start}) — {@code
+ * DefaultEndpointFactory} still rejects a literal {@code concurrency} on any {@code http://}/
+ * {@code file://}/{@code kafka://}/{@code time://} URL, configurer or not. The Kafka hop exists
+ * specifically so the dispatch stage gets its own, separately-sized concurrency budget: a single
+ * flow can't declare {@code concurrency} on both ends of a channel-adapter boundary.
  *
  * <p>The per-courier split was originally a {@code toRoute(...)} dynamic routing table (one
  * {@code file://} destination per driver), but with {@code dispatchProcessingFlow}'s
@@ -139,7 +148,9 @@ public class FoodDeliveryFlowConfiguration {
     @DefineFlow
     public FlowDefinition orderGeneratorFlow() {
         return Pipelite.defineFlow("order-generator-flow")
-            .fromSource(String.format("time://order-generator-tick?period=%d&timeUnit=MILLISECONDS", ORDER_GENERATOR_TICK_PERIOD_MILLIS))
+            .fromSource("time://order-generator-tick", (TimeSourceConfigurer c) -> c
+                .period(ORDER_GENERATOR_TICK_PERIOD_MILLIS)
+                .timeUnit(TimeUnit.MILLISECONDS))
             .process("roll-tick-dice", (ioContext, contribution) ->
                 ioContext.putHeader(TICK_ROLL_HEADER, BigDecimal.valueOf(ThreadLocalRandom.current().nextDouble())))
             .filter("random-tick-jitter", String.format("Headers['%s'] >= %s", TICK_ROLL_HEADER, TICK_DROP_PROBABILITY))
@@ -150,7 +161,7 @@ public class FoodDeliveryFlowConfiguration {
     @DefineFlow
     public FlowDefinition orderIngressFlow() {
         return Pipelite.defineFlow("order-ingress-flow")
-            .fromSource("http://orders")
+            .fromSource("http://orders", (HttpSourceConfigurer c) -> c.method("POST"))
             .transformPayload("parse-http-order", payload -> Order.fromHttpPayload(payload.getPayloadAs(String.class)))
             .wireTap("log-incoming-http-order", "slf4j://orders-received")
             .toSink("link://kitchen-start")
@@ -160,7 +171,9 @@ public class FoodDeliveryFlowConfiguration {
     @DefineFlow
     public FlowDefinition partnerOrdersFileFlow() {
         return Pipelite.defineFlow("partner-orders-file-flow")
-            .fromSource(String.format("file://%s?startPosition=end&period=250", FoodDeliveryPaths.PARTNER_ORDERS_FILE))
+            .fromSource(String.format("file://%s", FoodDeliveryPaths.PARTNER_ORDERS_FILE), (FileSourceConfigurer c) -> c
+                .startPosition("end")
+                .period(250))
             .transformPayload("parse-partner-order", payload -> Order.fromCsvLine(payload.getPayloadAs(String.class)))
             .wireTap("log-incoming-partner-order", "slf4j://orders-received")
             .toSink("link://kitchen-start")
@@ -170,7 +183,7 @@ public class FoodDeliveryFlowConfiguration {
     @DefineFlow
     public FlowDefinition kitchenProcessingFlow() {
         return Pipelite.defineFlow("kitchen-processing-flow")
-            .fromSource(String.format("kitchen-start?concurrency=%d", KITCHEN_CONCURRENCY))
+            .fromSource("kitchen-start", (SourceConcurrencyConfigurer c) -> c.concurrency(KITCHEN_CONCURRENCY))
             .process("prepare-order", (ioContext, contribution) -> {
                 final Order order = ioContext.getInputPayloadAs(Order.class);
                 kitchenService.prepareOrder(order);
@@ -188,7 +201,8 @@ public class FoodDeliveryFlowConfiguration {
     @DefineFlow
     public FlowDefinition dispatchIngressFlow() {
         return Pipelite.defineFlow("dispatch-ingress-flow")
-            .fromSource(String.format("kafka://%s?group.id=%s", ORDER_EVENTS_TOPIC, DISPATCH_CONSUMER_GROUP))
+            .fromSource(String.format("kafka://%s", ORDER_EVENTS_TOPIC),
+                (KafkaSourceConfigurer c) -> c.groupId(DISPATCH_CONSUMER_GROUP))
             .transformPayload("parse-order-event", payload -> Order.fromKafkaEventJson(payload.getPayloadAs(String.class), objectMapper))
             .toSink("link://dispatch-start")
             .build();
@@ -197,7 +211,7 @@ public class FoodDeliveryFlowConfiguration {
     @DefineFlow
     public FlowDefinition dispatchProcessingFlow() {
         return Pipelite.defineFlow("dispatch-processing-flow")
-            .fromSource(String.format("dispatch-start?concurrency=%d", DISPATCH_CONCURRENCY))
+            .fromSource("dispatch-start", (SourceConcurrencyConfigurer c) -> c.concurrency(DISPATCH_CONCURRENCY))
             .process("validate-order-amount", (ioContext, contribution) -> {
                 final Order order = ioContext.getInputPayloadAs(Order.class);
                 if (order.getTotalAmount().compareTo(MANUAL_REVIEW_THRESHOLD) > 0) {

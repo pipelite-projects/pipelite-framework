@@ -16,6 +16,7 @@
 package io.pipelite.components.http;
 
 import io.pipelite.components.http.undertow.DefaultHttpHandler;
+import io.pipelite.dsl.definition.SourceConfigurer;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.context.ContextEventListener;
 import io.pipelite.spi.endpoint.Consumer;
@@ -56,6 +57,11 @@ public class HttpChannelAdapter implements ChannelAdapter, ExchangeFactoryAware,
     public Endpoint createEndpoint(String url) {
         final EndpointURL endpointURL = EndpointURL.parse(url);
         return new HttpEndpoint(endpointURL, this);
+    }
+
+    @Override
+    public SourceConfigurer newSourceConfigurer() {
+        return new HttpSourceConfigurer();
     }
 
     @Override

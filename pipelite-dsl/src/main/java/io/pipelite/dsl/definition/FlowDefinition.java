@@ -35,8 +35,6 @@ public interface FlowDefinition {
 
     SinkDefinition sinkDefinition();
 
-    //Optional<ReplierDefinition> tryGetReplier();
-
     <T> T getExceptionHandler(Class<T> expectedType);
 
     boolean isRetryable();

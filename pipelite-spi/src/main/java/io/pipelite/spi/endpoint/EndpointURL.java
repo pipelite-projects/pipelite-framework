@@ -22,10 +22,6 @@ import java.util.regex.Pattern;
 
 public class EndpointURL {
 
-    // ^(([a-z0-9]+):\/\/)?([-a-z0-9]+)(\?([-a-zA-Z0-9_&=]{1,256})){0,1}$
-
-    //private static final String URL_PATTERN_REGEX = "^(([a-z0-9]+):/{2})?([-a-z0-9]+)(\\?([-a-zA-Z0-9_&=]{1,256}))?$";
-
     private static final String DEFAULT_RESOURCE_PATTERN = "[a-z0-9-_.]+";
     private static final String QUERY_PATTERN = "[a-zA-Z0-9-._&=/]{1,256}";
 

@@ -39,7 +39,6 @@ public interface ProcessOperations extends BuildOperations {
     BuildOperations toRoute(Function<RouteConfigurator, RoutingTable<?>> dynamicRouteConfigurator);
 
     ProcessOperations split(String name, SplitConfigurator segmentConfigurator);
-    //RoutingDefinitionOperations.DynamicRouterOperations dynamicRouter(String name, Router router);
 
     SinkOperations toSink(String url);
 

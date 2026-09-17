@@ -15,6 +15,7 @@
  */
 package io.pipelite.components.file;
 
+import io.pipelite.dsl.definition.SourceConfigurer;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelConfigurer;
 import io.pipelite.spi.endpoint.Endpoint;
@@ -44,6 +45,11 @@ public class FileChannelAdapter implements ChannelAdapter {
     @Override
     public Endpoint createEndpoint(String url) {
         return new FileEndpoint(EndpointURL.parse(url, FILE_RESOURCE_PATTERN), this, configuration);
+    }
+
+    @Override
+    public SourceConfigurer newSourceConfigurer() {
+        return new FileSourceConfigurer();
     }
 
 }

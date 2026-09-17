@@ -15,7 +15,7 @@
  */
 package io.pipelite.expression.support;
 
-import io.pipelite.expression.core.context.EvaluationContext;
+import io.pipelite.expression.internal.context.EvaluationContext;
 
 public interface EvaluationContextFactory {
 

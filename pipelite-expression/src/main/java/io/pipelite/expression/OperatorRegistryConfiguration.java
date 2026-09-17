@@ -15,7 +15,7 @@
  */
 package io.pipelite.expression;
 
-import io.pipelite.expression.core.context.OperatorRegistry;
+import io.pipelite.expression.internal.context.OperatorRegistry;
 
 public interface OperatorRegistryConfiguration {
 

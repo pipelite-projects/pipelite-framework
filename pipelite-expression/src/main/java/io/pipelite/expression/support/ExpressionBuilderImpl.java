@@ -16,8 +16,8 @@
 package io.pipelite.expression.support;
 
 import io.pipelite.expression.Expression;
-import io.pipelite.expression.core.ExpressionImpl;
-import io.pipelite.expression.core.el.bean.ElResolver;
+import io.pipelite.expression.internal.ExpressionImpl;
+import io.pipelite.expression.internal.el.bean.ElResolver;
 import io.pipelite.expression.support.conversion.ConversionService;
 
 public class ExpressionBuilderImpl implements ExpressionBuilder {

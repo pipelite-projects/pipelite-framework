@@ -34,10 +34,6 @@ import java.util.concurrent.TimeUnit;
 
 public class ScheduledPollingConsumerService extends AbstractService implements PollingConsumer, DurableInboxAware {
 
-    protected static final String INITIAL_DELAY_PROPERTY_NAME = "initialDelay";
-    protected static final String PERIOD_PROPERTY_NAME = "period";
-    protected static final String TIME_UNIT_PROPERTY_NAME = "timeUnit";
-
     /**
      * Default of 1 reproduces today's exact behavior for every existing consumer built on this
      * class, several of which depend on it: {@code TimePollingConsumer#receive()} never returns
@@ -46,7 +42,6 @@ public class ScheduledPollingConsumerService extends AbstractService implements 
      * — draining until null is only safe for a {@link PollingConsumer} with that contract (e.g.
      * {@code RetryPollingConsumer}, backed by a repository that legitimately empties out).
      */
-    protected static final String BATCH_SIZE_PROPERTY_NAME = "batchSize";
     private static final int DEFAULT_BATCH_SIZE = 1;
 
     /**
@@ -81,16 +76,16 @@ public class ScheduledPollingConsumerService extends AbstractService implements 
         final Endpoint endpoint = pollingConsumer.getEndpoint();
         final EndpointProperties endpointProperties = endpoint.getProperties();
 
-        final Long period = endpointProperties.getAsLongOrDefault(PERIOD_PROPERTY_NAME, 1000L);
-        final Long initialDelay = endpointProperties.getAsLongOrDefault(INITIAL_DELAY_PROPERTY_NAME, 0L);
+        final Long period = endpointProperties.getAsLongOrDefault(PollingProperties.PERIOD, 1000L);
+        final Long initialDelay = endpointProperties.getAsLongOrDefault(PollingProperties.INITIAL_DELAY, 0L);
 
-        final String timeUnitAsText = endpointProperties.getOrDefault(TIME_UNIT_PROPERTY_NAME, TimeUnit.MILLISECONDS.name());
+        final String timeUnitAsText = endpointProperties.getOrDefault(PollingProperties.TIME_UNIT, TimeUnit.MILLISECONDS.name());
         final TimeUnit timeUnit = TimeUnit.valueOf(timeUnitAsText);
 
-        final int batchSize = endpointProperties.getAsIntegerOrDefault(BATCH_SIZE_PROPERTY_NAME, DEFAULT_BATCH_SIZE);
+        final int batchSize = endpointProperties.getAsIntegerOrDefault(PollingProperties.BATCH_SIZE, DEFAULT_BATCH_SIZE);
         if (batchSize < 1 || batchSize > MAX_BATCH_SIZE) {
             throw new IllegalArgumentException(String.format(
-                "%s must be between 1 and %d, got %d", BATCH_SIZE_PROPERTY_NAME, MAX_BATCH_SIZE, batchSize));
+                "%s must be between 1 and %d, got %d", PollingProperties.BATCH_SIZE, MAX_BATCH_SIZE, batchSize));
         }
 
         ScheduledFuture<?> consumer = consumerPool.scheduleAtFixedRate(() -> {

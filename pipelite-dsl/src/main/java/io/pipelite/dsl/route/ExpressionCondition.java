@@ -17,7 +17,7 @@ package io.pipelite.dsl.route;
 
 import java.util.Objects;
 
-public class ExpressionCondition implements Condition {
+public final class ExpressionCondition implements Condition {
 
     private final String expression;
 

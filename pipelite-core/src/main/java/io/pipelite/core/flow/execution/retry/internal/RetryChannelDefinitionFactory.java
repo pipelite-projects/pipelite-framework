@@ -76,7 +76,7 @@ public class RetryChannelDefinitionFactory {
         // (issue #68) - wrapping them in a second, redundant durable-inbox layer would violate
         // the "exactly one mechanism owns a message at a time" invariant the inbox design relies
         // on, for no benefit (nothing is ever lost here that #68 doesn't already cover).
-        final String url = String.format("%s?batchSize=%d&%s=false", channelName, RETRY_BATCH_SIZE, DurableInboxProperties.ENABLED);
+        final String url = String.format("%s?batchSize=%d&%s=false", channelName, RETRY_BATCH_SIZE, DurableInboxProperties.DURABLE_INBOX);
         builder.with(t -> t.setSourceDefinition(new TypedSourceDefinitionImpl(url, RetryEndpoint.class)));
     }
 
