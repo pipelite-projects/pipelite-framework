@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.flow.execution.retry;
+package io.pipelite.core.flow.execution.retry.internal;
 
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.PipeliteContext;
@@ -86,7 +86,11 @@ import java.util.Optional;
  * durable repository) another process instance entirely — since it lives on the dump itself, not
  * in something local to this class.
  */
-public class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContextAware {
+/**
+ * Package-private since #82: constructed only by {@link RetryChannelDefinitionFactory}, in this
+ * same package.
+ */
+class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContextAware {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
@@ -95,7 +99,7 @@ public class SupplyExchangeProcessor extends AbstractFlowNode implements Pipelit
 
     private PipeliteContext pipeliteContext;
 
-    public SupplyExchangeProcessor(FlowExecutionDumpRepository dumpRepository) {
+    SupplyExchangeProcessor(FlowExecutionDumpRepository dumpRepository) {
         Preconditions.notNull(dumpRepository, "dumpRepository is required and cannot be null");
         this.dumpRepository = dumpRepository;
         this.converter = new ByteArrayToObjectConverter();

@@ -20,6 +20,7 @@ import io.pipelite.core.context.impl.DefaultExchangeFactory;
 import io.pipelite.core.context.impl.DefaultMessageFactory;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.flow.internal.FlowFactory;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.context.Service;
 import io.pipelite.spi.flow.Flow;

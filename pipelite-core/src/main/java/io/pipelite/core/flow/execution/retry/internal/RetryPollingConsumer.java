@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.flow.execution.retry;
+package io.pipelite.core.flow.execution.retry.internal;
 
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
@@ -26,13 +26,16 @@ import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 
 import java.util.Optional;
 
-public class RetryPollingConsumer extends DefaultPollingConsumer implements ExchangeFactoryAware {
+/**
+ * Package-private since #82: constructed only by {@link RetryService}, in this same package.
+ */
+class RetryPollingConsumer extends DefaultPollingConsumer implements ExchangeFactoryAware {
 
     private FlowExecutionDumpRepository dumpRepository;
 
     private ExchangeFactory exchangeFactory;
 
-    public RetryPollingConsumer(Endpoint endpoint) {
+    RetryPollingConsumer(Endpoint endpoint) {
         super(endpoint, 1);
     }
 

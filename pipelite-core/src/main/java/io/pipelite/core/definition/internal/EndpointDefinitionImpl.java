@@ -13,21 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.definition;
+package io.pipelite.core.definition.internal;
 
-import io.pipelite.spi.endpoint.Endpoint;
+import io.pipelite.dsl.definition.EndpointDefinition;
 
-public class TypedSourceDefinitionImpl extends SourceDefinitionImpl implements TypedSourceDefinition {
+public class EndpointDefinitionImpl implements EndpointDefinition {
 
-    private final Class<? extends Endpoint> endpointType;
+    private final String url;
 
-    public TypedSourceDefinitionImpl(String url, Class<? extends Endpoint> endpointType) {
-        super(url);
-        this.endpointType = endpointType;
+    public EndpointDefinitionImpl(String url) {
+        this.url = url;
     }
 
     @Override
-    public Class<? extends Endpoint> getEndpointType() {
-        return endpointType;
+    public String getUrl() {
+        return url;
     }
+
+    @Override
+    public String getFormattedUrl(){
+        return url.toLowerCase().replaceAll("/", "");
+    }
+
 }

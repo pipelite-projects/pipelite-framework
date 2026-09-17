@@ -13,17 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.flow.process;
+package io.pipelite.core.flow.process.transform;
 
+import io.pipelite.dsl.process.PayloadTransformer;
 import io.pipelite.dsl.process.Processor;
 
 /**
- * Package-private since #82: construct via {@link ProcessorNodeFactory#wrap(Processor)}.
+ * The only public entry point for this package's {@link Processor} implementation - part of the
+ * pre-v1.0.0 audit's Tier 4 #12 lock-down (issue #82). {@code PayloadTransformerNode} is
+ * package-private: {@code FlowDefinitionBuilder#transformPayload(...)} only ever needed a {@link
+ * Processor} back, never the concrete type.
  */
-class DefaultProcessorNode extends AbstractProcessorNode {
+public final class PayloadTransformerNodeFactory {
 
-    DefaultProcessorNode(Processor delegate) {
-        super(delegate);
+    private PayloadTransformerNodeFactory() {
+    }
+
+    public static Processor create(PayloadTransformer payloadTransformer) {
+        return new PayloadTransformerNode(payloadTransformer);
     }
 
 }

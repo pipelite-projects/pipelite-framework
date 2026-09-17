@@ -13,17 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.flow.process;
+package io.pipelite.core.flow.process.filter;
 
 import io.pipelite.dsl.process.Processor;
+import io.pipelite.expression.ExpressionParser;
 
 /**
- * Package-private since #82: construct via {@link ProcessorNodeFactory#wrap(Processor)}.
+ * The only public entry point for this package's {@link Processor} implementation - part of the
+ * pre-v1.0.0 audit's Tier 4 #12 lock-down (issue #82). {@code ExpressionFilterNode} is
+ * package-private: {@code FlowDefinitionBuilder#filter(...)} only ever needed a {@link Processor}
+ * back, never the concrete type.
  */
-class DefaultProcessorNode extends AbstractProcessorNode {
+public final class ExpressionFilterNodeFactory {
 
-    DefaultProcessorNode(Processor delegate) {
-        super(delegate);
+    private ExpressionFilterNodeFactory() {
+    }
+
+    public static Processor create(String expression, ExpressionParser expressionParser) {
+        return new ExpressionFilterNode(expression, expressionParser);
     }
 
 }

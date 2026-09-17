@@ -30,14 +30,18 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class RouterNode extends AbstractFlowNode implements PipeliteContextAware {
+/**
+ * Package-private since #82: construct via {@link RouteNodeFactory#router(RoutingTable,
+ * TextExpressionEvaluator)}.
+ */
+class RouterNode extends AbstractFlowNode implements PipeliteContextAware {
 
     private final RoutingTable<?> routingTable;
     private final TextExpressionEvaluator textExpressionEvaluator;
 
     private PipeliteContext pipeliteContext;
 
-    public RouterNode(RoutingTable<?> routingTable, TextExpressionEvaluator textExpressionEvaluator) {
+    RouterNode(RoutingTable<?> routingTable, TextExpressionEvaluator textExpressionEvaluator) {
         this.routingTable = Preconditions.notNull(routingTable, "routingTable is required and cannot be null");
         this.textExpressionEvaluator = Preconditions.notNull(textExpressionEvaluator, "textExpressionEvaluator is required and cannot be null");
     }

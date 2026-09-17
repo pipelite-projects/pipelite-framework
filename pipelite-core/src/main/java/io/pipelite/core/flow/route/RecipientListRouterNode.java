@@ -35,7 +35,11 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-public class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContextAware {
+/**
+ * Package-private since #82: construct via {@link RouteNodeFactory#recipientList(RecipientList,
+ * ConditionEvaluator)}.
+ */
+class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContextAware {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
@@ -47,7 +51,7 @@ public class RecipientListRouterNode extends AbstractFlowNode implements Pipelit
 
     private ExchangeFactory exchangeFactory;
 
-    public RecipientListRouterNode(RecipientList recipientList, ConditionEvaluator conditionEvaluator) {
+    RecipientListRouterNode(RecipientList recipientList, ConditionEvaluator conditionEvaluator) {
         Preconditions.notNull(recipientList, "recipientList is required and cannot be null");
         Preconditions.notNull(conditionEvaluator, "conditionEvaluator is required and cannot be null");
         this.recipientList = recipientList;

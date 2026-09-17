@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.definition.builder.split;
 
-import io.pipelite.core.definition.builder.Builder;
+import io.pipelite.core.definition.builder.internal.Builder;
 import io.pipelite.dsl.process.Processor;
 import io.pipelite.dsl.split.SplitSegment;
 import io.pipelite.dsl.split.SplitSegmentImpl;

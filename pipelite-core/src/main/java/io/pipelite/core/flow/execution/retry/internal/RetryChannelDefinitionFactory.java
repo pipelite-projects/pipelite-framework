@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.flow.execution.retry;
+package io.pipelite.core.flow.execution.retry.internal;
 
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.PipeliteContext;
-import io.pipelite.core.definition.EndpointDefinitionImpl;
-import io.pipelite.core.definition.FlowDefinitionImpl;
-import io.pipelite.core.definition.ProcessorDefinitionImpl;
-import io.pipelite.core.definition.TypedSourceDefinitionImpl;
-import io.pipelite.core.definition.builder.Builder;
+import io.pipelite.core.definition.internal.EndpointDefinitionImpl;
+import io.pipelite.core.definition.internal.FlowDefinitionImpl;
+import io.pipelite.core.definition.internal.ProcessorDefinitionImpl;
+import io.pipelite.core.definition.internal.TypedSourceDefinitionImpl;
+import io.pipelite.core.definition.builder.internal.Builder;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
-import io.pipelite.core.flow.process.DefaultProcessorNode;
+import io.pipelite.core.flow.process.ProcessorNodeFactory;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.process.Processor;
 import io.pipelite.spi.flow.exchange.FlowNode;
@@ -81,7 +81,7 @@ public class RetryChannelDefinitionFactory {
     }
 
     private static void addDefaultProcessorNodeDefinition(Builder<FlowDefinitionImpl> builder, String processorName, Processor processor){
-        addFlowNodeDefinition(builder, processorName, new DefaultProcessorNode(processor));
+        addFlowNodeDefinition(builder, processorName, ProcessorNodeFactory.wrap(processor));
     }
 
     private static void addFlowNodeDefinition(Builder<FlowDefinitionImpl> builder, String processorName, FlowNode flowNode){

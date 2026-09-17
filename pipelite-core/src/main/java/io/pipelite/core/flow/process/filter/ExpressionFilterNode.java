@@ -29,14 +29,18 @@ import java.util.Optional;
 import static io.pipelite.core.flow.ExpressionVariables.HEADERS_VARIABLE_NAME;
 import static io.pipelite.core.flow.ExpressionVariables.PAYLOAD_VARIABLE_NAME;
 
-public class ExpressionFilterNode implements Processor {
+/**
+ * Package-private since #82: construct via {@link ExpressionFilterNodeFactory#create(String,
+ * ExpressionParser)}.
+ */
+class ExpressionFilterNode implements Processor {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final String expression;
     private final ExpressionParser expressionParser;
 
-    public ExpressionFilterNode(String expression, ExpressionParser expressionParser) {
+    ExpressionFilterNode(String expression, ExpressionParser expressionParser) {
         Preconditions.hasText(expression, "Illegal expression length");
         Preconditions.notNull(expressionParser, "expressionParser is required and cannot be null");
         this.expression = expression;

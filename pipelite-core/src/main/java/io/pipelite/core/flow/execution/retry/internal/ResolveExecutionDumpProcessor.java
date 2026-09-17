@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.flow.execution.retry;
+package io.pipelite.core.flow.execution.retry.internal;
 
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
@@ -35,11 +35,15 @@ import io.pipelite.spi.flow.exchange.Exchange;
  * happens later, only once an outcome is actually known — see {@link RetryStrategyFilter} (attempts
  * exhausted) and {@link SupplyExchangeProcessor} (resupply attempted).
  */
-public class ResolveExecutionDumpProcessor implements Processor {
+/**
+ * Package-private since #82: constructed only by {@link RetryChannelDefinitionFactory}, in this
+ * same package.
+ */
+class ResolveExecutionDumpProcessor implements Processor {
 
     private final FlowExecutionDumpRepository dumpRepository;
 
-    public ResolveExecutionDumpProcessor(FlowExecutionDumpRepository dumpRepository) {
+    ResolveExecutionDumpProcessor(FlowExecutionDumpRepository dumpRepository) {
         Preconditions.notNull(dumpRepository, "dumpRepository is required and cannot be null");
         this.dumpRepository = dumpRepository;
     }

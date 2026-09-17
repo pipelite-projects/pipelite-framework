@@ -13,20 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.flow.execution.retry;
+package io.pipelite.core.definition.internal;
 
-import io.pipelite.spi.endpoint.Consumer;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
+import io.pipelite.dsl.definition.ErrorChannelDefinition;
 import io.pipelite.spi.endpoint.EndpointURL;
 
-public class RetryEndpoint extends DefaultEndpoint {
+public class ErrorChannelDefinitionImpl implements ErrorChannelDefinition {
 
-    public RetryEndpoint(EndpointURL endpointURL) {
-        super(endpointURL);
+    private final EndpointURL endpointURL;
+
+    public ErrorChannelDefinitionImpl(String endpointURL) {
+        this.endpointURL = EndpointURL.parse(endpointURL);
     }
 
     @Override
-    public Consumer createConsumer() {
-        return new RetryService(this);
+    public String getEndpointURL() {
+        return endpointURL.getResource();
+    }
+
+    @Override
+    public ChannelType getErrorChannelType() {
+        return ChannelType.RETRY_CHANNEL;
     }
 }

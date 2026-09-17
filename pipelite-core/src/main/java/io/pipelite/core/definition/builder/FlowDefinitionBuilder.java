@@ -15,23 +15,22 @@
  */
 package io.pipelite.core.definition.builder;
 
-import io.pipelite.core.definition.*;
+import io.pipelite.core.definition.internal.*;
 import io.pipelite.core.definition.builder.error.ErrorChannelBuilder;
 import io.pipelite.core.definition.builder.error.RetryChannelBuilder;
+import io.pipelite.core.definition.builder.internal.Builder;
 import io.pipelite.core.definition.builder.route.RecipientListBuilder;
 import io.pipelite.core.definition.builder.route.RouteDefinitionBuilder;
 import io.pipelite.core.definition.builder.split.SplitSegmentBuilder;
 import io.pipelite.core.flow.DeadLetterChannelExceptionHandler;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
 import io.pipelite.core.flow.expression.TextExpressionEvaluator;
-import io.pipelite.core.flow.process.DefaultProcessorNode;
-import io.pipelite.core.flow.process.WireTapProcessorNode;
-import io.pipelite.core.flow.process.filter.ExpressionFilterNode;
-import io.pipelite.core.flow.process.transform.PayloadTransformerNode;
+import io.pipelite.core.flow.process.ProcessorNodeFactory;
+import io.pipelite.core.flow.process.filter.ExpressionFilterNodeFactory;
+import io.pipelite.core.flow.process.transform.PayloadTransformerNodeFactory;
 import io.pipelite.core.flow.route.ExpressionConditionEvaluator;
-import io.pipelite.core.flow.route.RecipientListRouterNode;
-import io.pipelite.core.flow.route.RouterNode;
-import io.pipelite.core.flow.split.SplitterNode;
+import io.pipelite.core.flow.route.RouteNodeFactory;
+import io.pipelite.core.flow.split.SplitNodeFactory;
 import io.pipelite.dsl.definition.*;
 import io.pipelite.dsl.definition.builder.*;
 import io.pipelite.dsl.process.PayloadTransformer;
@@ -101,7 +100,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
 
     @Override
     public ProcessOperations process(String name, Processor processor) {
-        final FlowNode processorNode = new DefaultProcessorNode(processor);
+        final FlowNode processorNode = ProcessorNodeFactory.wrap(processor);
         final ProcessorDefinition processorDefinition = new ProcessorDefinitionImpl(name, processorNode);
         builder.with(target -> target.addProcessorDefinition(processorDefinition));
         return this;
@@ -109,7 +108,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
 
     @Override
     public ProcessOperations wireTap(String name, String endpointURL) {
-        final FlowNode processorNode = new WireTapProcessorNode(endpointURL);
+        final FlowNode processorNode = ProcessorNodeFactory.wireTap(endpointURL);
         final ProcessorDefinition processorDefinition = new ProcessorDefinitionImpl(name, processorNode);
         builder.with(target -> target.addProcessorDefinition(processorDefinition));
         return this;
@@ -117,8 +116,8 @@ public class FlowDefinitionBuilder implements FlowOperations {
 
     @Override
     public ProcessOperations transformPayload(String name, PayloadTransformer payloadTransformer) {
-        final Processor processor = new PayloadTransformerNode(payloadTransformer);
-        final FlowNode processorNode = new DefaultProcessorNode(processor);
+        final Processor processor = PayloadTransformerNodeFactory.create(payloadTransformer);
+        final FlowNode processorNode = ProcessorNodeFactory.wrap(processor);
         final ProcessorDefinition processorDefinition = new ProcessorDefinitionImpl(name, processorNode);
         builder.with(target -> target.addProcessorDefinition(processorDefinition));
         return this;
@@ -126,8 +125,8 @@ public class FlowDefinitionBuilder implements FlowOperations {
 
     @Override
     public ProcessOperations filter(String name, String expression) {
-        final Processor processor = new ExpressionFilterNode(expression, expressionParser);
-        final FlowNode processorNode = new DefaultProcessorNode(processor);
+        final Processor processor = ExpressionFilterNodeFactory.create(expression, expressionParser);
+        final FlowNode processorNode = ProcessorNodeFactory.wrap(processor);
         final ProcessorDefinition processorDefinition = new ProcessorDefinitionImpl(name, processorNode);
         builder.with(target -> target.addProcessorDefinition(processorDefinition));
         return this;
@@ -136,7 +135,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
     @Override
     public BuildOperations toRoute(Function<RouteConfigurator, RoutingTable<?>> configurator) {
         final RoutingTable<?> routingTable = configurator.apply(new RouteDefinitionBuilder(conditionEvaluator));
-        final FlowNode routerNode = new RouterNode(routingTable, textExpressionEvaluator);
+        final FlowNode routerNode = RouteNodeFactory.router(routingTable, textExpressionEvaluator);
         final ProcessorDefinition routerDefinition = new ProcessorDefinitionImpl("to-route", routerNode);
         builder.with(target -> target.addProcessorDefinition(routerDefinition));
         return this;
@@ -146,7 +145,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
     @Deprecated
     public BuildOperations toRecipientList(RecipientListConfigurator configurator) {
         final RecipientList recipientList = configurator.configure(new RecipientListBuilder());
-        final FlowNode recipientListNode = new RecipientListRouterNode(recipientList, conditionEvaluator);
+        final FlowNode recipientListNode = RouteNodeFactory.recipientList(recipientList, conditionEvaluator);
         final ProcessorDefinition recipientListNodeDefinition = new ProcessorDefinitionImpl("to-recipient-list", recipientListNode);
         builder.with(target -> target.addProcessorDefinition(recipientListNodeDefinition));
         return this;
@@ -155,7 +154,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
     @Override
     public ProcessOperations split(String name, SplitConfigurator configurator) {
         final SplitSegment segment = configurator.configure(new SplitSegmentBuilder());
-        final FlowNode splitNode = new SplitterNode(segment);
+        final FlowNode splitNode = SplitNodeFactory.splitter(segment);
         final ProcessorDefinition splitDefinition = new ProcessorDefinitionImpl(name, splitNode);
         builder.with(target -> target.addProcessorDefinition(splitDefinition));
         return this;

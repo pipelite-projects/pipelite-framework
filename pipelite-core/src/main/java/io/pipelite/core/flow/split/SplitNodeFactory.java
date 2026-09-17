@@ -13,17 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.flow.process;
+package io.pipelite.core.flow.split;
 
-import io.pipelite.dsl.process.Processor;
+import io.pipelite.dsl.split.SplitSegment;
+import io.pipelite.spi.flow.exchange.FlowNode;
 
 /**
- * Package-private since #82: construct via {@link ProcessorNodeFactory#wrap(Processor)}.
+ * The only public entry point for building a node backed by this package's {@code FlowNode}
+ * implementation - part of the pre-v1.0.0 audit's Tier 4 #12 lock-down (issue #82).
+ * {@code SplitterNode} is package-private: {@code FlowDefinitionBuilder#split(...)} only ever
+ * needed a {@link FlowNode} back, never the concrete type.
  */
-class DefaultProcessorNode extends AbstractProcessorNode {
+public final class SplitNodeFactory {
 
-    DefaultProcessorNode(Processor delegate) {
-        super(delegate);
+    private SplitNodeFactory() {
+    }
+
+    public static FlowNode splitter(SplitSegment segment) {
+        return new SplitterNode(segment);
     }
 
 }

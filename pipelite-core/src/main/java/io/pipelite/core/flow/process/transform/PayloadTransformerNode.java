@@ -24,7 +24,10 @@ import io.pipelite.dsl.process.Processor;
 import java.util.Arrays;
 import java.util.Collection;
 
-public class PayloadTransformerNode implements Processor {
+/**
+ * Package-private since #82: construct via {@link PayloadTransformerNodeFactory#create(PayloadTransformer)}.
+ */
+class PayloadTransformerNode implements Processor {
 
     private final Collection<Class<?>> WRAPPER_TYPES = Arrays.asList(new Class<?>[]{
         String.class, Integer.class, Byte.class, Character.class, Boolean.class, Double.class, Float.class, Long.class, Short.class
@@ -32,7 +35,7 @@ public class PayloadTransformerNode implements Processor {
 
     private final PayloadTransformer payloadTransformer;
 
-    public PayloadTransformerNode(PayloadTransformer payloadTransformer) {
+    PayloadTransformerNode(PayloadTransformer payloadTransformer) {
         this.payloadTransformer = payloadTransformer;
     }
 

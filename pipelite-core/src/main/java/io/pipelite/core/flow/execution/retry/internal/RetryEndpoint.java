@@ -13,13 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.definition;
+package io.pipelite.core.flow.execution.retry.internal;
 
-import io.pipelite.dsl.definition.SinkDefinition;
+import io.pipelite.spi.endpoint.Consumer;
+import io.pipelite.spi.endpoint.DefaultEndpoint;
+import io.pipelite.spi.endpoint.EndpointURL;
 
-public class SinkDefinitionImpl extends EndpointDefinitionImpl implements SinkDefinition {
+public class RetryEndpoint extends DefaultEndpoint {
 
-    public SinkDefinitionImpl(String url) {
-        super(url);
+    public RetryEndpoint(EndpointURL endpointURL) {
+        super(endpointURL);
+    }
+
+    @Override
+    public Consumer createConsumer() {
+        return new RetryService(this);
     }
 }
