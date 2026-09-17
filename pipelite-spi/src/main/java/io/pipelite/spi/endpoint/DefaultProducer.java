@@ -15,10 +15,15 @@
  */
 package io.pipelite.spi.endpoint;
 
+import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.FlowNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public non-sealed class DefaultProducer extends AbstractProducer implements Producer {
+
+    private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
     public DefaultProducer(Endpoint endpoint) {
         super(endpoint);
@@ -34,7 +39,32 @@ public non-sealed class DefaultProducer extends AbstractProducer implements Prod
         return false;
     }
 
+    /**
+     * Final since issue #89: previously every concrete producer overrode {@code process(Exchange)}
+     * directly, so none of them ever consulted {@code exceptionHandler} - a producer's own failure
+     * (e.g. a broker down, a file write failing) always propagated uncaught, bypassing retry/
+     * dead-letter channels entirely, unlike a processor step's failure, which {@code
+     * AbstractProcessorNode} already routes through the same handler. Mirrors {@code
+     * AbstractProcessorNode#process}'s exact shape so a producer failure is handled identically to
+     * a processor failure. Concrete producers implement {@link #doProcess(Exchange)} instead.
+     */
     @Override
-    public void process(Exchange exchange) {
+    public final void process(Exchange exchange) {
+        try {
+            doProcess(exchange);
+        } catch (RuntimeException exception) {
+            if (sysLogger.isErrorEnabled()) {
+                sysLogger.error("An underlying error occurred producing message", exception);
+            }
+            if (exceptionHandler != null) {
+                exchange.setProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, getProcessorName());
+                exceptionHandler.handleException(exception, exchange);
+            } else {
+                throw exception;
+            }
+        }
+    }
+
+    public void doProcess(Exchange exchange) {
     }
 }

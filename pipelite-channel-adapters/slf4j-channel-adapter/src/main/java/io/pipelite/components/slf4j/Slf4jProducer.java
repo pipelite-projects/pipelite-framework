@@ -30,7 +30,7 @@ public class Slf4jProducer extends DefaultProducer implements Producer {
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void doProcess(Exchange exchange) {
 
         if(logger == null){
             final EndpointURL endpointURL = endpoint.getEndpointURL();

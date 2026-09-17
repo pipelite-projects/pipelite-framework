@@ -31,7 +31,7 @@ public class LinkProducer extends DefaultProducer {
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void doProcess(Exchange exchange) {
 
         final LinkChannelAdapter component = endpoint.getChannelAdapter(LinkChannelAdapter.class);
         final EndpointURL endpointURL = endpoint.getEndpointURL();
