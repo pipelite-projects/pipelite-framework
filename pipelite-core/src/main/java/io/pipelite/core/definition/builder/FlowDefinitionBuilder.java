@@ -23,6 +23,7 @@ import io.pipelite.core.definition.builder.route.RecipientListBuilder;
 import io.pipelite.core.definition.builder.route.RouteDefinitionBuilder;
 import io.pipelite.core.definition.builder.split.SplitSegmentBuilder;
 import io.pipelite.core.flow.DeadLetterChannelExceptionHandler;
+import io.pipelite.core.flow.GlobalDefaultExceptionHandler;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
 import io.pipelite.core.flow.expression.TextExpressionEvaluator;
 import io.pipelite.core.flow.process.ProcessorNodeFactory;
@@ -208,12 +209,17 @@ public class FlowDefinitionBuilder implements FlowOperations {
     @Override
     public FlowDefinition build() {
         final ExceptionHandler exceptionHandler = resolveExceptionHandler();
-        if (exceptionHandler != null) {
-            builder.with(target -> target.setExceptionHandler(exceptionHandler));
-        }
+        builder.with(target -> target.setExceptionHandler(exceptionHandler));
         return builder.build();
     }
 
+    /**
+     * Falls back to {@link GlobalDefaultExceptionHandler} (issue #87) rather than {@code null}
+     * when neither {@code withRetryChannel(...)} nor {@code withErrorChannel(...)} was declared —
+     * see that class's own Javadoc for why a real (if minimal) default handler, instead of no
+     * handler at all, is what fixes the inconsistent-behavior-per-layer and stuck-durable-inbox-
+     * entry problems this issue tracks.
+     */
     private ExceptionHandler resolveExceptionHandler() {
         if (retryChannelRequested) {
             final RetryChannelExceptionHandler handler = new RetryChannelExceptionHandler();
@@ -224,7 +230,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
         if (deadLetterFlowName != null) {
             return new DeadLetterChannelExceptionHandler(deadLetterFlowName);
         }
-        return null;
+        return new GlobalDefaultExceptionHandler();
     }
 
 }
