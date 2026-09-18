@@ -39,7 +39,7 @@ import java.util.stream.Collectors;
  * Package-private since #82: construct via {@link RouteNodeFactory#recipientList(RecipientList,
  * ConditionEvaluator)}.
  */
-class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContextAware {
+class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowExitNode {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 

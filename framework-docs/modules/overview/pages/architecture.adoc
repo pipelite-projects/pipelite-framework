@@ -58,7 +58,7 @@ It contains:
 * `input` — The incoming `Message` with payload and headers.
 * `output` — The response `Message` (optional).
 * `headers` — Shared metadata across nodes (`Headers`).
-* `properties` — Context properties (routing slip, return address, etc.).
+* `properties` — Context properties.
 
 === Message
 
@@ -102,12 +102,6 @@ Available types:
 
 |`RecipientListRouterNode`
 |Delivery to multiple recipients simultaneously
-
-|`RoutingSlipRouterNode`
-|Dynamic routing via routing slip
-
-|`ReturnAddressRouterNode`
-|Routing to the return address set on the Exchange
 |===
 
 == Lifecycle

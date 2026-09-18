@@ -167,7 +167,7 @@ public class Exchange implements IOContext, Serializable {
         return headers.tryGetHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME);
     }
 
-    @Override
+    // @Override - IOContext#setReturnAddress is disabled for now, see IOContext
     public void setReturnAddress(String flowName) {
         if(!headers.hasHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME)){
             headers.putHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME, flowName);
@@ -179,7 +179,7 @@ public class Exchange implements IOContext, Serializable {
         headers.removeHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME);
     }
 
-    @Override
+    // @Override - IOContext#setRoutingSlip is disabled for now, see IOContext
     public void setRoutingSlip(RoutingSlip routingSlip) {
         properties.put(IOKeys.ROUTING_SLIP_PROPERTY_NAME, routingSlip);
     }
