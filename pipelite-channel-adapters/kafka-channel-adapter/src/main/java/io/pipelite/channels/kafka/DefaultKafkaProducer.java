@@ -49,7 +49,7 @@ public class DefaultKafkaProducer extends DefaultProducer implements ContextEven
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void doProcess(Exchange exchange) {
 
         final Object recordValue = exchange.getInputPayloadAs(Object.class);
         if(recordValue != null) {

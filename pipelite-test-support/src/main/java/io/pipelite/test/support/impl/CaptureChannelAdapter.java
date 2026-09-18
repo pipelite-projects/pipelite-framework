@@ -117,7 +117,7 @@ public class CaptureChannelAdapter implements ChannelAdapter {
         }
 
         @Override
-        public void process(Exchange exchange) {
+        public void doProcess(Exchange exchange) {
             final String testId = exchange.getProperty(TEST_ID_PROPERTY, String.class);
             if (testId != null) {
                 final WeakReference<CompletableFuture<Exchange>> ref = PENDING.get(testId);

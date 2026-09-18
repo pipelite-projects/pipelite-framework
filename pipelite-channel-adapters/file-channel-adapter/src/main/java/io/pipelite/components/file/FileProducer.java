@@ -50,7 +50,7 @@ public class FileProducer extends DefaultProducer {
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void doProcess(Exchange exchange) {
 
         final StandardOpenOption[] options = append
             ? new StandardOpenOption[]{StandardOpenOption.CREATE, StandardOpenOption.APPEND}
