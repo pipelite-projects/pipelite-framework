@@ -13,11 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.dsl.definition.builder.retry;
+package io.pipelite.dsl.definition.builder.error;
 
-public interface RetryChannelOperations {
+import io.pipelite.dsl.definition.ErrorChannelDefinition;
 
-    RetryChannelOperations maxAttempts(int maxAttempts);
-
-
+/**
+ * Renamed from {@code DefinedErrorChannelOperations} (issue #91), following {@link
+ * ErrorChannelOperations#toChannel}'s own rename from {@code definedFlow(...)}. Extends {@link
+ * ErrorChannelDefinition} so a call chain like {@code c -> c.toChannel(target)} can be returned
+ * directly from an {@code ErrorChannelConfigurator} lambda.
+ */
+public interface ChannelErrorChannelOperations extends ErrorChannelDefinition {
 }

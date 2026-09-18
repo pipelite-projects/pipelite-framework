@@ -46,8 +46,7 @@ public class FluentFlowDefinitionTest {
         final FlowDefinition recipientListFlow = Pipelite.defineFlow("recipient-list-flow")
             .fromSource("rabbit://topicName")
             .toSink("end")
-            .withRetryChannel()
-            //.withErrorChannel()
+            .withRetry(retry -> retry.onErrorChannel(err -> err.toDLQ()))
             //.toRecipientList(RecipientListImpl.of("http://example.com:8080/acquire-message", "direct://cc-flow"))
             .build();
 

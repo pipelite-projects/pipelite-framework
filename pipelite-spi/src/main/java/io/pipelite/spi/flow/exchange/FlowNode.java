@@ -15,7 +15,7 @@
  */
 package io.pipelite.spi.flow.exchange;
 
-import io.pipelite.spi.flow.ExceptionHandler;
+import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import io.pipelite.spi.flow.process.ExchangePreProcessor;
 

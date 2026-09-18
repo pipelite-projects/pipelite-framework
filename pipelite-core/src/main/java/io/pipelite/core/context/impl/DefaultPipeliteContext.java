@@ -27,6 +27,10 @@ import io.pipelite.core.flow.DeadLetterChannelExceptionHandler;
 import io.pipelite.core.flow.internal.FlowFactory;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
+import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueExceptionHandler;
+import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
+import io.pipelite.core.flow.execution.deadletter.DeadLetteredExchangeFactory;
+import io.pipelite.core.flow.execution.deadletter.FileDeadLetterQueueRepository;
 import io.pipelite.core.flow.split.AggregateInMemoryRepository;
 import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.core.flow.execution.dump.FileFlowExecutionDumpRepository;
@@ -49,7 +53,7 @@ import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
-import io.pipelite.spi.flow.ExceptionHandler;
+import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.flow.Flow;
 import io.pipelite.spi.flow.concurrent.DefaultThreadFactory;
 import io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties;
@@ -81,12 +85,16 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     // core framework's own durable state, leaving room for future concerns of the same kind
     // (e.g. issue #53's split/aggregate state) without ever colliding with an adapter's folder
     // or the PipeliteHome root itself. See issue #68.
-    private static final String FLOW_EXECUTION_DUMPS_HOME_SUBFOLDER = "state/flow-execution-dumps";
+    private static final String FLOW_EXECUTION_DUMPS_HOME_SUBFOLDER = "state/retry";
 
     // Same "state/" namespacing convention as FLOW_EXECUTION_DUMPS_HOME_SUBFOLDER above, its own
     // sibling subfolder (issue #70) — each source resource gets its own further subdirectory
     // under this one, named by SegmentedLogDurableInboxProvider (see its own Javadoc).
     private static final String DURABLE_INBOX_HOME_SUBFOLDER = "state/inbox";
+
+    // Same "state/" namespacing convention as the two subfolders above, its own sibling
+    // subfolder (issue #93) - one file per dead-lettered exchange.
+    private static final String DEAD_LETTER_QUEUE_HOME_SUBFOLDER = "state/dlq";
 
     private static final int DEFAULT_MAX_SOURCE_WORKER_POOL_SIZE = 200;
     private static final String SOURCE_WORKER_POOL_THREAD_ROLE = "pool";
@@ -122,6 +130,11 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     // Not final, same reasoning as durableInboxProvider above: ConfigurablePipeliteContext#
     // setDurableInboxDeadLetterWriter(...) may replace the default before start().
     private DurableInboxDeadLetterWriter durableInboxDeadLetterWriter;
+
+    // Not final, same reasoning as executionDumpRepository above: ConfigurablePipeliteContext#
+    // setDeadLetterQueueRepository(...) may replace the default before start() (issue #93).
+    private DeadLetterQueueRepository deadLetterQueueRepository;
+    private final DeadLetteredExchangeFactory deadLetterQueueEntryFactory;
 
     // Symmetric with EventDrivenConsumer/DefaultPollingConsumer's own ObjectToByteArrayConverter
     // (issue #70's write-through hook) - recovery here is the read-back side of that same,
@@ -173,6 +186,12 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
         // DurableInbox/DurableInboxProvider - see its own Javadoc).
         durableInboxDeadLetterWriter = new FileDurableInboxDeadLetterWriter(
             PipeliteHome.resolve(DURABLE_INBOX_HOME_SUBFOLDER));
+
+        // Default-on, ready-to-use dead letter queue (issue #93): writes a failed Exchange
+        // durably to disk, one file per entry, with no Flow required to receive it.
+        // setDeadLetterQueueRepository(...) can swap this for a different implementation.
+        deadLetterQueueRepository = new FileDeadLetterQueueRepository(PipeliteHome.resolve(DEAD_LETTER_QUEUE_HOME_SUBFOLDER));
+        deadLetterQueueEntryFactory = new DeadLetteredExchangeFactory(new DistributedIdentityGeneratorImpl(), new Base64ObjectSerializer());
     }
 
     @Override
@@ -206,6 +225,11 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     @Override
     public void setDurableInboxDeadLetterWriter(DurableInboxDeadLetterWriter writer) {
         this.durableInboxDeadLetterWriter = Preconditions.notNull(writer, "writer is required and cannot be null");
+    }
+
+    @Override
+    public void setDeadLetterQueueRepository(DeadLetterQueueRepository repository) {
+        this.deadLetterQueueRepository = Preconditions.notNull(repository, "repository is required and cannot be null");
     }
 
     @Override
@@ -460,7 +484,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
                     // start(), and this factory must bake in whatever is current now, not
                     // whatever was current at construction time (see #68).
                     final RetryChannelDefinitionFactory retryChannelDefinitionFactory =
-                        new RetryChannelDefinitionFactory(executionDumpRepository, this);
+                        new RetryChannelDefinitionFactory(executionDumpRepository, this, deadLetterQueueRepository);
                     final FlowDefinition retryChannelDefinition = retryChannelDefinitionFactory.createDefinition(RETRY_CHANNEL_NAME);
                     final Flow retryChannel = flowFactory.createFlow(retryChannelDefinition);
                     flowRegistry.addFlow(retryChannel);
@@ -473,16 +497,20 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
                 }
 
             } else {
-                // No retry channel: a bare dead-letter channel (.withErrorChannel(c ->
-                // c.definedFlow(flowName)) with no .withRetryChannel(...)) routes on the very
-                // first failure and needs this context to dispatch there — see
-                // DeadLetterChannelExceptionHandler. Fetched as the base ExceptionHandler type
-                // (never throws) rather than FlowDefinition#getExceptionHandler(specific-class),
-                // which throws ClassCastException for any other handler type a flow might carry
-                // (e.g. PipeliteTestFixture's own capture handler) instead of just not matching.
+                // No retry: a bare error-channel (.withErrorChannel(err -> err.toChannel(...)/
+                // err.toDLQ()) with no .withRetry(...)) routes on the very first failure and
+                // needs its collaborators injected here. Fetched as the base ExceptionHandler
+                // type (never throws) rather than FlowDefinition#getExceptionHandler(specific-
+                // class), which throws ClassCastException for any other handler type a flow
+                // might carry (e.g. PipeliteTestFixture's own capture handler) instead of just
+                // not matching.
                 final ExceptionHandler configuredHandler = flowDefinition.getExceptionHandler(ExceptionHandler.class);
                 if(configuredHandler instanceof DeadLetterChannelExceptionHandler){
                     ((DeadLetterChannelExceptionHandler) configuredHandler).setPipeliteContext(this);
+                } else if(configuredHandler instanceof DeadLetterQueueExceptionHandler){
+                    final DeadLetterQueueExceptionHandler dlqHandler = (DeadLetterQueueExceptionHandler) configuredHandler;
+                    dlqHandler.setEntryFactory(deadLetterQueueEntryFactory);
+                    dlqHandler.setRepository(deadLetterQueueRepository);
                 }
             }
 

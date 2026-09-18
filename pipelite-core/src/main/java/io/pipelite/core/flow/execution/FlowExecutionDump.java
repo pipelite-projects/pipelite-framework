@@ -20,6 +20,16 @@ import java.util.Optional;
 
 public interface FlowExecutionDump {
 
+    /**
+     * What {@code RetryStrategyFilter} does once a dump's attempts are exhausted (issue #91).
+     * {@code NONE} is the pre-#91 default (log and discard, see issue #87) - reachable today only
+     * as a defensive fallback, since the DSL now requires every {@code .withRetry(...)} to
+     * declare an exhaustion action via {@code .onErrorChannel(...)}/{@code .onExceptionHandler(...)}.
+     */
+    enum ExhaustionAction {
+        DEAD_LETTER_FLOW, BUILT_IN_DLQ, FLOW_EXCEPTION_HANDLER, NONE
+    }
+
     String getId();
     LocalDateTime getCreationTime();
     String getFlowHash();
@@ -61,10 +71,18 @@ public interface FlowExecutionDump {
     int getMaxAttempts();
 
     /**
-     * The name of the owning flow's configured dead-letter flow (the value passed to
-     * {@code Pipelite.defineFlow(...)} for that flow, via {@code definedFlow(flowName)}), or
-     * {@code null} if none is configured — copied at capture time for the same reason as
-     * {@link #getMaxAttempts()}.
+     * The owning flow's declared exhaustion action (issue #91) - copied at capture time for the
+     * same reason as {@link #getMaxAttempts()}, since {@code RetryStrategyFilter} is a single
+     * shared instance serving every flow's dumps.
+     */
+    void setExhaustionAction(ExhaustionAction exhaustionAction);
+    ExhaustionAction getExhaustionAction();
+
+    /**
+     * The dead-letter target - a bare flow name or a protocol-qualified channel adapter URL, see
+     * {@code io.pipelite.dsl.definition.builder.error.ErrorChannelOperations#toChannel} - only
+     * meaningful when {@link #getExhaustionAction()} is {@link ExhaustionAction#DEAD_LETTER_FLOW},
+     * {@code null} otherwise.
      */
     void setDeadLetterFlowName(String deadLetterFlowName);
     String getDeadLetterFlowName();

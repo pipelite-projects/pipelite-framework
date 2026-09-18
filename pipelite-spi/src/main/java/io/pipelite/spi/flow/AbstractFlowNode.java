@@ -16,6 +16,7 @@
 package io.pipelite.spi.flow;
 
 import io.pipelite.common.support.Preconditions;
+import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;

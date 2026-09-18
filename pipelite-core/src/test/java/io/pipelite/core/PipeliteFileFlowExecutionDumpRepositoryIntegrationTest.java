@@ -50,7 +50,7 @@ public class PipeliteFileFlowExecutionDumpRepositoryIntegrationTest {
     @Test
     public void givenFileRepositorySetBeforeStart_whenExceptionIsThrown_thenDumpIsWrittenAndLaterRemovedOnRetryResolution() throws IOException {
 
-        final Path dumpsDirectory = temporaryFolder.getRoot().toPath().resolve("flow-execution-dumps");
+        final Path dumpsDirectory = temporaryFolder.getRoot().toPath().resolve("retry");
 
         final DefaultPipeliteContext pipeliteContext = new DefaultPipeliteContext();
         pipeliteContext.setFlowExecutionDumpRepository(new FileFlowExecutionDumpRepository(dumpsDirectory));
@@ -64,7 +64,7 @@ public class PipeliteFileFlowExecutionDumpRepositoryIntegrationTest {
                 }
             }))
             .toSink("end")
-            .withRetryChannel(retry -> retry.maxAttempts(5))
+            .withRetry(retry -> retry.maxAttempts(5).onErrorChannel(err -> err.toDLQ()))
             .build();
 
         pipeliteContext.registerFlowDefinition(testFlow);
@@ -108,7 +108,7 @@ public class PipeliteFileFlowExecutionDumpRepositoryIntegrationTest {
                     }
                 }))
                 .toSink("default-repository-end")
-                .withRetryChannel(retry -> retry.maxAttempts(5))
+                .withRetry(retry -> retry.maxAttempts(5).onErrorChannel(err -> err.toDLQ()))
                 .build();
 
             pipeliteContext.registerFlowDefinition(testFlow);
@@ -117,7 +117,7 @@ public class PipeliteFileFlowExecutionDumpRepositoryIntegrationTest {
             final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
             pipeliteContext.supplyExchange("default-repository-ingress", exchangeFactory.createExchange("test-message"));
 
-            final Path expectedDumpsDirectory = customHome.resolve("state").resolve("flow-execution-dumps");
+            final Path expectedDumpsDirectory = customHome.resolve("state").resolve("retry");
             Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> countDumpFiles(expectedDumpsDirectory) == 1);
             Awaitility.await().atMost(30, TimeUnit.SECONDS)
                 .until(() -> counter.get() > 1 && countDumpFiles(expectedDumpsDirectory) == 0);

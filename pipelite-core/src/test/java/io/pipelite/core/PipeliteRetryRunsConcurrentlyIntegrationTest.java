@@ -78,7 +78,7 @@ public class PipeliteRetryRunsConcurrentlyIntegrationTest {
                 successCount.incrementAndGet();
             })
             .toSink("retry-parallelism-out")
-            .withRetryChannel(retry -> retry.maxAttempts(5))
+            .withRetry(retry -> retry.maxAttempts(5).onErrorChannel(err -> err.toDLQ()))
             .build();
 
         pipeliteContext.registerFlowDefinition(testFlow);

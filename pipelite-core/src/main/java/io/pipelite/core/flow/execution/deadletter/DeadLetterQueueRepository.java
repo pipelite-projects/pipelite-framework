@@ -13,17 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.dsl.definition.builder.error;
-
-import io.pipelite.dsl.definition.ErrorChannelDefinition;
+package io.pipelite.core.flow.execution.deadletter;
 
 /**
- * Extends {@link ErrorChannelDefinition} so a call chain like
- * {@code c -> c.definedFlow(flowName)} can be returned directly from an
- * {@code ErrorChannelConfigurator} lambda — {@code ErrorChannelConfigurator.configure(...)}
- * must return an {@code ErrorChannelDefinition}, and previously nothing implementing this
- * interface ever did, making that exact call chain (as proposed in issue #5's own sample code)
- * fail to type-check.
+ * The framework's built-in, ready-to-use dead letter queue (issue #93) - pluggable, like {@code
+ * FlowExecutionDumpRepository}/{@code DurableInboxDeadLetterWriter}, via {@code
+ * ConfigurablePipeliteContext#setDeadLetterQueueRepository(...)}, with {@link
+ * FileDeadLetterQueueRepository} as the only implementation shipped so far. Write-only for this
+ * round - no read/inspection API yet, see this package's own scope note.
  */
-public interface DefinedErrorChannelOperations extends ErrorChannelDefinition {
+public interface DeadLetterQueueRepository {
+
+    void save(DeadLetteredExchange entry);
+
 }

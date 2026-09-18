@@ -16,12 +16,13 @@
 package io.pipelite.core.flow;
 
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.core.definition.builder.error.RetryChannelBuilder;
+import io.pipelite.core.definition.builder.retry.RetryBuilder;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpFactory;
+import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.exchange.Exchange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,8 +40,14 @@ public class RetryChannelExceptionHandler implements ExceptionHandler {
     // Config, not shared infra: plain assignment (not idempotent-guarded like the two fields
     // above) is fine — set once by FlowDefinitionBuilder.build() from user DSL config, never
     // re-set afterward.
-    private int maxAttempts = RetryChannelBuilder.DEFAULT_MAX_ATTEMPTS;
+    private int maxAttempts = RetryBuilder.DEFAULT_MAX_ATTEMPTS;
+    private FlowExecutionDump.ExhaustionAction exhaustionAction = FlowExecutionDump.ExhaustionAction.NONE;
     private String deadLetterFlowName;
+
+    // Not copied onto FlowExecutionDump (custom handlers are often lambdas, not Serializable) -
+    // re-read fresh from this same, currently-registered handler by RetryStrategyFilter at
+    // exhaustion time instead. See FlowExecutionDump.ExhaustionAction#FLOW_EXCEPTION_HANDLER.
+    private ExceptionHandler exhaustionExceptionHandler;
 
     public RetryChannelExceptionHandler() {
     }
@@ -61,15 +68,37 @@ public class RetryChannelExceptionHandler implements ExceptionHandler {
         this.maxAttempts = maxAttempts;
     }
 
+    /**
+     * The action {@link io.pipelite.core.flow.execution.retry.internal.RetryStrategyFilter} takes
+     * once attempts are exhausted (issue #91) - copied onto every {@link FlowExecutionDump} this
+     * handler creates, the same way {@link #setMaxAttempts(int)} always has been, since that
+     * filter is a single shared instance serving every flow's dumps.
+     */
+    public void setExhaustionAction(FlowExecutionDump.ExhaustionAction exhaustionAction) {
+        this.exhaustionAction = Preconditions.notNull(exhaustionAction, "exhaustionAction is required and cannot be null");
+    }
+
     public void setDeadLetterFlowName(String deadLetterFlowName) {
         this.deadLetterFlowName = deadLetterFlowName;
     }
 
+    public void setExhaustionExceptionHandler(ExceptionHandler exhaustionExceptionHandler) {
+        this.exhaustionExceptionHandler = exhaustionExceptionHandler;
+    }
+
+    public ExceptionHandler getExhaustionExceptionHandler() {
+        return exhaustionExceptionHandler;
+    }
+
     @Override
-    public void handleException(Throwable failureException, Exchange exchange) {
+    public void handleException(Throwable failureException, IOContext ioContext) {
 
         Preconditions.notNull(executionDumpFactory, "executionDumpFactory is required and cannot be null");
         Preconditions.notNull(dumpRepository, "dumpRepository is required and cannot be null");
+
+        // Downcast is safe here: this handler is only ever wired by FlowDefinitionBuilder for
+        // internal use and always invoked with a real Exchange (see issue #91).
+        final Exchange exchange = (Exchange) ioContext;
 
         exchange.putHeader(IOKeys.FAILURE_EXCEPTION_TYPE_HEADER_NAME, failureException.getClass());
         exchange.putHeader(IOKeys.FAILURE_EXCEPTION_MESSAGE_HEADER_NAME, failureException.getMessage());
@@ -83,6 +112,7 @@ public class RetryChannelExceptionHandler implements ExceptionHandler {
         final FlowExecutionDump executionDump = executionDumpFactory.create(failureException, exchange);
         executionDump.setStackTrace(formatStackTrace(failureException));
         executionDump.setMaxAttempts(maxAttempts);
+        executionDump.setExhaustionAction(exhaustionAction);
         executionDump.setDeadLetterFlowName(deadLetterFlowName);
 
         final String executionDumpId = executionDump.getId();

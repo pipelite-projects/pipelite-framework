@@ -35,6 +35,7 @@ public abstract class AbstractFlowExecutionDump implements FlowExecutionDump {
     private int attemptNumber;
     private String stackTrace;
     private int maxAttempts = 3;
+    private FlowExecutionDump.ExhaustionAction exhaustionAction = FlowExecutionDump.ExhaustionAction.NONE;
     private String deadLetterFlowName;
     private FlowExecutionDumpStatus status = FlowExecutionDumpStatus.PENDING;
 
@@ -138,6 +139,16 @@ public abstract class AbstractFlowExecutionDump implements FlowExecutionDump {
     @Override
     public int getMaxAttempts() {
         return maxAttempts;
+    }
+
+    @Override
+    public void setExhaustionAction(FlowExecutionDump.ExhaustionAction exhaustionAction) {
+        this.exhaustionAction = exhaustionAction;
+    }
+
+    @Override
+    public FlowExecutionDump.ExhaustionAction getExhaustionAction() {
+        return exhaustionAction;
     }
 
     @Override

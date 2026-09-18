@@ -16,40 +16,54 @@
 package io.pipelite.core.definition.builder.error;
 
 import io.pipelite.dsl.definition.ErrorChannelDefinition;
-import io.pipelite.dsl.definition.builder.error.DefinedErrorChannelOperations;
+import io.pipelite.dsl.definition.builder.error.ChannelErrorChannelOperations;
+import io.pipelite.dsl.definition.builder.error.DeadLetterQueueErrorChannelOperations;
 import io.pipelite.dsl.definition.builder.error.ErrorChannelOperations;
-import io.pipelite.spi.channel.ChannelURL;
 
 import java.util.Objects;
 
-public class ErrorChannelBuilder implements ErrorChannelOperations, DefinedErrorChannelOperations {
+public class ErrorChannelBuilder implements ErrorChannelOperations, ChannelErrorChannelOperations, DeadLetterQueueErrorChannelOperations {
 
-    private String flowName;
+    private String target;
+    private ErrorChannelDefinition.ChannelType channelType;
 
+    /**
+     * Renamed and broadened from {@code definedFlow(String)} (issue #91) - no longer rejects a
+     * protocol-qualified value; {@code DeadLetterChannelExceptionHandler} branches on {@code
+     * ChannelURL.hasProtocol()} at dispatch time instead.
+     */
     @Override
-    public DefinedErrorChannelOperations definedFlow(String flowName) {
-        Objects.requireNonNull(flowName, "flowName is required and cannot be null");
-        final ChannelURL channelURL = ChannelURL.parse(flowName);
-        if (channelURL.hasProtocol()) {
-            throw new IllegalArgumentException(String.format(
-                "definedFlow('%s') expects the plain name of an internal flow (the value passed to " +
-                    "Pipelite.defineFlow(...)), not a URL and not a fromSource(...) resource — omit the " +
-                    "protocol (e.g. '%s', not '%s://%s'); routing to that flow is applied automatically, " +
-                    "and a direct channel adapter (Kafka/HTTP/...) is never a valid dead letter target",
-                flowName, channelURL.getEndpointURL(), channelURL.getProtocol(), channelURL.getEndpointURL()));
-        }
-        this.flowName = flowName;
+    public ChannelErrorChannelOperations toChannel(String target) {
+        Objects.requireNonNull(target, "target is required and cannot be null");
+        rejectSecondTarget("toChannel(...)");
+        this.target = target;
+        this.channelType = ErrorChannelDefinition.ChannelType.DEFINED_CHANNEL;
         return this;
     }
 
     @Override
+    public DeadLetterQueueErrorChannelOperations toDLQ() {
+        rejectSecondTarget("toDLQ()");
+        this.channelType = ErrorChannelDefinition.ChannelType.DEAD_LETTER_QUEUE;
+        return this;
+    }
+
+    private void rejectSecondTarget(String attempted) {
+        if (channelType != null) {
+            throw new IllegalStateException(String.format(
+                "%s cannot be declared after %s - an error channel has exactly one target",
+                attempted, channelType == ErrorChannelDefinition.ChannelType.DEAD_LETTER_QUEUE ? "toDLQ()" : "toChannel(...)"));
+        }
+    }
+
+    @Override
     public String getEndpointURL() {
-        return flowName;
+        return target;
     }
 
     @Override
     public ErrorChannelDefinition.ChannelType getErrorChannelType() {
-        return ErrorChannelDefinition.ChannelType.DEFINED_CHANNEL;
+        return channelType;
     }
 
 }

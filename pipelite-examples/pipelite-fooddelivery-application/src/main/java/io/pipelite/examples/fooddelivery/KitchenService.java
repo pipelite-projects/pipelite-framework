@@ -32,7 +32,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * <p>Also throws an occasional transient "equipment glitch" (see
  * {@link #EQUIPMENT_GLITCH_PROBABILITY}) — a failure with no lasting cause, so it's expected to
  * succeed on a later attempt. This is what {@code kitchenProcessingFlow}'s
- * {@code .withRetryChannel(...)} exists to demonstrate: at ~20% failure probability per attempt,
+ * {@code .withRetry(...)} exists to demonstrate: at ~20% failure probability per attempt,
  * the odds of exhausting all 3 configured attempts in a row are under 1%, so in practice this
  * shows retries recovering, not messages being dropped.
  */

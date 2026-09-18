@@ -68,7 +68,7 @@ public class PipeliteFlowExecutionDumpSurvivesRestartIntegrationTest {
                     throw new RuntimeException("simulated persistent failure - this process never recovers");
                 })
                 .toSink("resume-test-end")
-                .withRetryChannel(retry -> retry.maxAttempts(50))
+                .withRetry(retry -> retry.maxAttempts(50).onErrorChannel(err -> err.toDLQ()))
                 .build();
 
             firstRun.registerFlowDefinition(failingFlow);
@@ -77,7 +77,7 @@ public class PipeliteFlowExecutionDumpSurvivesRestartIntegrationTest {
             final ExchangeFactory exchangeFactory = firstRun.getExchangeFactory();
             firstRun.supplyExchange(SOURCE, exchangeFactory.createExchange("order-42"));
 
-            final Path dumpsDirectory = temporaryFolder.getRoot().toPath().resolve("state").resolve("flow-execution-dumps");
+            final Path dumpsDirectory = temporaryFolder.getRoot().toPath().resolve("state").resolve("retry");
             Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> countDumpFiles(dumpsDirectory) >= 1);
 
             // Simulates a crash/kill: stop this context without ever letting the message succeed.
@@ -97,18 +97,18 @@ public class PipeliteFlowExecutionDumpSurvivesRestartIntegrationTest {
             final DefaultPipeliteContext secondRun = new DefaultPipeliteContext();
             final AtomicInteger secondRunSuccesses = new AtomicInteger(0);
 
-            // .withRetryChannel(...) kept, matching realistic usage: a flow's DSL definition is
+            // .withRetry(...) kept, matching realistic usage: a flow's DSL definition is
             // re-declared identically on every process start, restart included - only the
             // processor's own behavior differs here, standing in for whatever was actually fixed.
             // This also matters mechanically: the retry-channel (and the poll loop that would
             // ever pick this dump back up) is only created at all if some registered flow
-            // declares .withRetryChannel(...) - confirmed by first writing this test without it
+            // declares .withRetry(...) - confirmed by first writing this test without it
             // here and watching the second run hang forever with no RetryService in its logs.
             final FlowDefinition recoveredFlow = Pipelite.defineFlow(FLOW_NAME)
                 .fromSource(SOURCE)
                 .process(PROCESSOR_NAME, (io, c) -> secondRunSuccesses.incrementAndGet())
                 .toSink("resume-test-end")
-                .withRetryChannel(retry -> retry.maxAttempts(50))
+                .withRetry(retry -> retry.maxAttempts(50).onErrorChannel(err -> err.toDLQ()))
                 .build();
 
             secondRun.registerFlowDefinition(recoveredFlow);

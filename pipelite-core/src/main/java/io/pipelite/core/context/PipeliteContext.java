@@ -71,7 +71,7 @@ public interface PipeliteContext {
      * Looks up a registered {@link Flow} by its own name — the value passed to
      * {@code Pipelite.defineFlow(String flowName)} — not by its {@code fromSource(...)} resource
      * (see {@link #tryFindFlow(String)} for that). Used to route to a dead-letter flow declared
-     * via {@code .withErrorChannel(c -> c.definedFlow(flowName))}: that value identifies the
+     * via {@code .withErrorChannel(err -> err.toChannel(flowName))}: that value identifies the
      * target flow itself, independent of whatever resource it happens to consume from.
      */
     Optional<Flow> tryFindFlowByName(String flowName);

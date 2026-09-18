@@ -17,6 +17,7 @@ package io.pipelite.core.context;
 
 import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
+import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
 import io.pipelite.core.flow.execution.inbox.DurableInboxDeadLetterWriter;
 import io.pipelite.spi.inbox.DurableInboxProvider;
 
@@ -72,5 +73,13 @@ public interface ConfigurablePipeliteContext extends PipeliteContext {
      * {@link PipeliteContext#start()}, which is when recovery actually runs.
      */
     void setDurableInboxDeadLetterWriter(DurableInboxDeadLetterWriter writer);
+
+    /**
+     * Overrides the framework's built-in, ready-to-use dead letter queue (issue #93) - by
+     * default a file-backed one under {@code PipeliteHome}, one file per dead-lettered exchange.
+     * Must be called before {@link PipeliteContext#start()}, which is when flows are actually
+     * wired up.
+     */
+    void setDeadLetterQueueRepository(DeadLetterQueueRepository repository);
 
 }

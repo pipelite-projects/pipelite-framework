@@ -18,6 +18,8 @@ package io.pipelite.core;
 import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
+import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
+import io.pipelite.core.flow.execution.deadletter.DeadLetteredExchange;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
@@ -26,9 +28,11 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -112,7 +116,7 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
                 pendingCountDuringRetry.set(repository.pendingCount());
             })
             .toSink("dump-removal-timing-out")
-            .withRetryChannel(retry -> retry.maxAttempts(5))
+            .withRetry(retry -> retry.maxAttempts(5).onErrorChannel(err -> err.toDLQ()))
             .build();
 
         pipeliteContext.registerFlowDefinition(testFlow);
@@ -129,10 +133,18 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> repository.pendingCount() == 0);
     }
 
+    /**
+     * Issue #91 reshaped this scenario: retry can no longer be declared without an exhaustion
+     * action, so "exhausted with no dead-letter channel" is no longer expressible. This now
+     * exercises the built-in DLQ (issue #93) as that action instead - the original dump must
+     * still be removed (not leaked) once its replacement lands in the DLQ.
+     */
     @Test
-    public void givenRetryAttemptsAreExhaustedWithNoDeadLetterChannel_thenTheDumpIsEventuallyRemovedNotLeaked() {
+    public void givenRetryAttemptsAreExhaustedWithBuiltInDlqConfigured_thenTheOriginalDumpIsRemovedAndTheEntryIsWrittenToTheDlq() {
 
         final AtomicInteger attemptCount = new AtomicInteger(0);
+        final List<DeadLetteredExchange> dlqEntries = new CopyOnWriteArrayList<>();
+        pipeliteContext.setDeadLetterQueueRepository(dlqEntries::add);
 
         final FlowDefinition testFlow = Pipelite.defineFlow("dump-removal-exhaustion-flow")
             .fromSource("dump-removal-exhaustion-in")
@@ -141,7 +153,7 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
                 throw new RuntimeException("simulated persistent failure");
             })
             .toSink("dump-removal-exhaustion-out")
-            .withRetryChannel(retry -> retry.maxAttempts(2))
+            .withRetry(retry -> retry.maxAttempts(2).onErrorChannel(err -> err.toDLQ()))
             .build();
 
         pipeliteContext.registerFlowDefinition(testFlow);
@@ -152,6 +164,8 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> attemptCount.get() == 2);
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> repository.pendingCount() == 0);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> dlqEntries.size() == 1);
+        Assert.assertEquals("dump-removal-exhaustion-flow", dlqEntries.get(0).getFlowName());
     }
 
 }

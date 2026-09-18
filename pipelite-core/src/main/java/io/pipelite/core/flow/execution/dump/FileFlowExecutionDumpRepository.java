@@ -37,7 +37,7 @@ import java.util.stream.Stream;
 /**
  * File-backed {@link FlowExecutionDumpRepository}: one {@code .dump} file per dump under a
  * caller-supplied directory ({@code DefaultPipeliteContext}'s default is {@code
- * PipeliteHome.resolve("state/flow-execution-dumps")} — see issue #68), with locked reads/writes
+ * PipeliteHome.resolve("state/retry")} — see issue #68), with locked reads/writes
  * delegated to {@link LockedFileStore}. Unlike {@link FlowExecutionDumpInMemoryRepository} (no
  * longer the default, kept for callers that want zero I/O over durability), a saved dump survives
  * a process crash or restart.
@@ -84,6 +84,7 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
     private static final String ATTEMPT_NUMBER_KEY = "attemptNumber";
     private static final String STACK_TRACE_KEY = "stackTrace";
     private static final String MAX_ATTEMPTS_KEY = "maxAttempts";
+    private static final String EXHAUSTION_ACTION_KEY = "exhaustionAction";
     private static final String DEAD_LETTER_FLOW_NAME_KEY = "deadLetterFlowName";
     private static final String EXCHANGE_DATA_KEY = "exchangeData";
     private static final String ENCODING_KEY = "encoding";
@@ -188,6 +189,7 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
         properties.setProperty(ATTEMPT_NUMBER_KEY, String.valueOf(dump.getAttemptNumber()));
         putIfNotNull(properties, STACK_TRACE_KEY, dump.getStackTrace());
         properties.setProperty(MAX_ATTEMPTS_KEY, String.valueOf(dump.getMaxAttempts()));
+        properties.setProperty(EXHAUSTION_ACTION_KEY, dump.getExhaustionAction().name());
         putIfNotNull(properties, DEAD_LETTER_FLOW_NAME_KEY, dump.getDeadLetterFlowName());
         putIfNotNull(properties, EXCHANGE_DATA_KEY, dump.getExchangeData());
         putIfNotNull(properties, ENCODING_KEY, dump.getEncoding());
@@ -238,6 +240,12 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
         dump.setAttemptNumber(Integer.parseInt(properties.getProperty(ATTEMPT_NUMBER_KEY)));
         dump.setStackTrace(properties.getProperty(STACK_TRACE_KEY));
         dump.setMaxAttempts(Integer.parseInt(properties.getProperty(MAX_ATTEMPTS_KEY)));
+        // Defaults to NONE for a dump written before this field existed - same safe-default
+        // convention as STATUS_KEY below (never actually happens today, pre-1.0.0).
+        final String exhaustionActionText = properties.getProperty(EXHAUSTION_ACTION_KEY);
+        dump.setExhaustionAction(exhaustionActionText != null
+            ? FlowExecutionDump.ExhaustionAction.valueOf(exhaustionActionText)
+            : FlowExecutionDump.ExhaustionAction.NONE);
         dump.setDeadLetterFlowName(properties.getProperty(DEAD_LETTER_FLOW_NAME_KEY));
         dump.setExchangeData(properties.getProperty(EXCHANGE_DATA_KEY), properties.getProperty(ENCODING_KEY));
         // Defaults to PENDING for a file written before this field existed - never actually
