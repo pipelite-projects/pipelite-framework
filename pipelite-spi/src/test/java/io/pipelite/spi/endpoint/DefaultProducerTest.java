@@ -15,8 +15,9 @@
  */
 package io.pipelite.spi.endpoint;
 
+import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.exchange.Exchange;
 import io.pipelite.spi.flow.exchange.SimpleMessage;
 import org.junit.Assert;
@@ -51,9 +52,9 @@ public class DefaultProducerTest {
         private Exchange capturedExchange;
 
         @Override
-        public void handleException(Throwable exception, Exchange exchange) {
+        public void handleException(Throwable exception, IOContext ioContext) {
             this.capturedException = exception;
-            this.capturedExchange = exchange;
+            this.capturedExchange = (Exchange) ioContext;
         }
     }
 

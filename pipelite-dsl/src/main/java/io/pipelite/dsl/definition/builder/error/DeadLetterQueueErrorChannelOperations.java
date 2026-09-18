@@ -13,26 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.definition.internal;
+package io.pipelite.dsl.definition.builder.error;
 
 import io.pipelite.dsl.definition.ErrorChannelDefinition;
-import io.pipelite.spi.endpoint.EndpointURL;
 
-public class ErrorChannelDefinitionImpl implements ErrorChannelDefinition {
-
-    private final EndpointURL endpointURL;
-
-    public ErrorChannelDefinitionImpl(String endpointURL) {
-        this.endpointURL = EndpointURL.parse(endpointURL);
-    }
-
-    @Override
-    public String getEndpointURL() {
-        return endpointURL.getResource();
-    }
-
-    @Override
-    public ChannelType getErrorChannelType() {
-        return ChannelType.RETRY_CHANNEL;
-    }
+/**
+ * Marker (issue #91/#93) letting {@code c -> c.toDLQ()} type-check as an
+ * {@code ErrorChannelConfigurator} return value - mirrors {@link ChannelErrorChannelOperations}.
+ */
+public interface DeadLetterQueueErrorChannelOperations extends ErrorChannelDefinition {
 }

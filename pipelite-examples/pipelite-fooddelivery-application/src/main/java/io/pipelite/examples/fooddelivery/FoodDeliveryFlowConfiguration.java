@@ -42,9 +42,10 @@ import java.util.concurrent.TimeUnit;
  *                                                            ▼
  * http://orders               ─┐
  * file://.../partner-orders   ─┼─► link://kitchen-start   (concurrency=4, "kitchen stations")
- *                               │       │  .withRetryChannel(maxAttempts=3) — transient
- *                               │       │  "equipment glitch" (see KitchenService), retried in
- *                               │       │  place, never dead-lettered
+ *                               │       │  .withRetry(maxAttempts=3).onErrorChannel(toDLQ()) —
+ *                               │       │  transient "equipment glitch" (see KitchenService),
+ *                               │       │  retried in place, exhaustion falls back to the
+ *                               │       │  built-in dead letter queue (issue #93)
  *                               │       ▼
  *                               │   kafka://order-events  (publish)
  *                               │       │
@@ -52,17 +53,17 @@ import java.util.concurrent.TimeUnit;
  *                               │   kafka://order-events, groupId=dispatch-service  (consume)
  *                               │       │
  *                               └─► link://dispatch-start (concurrency=3, "dispatch coordinators")
- *                                       │  .withRetryChannel(maxAttempts=2)
- *                                       │  .withErrorChannel(definedFlow("dispatch-dead-letter"))
+ *                                       │  .withRetry(maxAttempts=2)
+ *                                       │  .onErrorChannel(toChannel("dispatch-dead-letter"))
  *                                       │  validate-order-amount: orders over the manual-review
  *                                       │  threshold always fail (deterministic, not transient) —
  *                                       │  retried twice regardless, then dead-lettered
  *                                       ▼
  *                                  DeliveryLogWriter: one file://.../delivery-log-&lt;driver&gt;.csv per courier
  *
- * definedFlow("dispatch-dead-letter") ─► dispatchDeadLetterFlow (resolved by its own defineFlow
- *                                         name, "dispatch-dead-letter" — not by fromSource)
- *                                             ─► file://.../rejected-orders.log
+ * toChannel("dispatch-dead-letter") ─► dispatchDeadLetterFlow (resolved by its own defineFlow
+ *                                       name, "dispatch-dead-letter" — not by fromSource)
+ *                                           ─► file://.../rejected-orders.log
  * </pre>
  *
  * <p>Every {@code fromSource(...)} below uses the typed {@code SourceConfigurer} mechanism
@@ -84,12 +85,13 @@ import java.util.concurrent.TimeUnit;
  * file, called directly from the {@code write-delivery-record} process step instead of through
  * a sink URL.
  *
- * <p><b>Retry channel / dead letter channel demo (issue #5)</b>: {@code kitchenProcessingFlow}
- * shows {@code .withRetryChannel(...)} used alone — a transient failure that's expected to
- * eventually succeed, so no dead letter channel is configured; exhausting {@code maxAttempts}
- * would just drop the message (the documented fallback), which in practice essentially never
- * happens here since the failure probability is independent per attempt.
- * {@code dispatchProcessingFlow} shows the two composed: a deterministic validation failure
+ * <p><b>Retry / dead letter queue demo (issues #5, #91, #93)</b>: {@code kitchenProcessingFlow}
+ * shows retry with the built-in dead letter queue as its exhaustion action — a transient failure
+ * that's expected to eventually succeed, so no {@code Flow} is built just to catch the rare case
+ * it doesn't; exhausting {@code maxAttempts} lands the order in the DLQ instead of being dropped,
+ * which in practice essentially never happens here since the failure probability is independent
+ * per attempt. {@code dispatchProcessingFlow} shows retry composed with a named dead-letter flow:
+ * a deterministic validation failure
  * (order total above {@link #MANUAL_REVIEW_THRESHOLD}) can never succeed no matter how many
  * times it's retried, so after {@code maxAttempts} the dead letter channel — not silent drop —
  * is what makes the order visible again, in {@code dispatchDeadLetterFlow}.
@@ -190,11 +192,14 @@ public class FoodDeliveryFlowConfiguration {
             })
             .transformPayload("serialize-order-event", payloadHolder -> payloadHolder.getPayloadAs(Order.class).toKafkaEventJson(objectMapper))
             .toSink(String.format("kafka://%s", ORDER_EVENTS_TOPIC))
-            // Retry channel alone: KitchenService.prepareOrder's occasional "equipment glitch" is
-            // transient, so redelivering the same order (resumed directly at prepare-order, not
-            // replayed from the flow's source) is expected to eventually succeed. No dead letter
-            // channel configured here - see the class Javadoc for why that's the deliberate choice.
-            .withRetryChannel(retry -> retry.maxAttempts(KITCHEN_MAX_ATTEMPTS))
+            // Retry, exhaustion routed to the built-in DLQ (issue #93): KitchenService
+            // .prepareOrder's occasional "equipment glitch" is transient, so redelivering the
+            // same order (resumed directly at prepare-order, not replayed from the flow's
+            // source) is expected to eventually succeed - the DLQ is a safety net for the rare
+            // case it doesn't, not a Flow the user has to build just to catch that.
+            .withRetry(retry -> retry
+                .maxAttempts(KITCHEN_MAX_ATTEMPTS)
+                .onErrorChannel(err -> err.toDLQ()))
             .build();
     }
 
@@ -230,8 +235,9 @@ public class FoodDeliveryFlowConfiguration {
             // Composed: retry first (in case validate-order-amount's failure were ever transient),
             // then - once genuinely exhausted - the dead letter channel, not silent drop. Resumed
             // retries jump directly back to validate-order-amount, not the flow's source.
-            .withRetryChannel(retry -> retry.maxAttempts(DISPATCH_MAX_ATTEMPTS))
-            .withErrorChannel(c -> c.definedFlow(DISPATCH_DEAD_LETTER_FLOW))
+            .withRetry(retry -> retry
+                .maxAttempts(DISPATCH_MAX_ATTEMPTS)
+                .onErrorChannel(err -> err.toChannel(DISPATCH_DEAD_LETTER_FLOW)))
             .build();
     }
 

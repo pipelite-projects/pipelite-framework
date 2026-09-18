@@ -18,7 +18,7 @@ package io.pipelite.dsl.definition;
 public interface ErrorChannelDefinition {
 
     enum ChannelType {
-        RETRY_CHANNEL, DEFINED_CHANNEL;
+        DEFINED_CHANNEL, DEAD_LETTER_QUEUE;
     }
 
     String getEndpointURL();

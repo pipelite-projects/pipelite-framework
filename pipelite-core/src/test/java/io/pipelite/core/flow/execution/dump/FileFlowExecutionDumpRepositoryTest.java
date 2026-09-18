@@ -37,7 +37,7 @@ public class FileFlowExecutionDumpRepositoryTest {
 
     @Before
     public void setup() {
-        directory = temporaryFolder.getRoot().toPath().resolve("flow-execution-dumps");
+        directory = temporaryFolder.getRoot().toPath().resolve("retry");
         subject = new FileFlowExecutionDumpRepository(directory);
     }
 

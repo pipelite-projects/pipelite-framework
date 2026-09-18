@@ -17,7 +17,7 @@ package io.pipelite.core.definition.internal;
 
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.dsl.definition.ProcessorDefinition;
-import io.pipelite.spi.flow.ExceptionHandler;
+import io.pipelite.dsl.process.ExceptionHandler;
 
 public class ProcessorDefinitionImpl implements ProcessorDefinition {
 

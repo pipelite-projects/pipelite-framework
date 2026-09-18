@@ -15,8 +15,9 @@
  */
 package io.pipelite.core.flow;
 
+import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.exchange.Exchange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +52,10 @@ public class GlobalDefaultExceptionHandler implements ExceptionHandler {
     }
 
     @Override
-    public void handleException(Throwable exception, Exchange exchange) {
+    public void handleException(Throwable exception, IOContext ioContext) {
+        // Downcast is safe here: this handler is only ever wired by FlowDefinitionBuilder for
+        // internal use and always invoked with a real Exchange (see issue #91).
+        final Exchange exchange = (Exchange) ioContext;
         if (sysLogger.isErrorEnabled()) {
             // Only ever set by AbstractProcessorNode/SplitterNode - absent for a failure at the
             // consumer's own enqueue step (see this class's own Javadoc), the one case where no

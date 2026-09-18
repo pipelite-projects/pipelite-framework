@@ -28,7 +28,7 @@ public interface FlowRegistry {
      * Looks up a registered {@link Flow} by its own declared name — the value passed to
      * {@code Pipelite.defineFlow(String flowName)} — as opposed to {@link #tryFindFlow(String)},
      * which resolves by the flow's {@code fromSource(...)} resource. The two can differ; this is
-     * the lookup used by the dead-letter channel ({@code definedFlow(flowName)}), which targets a
+     * the lookup used by the dead-letter channel ({@code toChannel(flowName)}), which targets a
      * flow's identity, not its transport-level source.
      */
     Optional<Flow> tryFindFlowByName(String flowName);

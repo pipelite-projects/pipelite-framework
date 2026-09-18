@@ -15,15 +15,20 @@
  */
 package io.pipelite.dsl.definition.builder;
 
+import io.pipelite.dsl.process.ExceptionHandler;
+
+/**
+ * Three mutually-exclusive, terminal entry points (issue #91) - each returns {@link
+ * EndOperations} (only {@code .build()} next), so none can be chained with another. This makes a
+ * custom {@code ExceptionHandler} configured alongside retry/error-channel structurally
+ * impossible to write, rather than silently ignored at runtime. See
+ * io.pipelite.core.definition.builder.FlowDefinitionBuilder#resolveExceptionHandler for how each
+ * one resolves into a single {@code ExceptionHandler}.
+ */
 public interface BuildOperations extends EndOperations {
 
-    // Return BuildOperations (not EndOperations) so these three are chainable with each other in
-    // any combination/order before build() — e.g. .withRetryChannel(...).withErrorChannel(...) —
-    // instead of each call being a dead end that only leaves build() available. See
-    // io.pipelite.core.definition.builder.FlowDefinitionBuilder#resolveExceptionHandler for how
-    // retry + dead-letter compose into a single ExceptionHandler when both are declared.
-    BuildOperations withRetryChannel();
-    BuildOperations withRetryChannel(RetryChannelConfigurator configurator);
-    BuildOperations withErrorChannel(ErrorChannelConfigurator configurator);
+    EndOperations withRetry(RetryConfigurator configurator);
+    EndOperations withErrorChannel(ErrorChannelConfigurator configurator);
+    EndOperations withExceptionHandler(ExceptionHandler exceptionHandler);
 
 }

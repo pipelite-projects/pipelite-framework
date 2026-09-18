@@ -18,7 +18,7 @@ package io.pipelite.core.definition.internal;
 import io.pipelite.core.definition.DuplicateProcessorNameException;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
 import io.pipelite.dsl.definition.*;
-import io.pipelite.spi.flow.ExceptionHandler;
+import io.pipelite.dsl.process.ExceptionHandler;
 
 import java.util.ArrayList;
 import java.util.Collection;

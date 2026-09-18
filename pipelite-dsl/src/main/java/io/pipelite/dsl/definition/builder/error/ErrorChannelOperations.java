@@ -18,17 +18,25 @@ package io.pipelite.dsl.definition.builder.error;
 public interface ErrorChannelOperations {
 
     /**
-     * Declares the internal flow that dead-lettered exchanges are routed to. {@code flowName} is
-     * the target flow's own name — the exact value passed to that flow's own
-     * {@code Pipelite.defineFlow(String flowName)} — not a URL, not a protocol, and not
-     * necessarily that flow's {@code fromSource(...)} resource (the two may differ; resolution is
-     * always by flow identity, via {@code PipeliteContext.tryFindFlowByName(...)}). A direct
-     * channel adapter (Kafka, HTTP, ...) is never a valid target — there's no reason to bypass
-     * Pipelite's own flow abstraction for this, since the target flow can itself forward wherever
-     * it needs to (external system, audit log, ...) once it receives the exchange. The rejection
-     * of any protocol-qualified value is enforced by the implementation, not just documented —
-     * see {@code ErrorChannelBuilder}.
+     * Declares where a dead-lettered exchange is routed to (issue #91) - renamed and broadened
+     * from {@code definedFlow(String)}. Accepts either:
+     * <ul>
+     *     <li>a bare name - the target flow's own name, the exact value passed to that flow's own
+     *     {@code Pipelite.defineFlow(String flowName)}, not necessarily its {@code fromSource(...)}
+     *     resource; resolved via {@code PipeliteContext.tryFindFlowByName(...)}, exactly as
+     *     {@code definedFlow(...)} always did;</li>
+     *     <li>a protocol-qualified URL (e.g. {@code link://...}, {@code kafka://...}) - delivered
+     *     directly to that channel adapter's {@code Producer}, with no {@code Flow} required to
+     *     receive it. Resolved the same way {@code PipeliteContext.supplyExchange(...)} already
+     *     resolves its own protocol branch.</li>
+     * </ul>
      */
-    DefinedErrorChannelOperations definedFlow(String flowName);
+    ChannelErrorChannelOperations toChannel(String target);
+
+    /**
+     * Declares the framework's built-in, ready-to-use dead letter queue as the target - no
+     * {@code Flow} and no channel adapter required (issue #93).
+     */
+    DeadLetterQueueErrorChannelOperations toDLQ();
 
 }

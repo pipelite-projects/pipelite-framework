@@ -15,8 +15,8 @@
  */
 package io.pipelite.spi.endpoint;
 
+import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.context.AbstractService;
-import io.pipelite.spi.flow.ExceptionHandler;
 import io.pipelite.spi.flow.concurrent.DefaultThreadFactory;
 import io.pipelite.spi.flow.concurrent.ExecutorType;
 import io.pipelite.spi.flow.concurrent.FlowNameAbbreviator;

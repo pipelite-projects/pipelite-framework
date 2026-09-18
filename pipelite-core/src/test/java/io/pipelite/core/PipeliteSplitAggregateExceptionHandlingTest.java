@@ -105,7 +105,7 @@ public class PipeliteSplitAggregateExceptionHandlingTest {
                 })
                 .end())
             .toSink("split-retry-out")
-            .withRetryChannel()
+            .withRetry(retry -> retry.onErrorChannel(err -> err.toDLQ()))
             .build();
 
         context.registerFlowDefinition(flow);

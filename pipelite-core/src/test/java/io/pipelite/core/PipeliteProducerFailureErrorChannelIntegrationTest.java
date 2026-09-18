@@ -70,7 +70,7 @@ public class PipeliteProducerFailureErrorChannelIntegrationTest {
         final FlowDefinition mainFlow = Pipelite.defineFlow("producer-failure-flow")
             .fromSource("producer-failure-in")
             .toSink("file://" + unwritableTarget)
-            .withErrorChannel(c -> c.definedFlow("producer-failure-dead-letter-flow"))
+            .withErrorChannel(err -> err.toChannel("producer-failure-dead-letter-flow"))
             .build();
 
         pipeliteContext.registerFlowDefinition(deadLetterFlow);

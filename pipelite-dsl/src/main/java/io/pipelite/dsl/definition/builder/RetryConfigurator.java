@@ -15,15 +15,17 @@
  */
 package io.pipelite.dsl.definition.builder;
 
-import io.pipelite.dsl.definition.builder.retry.RetryChannelOperations;
+import io.pipelite.dsl.definition.builder.retry.RetryOperations;
+import io.pipelite.dsl.definition.builder.retry.RetryTerminalOperations;
 
 /**
- * Consumer-style on purpose (no return value), unlike {@link ErrorChannelConfigurator}: avoids
- * the class of bug fixed on {@code DefinedErrorChannelOperations}, where a fluent method's
- * return type didn't match what the configurator contract required callers to hand back.
+ * Renamed from {@code RetryChannelConfigurator} (issue #91). Unlike before, the lambda must now
+ * return a {@link RetryTerminalOperations} - obtainable only by calling {@code onErrorChannel(...)}/
+ * {@code onExceptionHandler(...)} on the given {@link RetryOperations} - so a retry with no
+ * exhaustion action ({@code retry -> retry.maxAttempts(3)} alone) no longer type-checks.
  */
-public interface RetryChannelConfigurator {
+public interface RetryConfigurator {
 
-    void configure(RetryChannelOperations builder);
+    RetryTerminalOperations configure(RetryOperations retry);
 
 }

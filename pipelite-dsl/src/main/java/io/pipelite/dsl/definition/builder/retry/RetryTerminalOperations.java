@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.spi.flow;
+package io.pipelite.dsl.definition.builder.retry;
 
-import io.pipelite.spi.flow.exchange.Exchange;
-
-public interface ExceptionHandler {
-
-    void handleException(Throwable exception, Exchange exchange);
-
+/**
+ * Empty marker (issue #91): the only way to obtain one is calling
+ * {@link RetryOperations#onErrorChannel}/{@link RetryOperations#onExceptionHandler} - so
+ * {@code retry -> retry.maxAttempts(3)} alone no longer type-checks as a {@code
+ * RetryConfigurator}. A retry with no exhaustion action becomes a compile error instead of a
+ * runtime check.
+ */
+public interface RetryTerminalOperations {
 }

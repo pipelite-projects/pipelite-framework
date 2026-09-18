@@ -17,7 +17,7 @@ package io.pipelite.core.definition.builder;
 
 import io.pipelite.core.definition.internal.*;
 import io.pipelite.core.definition.builder.error.ErrorChannelBuilder;
-import io.pipelite.core.definition.builder.error.RetryChannelBuilder;
+import io.pipelite.core.definition.builder.retry.RetryBuilder;
 import io.pipelite.core.definition.builder.internal.Builder;
 import io.pipelite.core.definition.builder.route.RecipientListBuilder;
 import io.pipelite.core.definition.builder.route.RouteDefinitionBuilder;
@@ -25,6 +25,8 @@ import io.pipelite.core.definition.builder.split.SplitSegmentBuilder;
 import io.pipelite.core.flow.DeadLetterChannelExceptionHandler;
 import io.pipelite.core.flow.GlobalDefaultExceptionHandler;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
+import io.pipelite.core.flow.execution.FlowExecutionDump;
+import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueExceptionHandler;
 import io.pipelite.core.flow.expression.TextExpressionEvaluator;
 import io.pipelite.core.flow.process.ProcessorNodeFactory;
 import io.pipelite.core.flow.process.filter.ExpressionFilterNodeFactory;
@@ -42,7 +44,7 @@ import io.pipelite.dsl.route.RoutingTable;
 import io.pipelite.dsl.split.SplitConfigurator;
 import io.pipelite.dsl.split.SplitSegment;
 import io.pipelite.expression.ExpressionParser;
-import io.pipelite.spi.flow.ExceptionHandler;
+import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.flow.exchange.FlowNode;
 
 import java.util.Objects;
@@ -57,11 +59,18 @@ public class FlowDefinitionBuilder implements FlowOperations {
     private final ConditionEvaluator conditionEvaluator;
     private final TextExpressionEvaluator textExpressionEvaluator;
 
-    // Accumulated by withRetryChannel(...)/withErrorChannel(...), composed into a single
-    // ExceptionHandler in build() — see resolveExceptionHandler().
+    // Accumulated by withRetry(...)/withErrorChannel(...)/withExceptionHandler(...) - the DSL's
+    // three mutually-exclusive entry points (issue #91) - composed into a single ExceptionHandler
+    // in build() — see resolveExceptionHandler(). retry's own exhaustion action (declared via
+    // .onErrorChannel(...)/.onExceptionHandler(...) inside withRetry(...)) reuses the same
+    // deadLetterFlowName/builtInDeadLetterQueueRequested/customExceptionHandler fields a bare
+    // top-level withErrorChannel(...)/withExceptionHandler(...) would set.
+    private String declaredFailureHandling;
     private boolean retryChannelRequested = false;
-    private int retryMaxAttempts = RetryChannelBuilder.DEFAULT_MAX_ATTEMPTS;
+    private int retryMaxAttempts = RetryBuilder.DEFAULT_MAX_ATTEMPTS;
+    private boolean builtInDeadLetterQueueRequested = false;
     private String deadLetterFlowName;
+    private ExceptionHandler customExceptionHandler;
 
     public FlowDefinitionBuilder(String flowName){
 
@@ -168,43 +177,74 @@ public class FlowDefinitionBuilder implements FlowOperations {
         return this;
     }
 
+    /**
+     * The retry entry point (issue #91) - unlike before, an exhaustion action is mandatory: the
+     * configurator lambda can only return a value by calling
+     * {@code retry.onErrorChannel(...)}/{@code retry.onExceptionHandler(...)}, so
+     * {@code retry -> retry.maxAttempts(3)} alone no longer type-checks.
+     */
     @Override
-    public BuildOperations withRetryChannel() {
+    public EndOperations withRetry(RetryConfigurator configurator) {
+        declareFailureHandling("withRetry(...)");
+        final RetryBuilder retryBuilder = new RetryBuilder();
+        configurator.configure(retryBuilder);
         retryChannelRequested = true;
-        return this;
-    }
-
-    @Override
-    public BuildOperations withRetryChannel(RetryChannelConfigurator configurator) {
-        final RetryChannelBuilder retryChannelBuilder = new RetryChannelBuilder();
-        configurator.configure(retryChannelBuilder);
-        retryChannelRequested = true;
-        retryMaxAttempts = retryChannelBuilder.getMaxAttempts();
-        return this;
-    }
-
-    @Override
-    public BuildOperations withErrorChannel(ErrorChannelConfigurator configurator) {
-
-        final ErrorChannelDefinition errorChannelDefinition = configurator.configure(new ErrorChannelBuilder());
-        final ErrorChannelDefinition.ChannelType channelType = errorChannelDefinition.getErrorChannelType();
-
-        if (Objects.requireNonNull(channelType) == ErrorChannelDefinition.ChannelType.RETRY_CHANNEL) {
-            retryChannelRequested = true;
+        retryMaxAttempts = retryBuilder.getMaxAttempts();
+        // retryBuilder.getBackoff() accepted by the DSL but not yet consumed here - separate
+        // follow-up issue (see RetryOperations#backoff's own Javadoc).
+        final ErrorChannelDefinition errorChannelDefinition = retryBuilder.getErrorChannelDefinition();
+        if (errorChannelDefinition != null) {
+            applyErrorChannelDefinition(errorChannelDefinition);
         } else {
-            deadLetterFlowName = errorChannelDefinition.getEndpointURL();
+            customExceptionHandler = retryBuilder.getExceptionHandler();
         }
         return this;
     }
 
+    @Override
+    public EndOperations withErrorChannel(ErrorChannelConfigurator configurator) {
+        declareFailureHandling("withErrorChannel(...)");
+        final ErrorChannelDefinition errorChannelDefinition = configurator.configure(new ErrorChannelBuilder());
+        applyErrorChannelDefinition(errorChannelDefinition);
+        return this;
+    }
+
+    @Override
+    public EndOperations withExceptionHandler(ExceptionHandler exceptionHandler) {
+        declareFailureHandling("withExceptionHandler(...)");
+        this.customExceptionHandler = Objects.requireNonNull(exceptionHandler, "exceptionHandler is required and cannot be null");
+        return this;
+    }
+
     /**
-     * Composes whatever combination of {@code withRetryChannel(...)}/{@code withErrorChannel(...)}
-     * was declared into a single {@code ExceptionHandler} — retry alone, dead-letter alone
-     * (routes on the first failure, no retry), or both together (retry first, dead-letter only
-     * once {@code RetryStrategyFilter} exhausts attempts; see {@code RetryChannelExceptionHandler}).
-     * Previously these two DSL methods each wrote directly to the same single
-     * {@code exceptionHandler} field, so declaring both on one flow meant the second call
-     * silently discarded the first.
+     * The three entry points are mutually exclusive by type in a fluent chain, but this builder is
+     * mutable and returns {@code this}, so holding a {@code BuildOperations} reference and calling
+     * a second one would otherwise silently combine them (with {@link #resolveExceptionHandler()}'s
+     * fixed priority discarding the loser). Fail fast instead.
+     */
+    private void declareFailureHandling(String entryPoint) {
+        if (declaredFailureHandling != null) {
+            throw new IllegalStateException(String.format(
+                "%s cannot be combined with %s - withRetry(...), withErrorChannel(...) and " +
+                    "withExceptionHandler(...) are mutually exclusive, declare exactly one per flow",
+                entryPoint, declaredFailureHandling));
+        }
+        declaredFailureHandling = entryPoint;
+    }
+
+    private void applyErrorChannelDefinition(ErrorChannelDefinition errorChannelDefinition) {
+        if (Objects.requireNonNull(errorChannelDefinition.getErrorChannelType()) == ErrorChannelDefinition.ChannelType.DEAD_LETTER_QUEUE) {
+            builtInDeadLetterQueueRequested = true;
+        } else {
+            deadLetterFlowName = errorChannelDefinition.getEndpointURL();
+        }
+    }
+
+    /**
+     * Composes whatever the DSL's three mutually-exclusive entry points (issue #91) resolved into
+     * a single {@code ExceptionHandler}. Their mutual exclusivity at the type level means this is
+     * never asked to reconcile conflicting declarations — unlike before #91, when a custom
+     * handler alongside retry/error-channel could be configured but was silently ignored.
      */
     @Override
     public FlowDefinition build() {
@@ -215,20 +255,33 @@ public class FlowDefinitionBuilder implements FlowOperations {
 
     /**
      * Falls back to {@link GlobalDefaultExceptionHandler} (issue #87) rather than {@code null}
-     * when neither {@code withRetryChannel(...)} nor {@code withErrorChannel(...)} was declared —
-     * see that class's own Javadoc for why a real (if minimal) default handler, instead of no
-     * handler at all, is what fixes the inconsistent-behavior-per-layer and stuck-durable-inbox-
-     * entry problems this issue tracks.
+     * when nothing was declared — see that class's own Javadoc for why a real (if minimal)
+     * default handler, instead of no handler at all, is what fixes the inconsistent-behavior-per-
+     * layer and stuck-durable-inbox-entry problems that issue tracks.
      */
     private ExceptionHandler resolveExceptionHandler() {
         if (retryChannelRequested) {
             final RetryChannelExceptionHandler handler = new RetryChannelExceptionHandler();
             handler.setMaxAttempts(retryMaxAttempts);
-            handler.setDeadLetterFlowName(deadLetterFlowName);
+            if (builtInDeadLetterQueueRequested) {
+                handler.setExhaustionAction(FlowExecutionDump.ExhaustionAction.BUILT_IN_DLQ);
+            } else if (deadLetterFlowName != null) {
+                handler.setExhaustionAction(FlowExecutionDump.ExhaustionAction.DEAD_LETTER_FLOW);
+                handler.setDeadLetterFlowName(deadLetterFlowName);
+            } else {
+                handler.setExhaustionAction(FlowExecutionDump.ExhaustionAction.FLOW_EXCEPTION_HANDLER);
+                handler.setExhaustionExceptionHandler(customExceptionHandler);
+            }
             return handler;
+        }
+        if (builtInDeadLetterQueueRequested) {
+            return new DeadLetterQueueExceptionHandler();
         }
         if (deadLetterFlowName != null) {
             return new DeadLetterChannelExceptionHandler(deadLetterFlowName);
+        }
+        if (customExceptionHandler != null) {
+            return customExceptionHandler;
         }
         return new GlobalDefaultExceptionHandler();
     }

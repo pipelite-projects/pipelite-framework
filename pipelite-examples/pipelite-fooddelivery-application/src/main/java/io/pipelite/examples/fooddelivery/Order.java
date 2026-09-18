@@ -28,7 +28,7 @@ import java.math.BigDecimal;
  * {@link DispatchService}, and serialized for the Kafka hop / final audit log.
  *
  * <p>Implements {@link Serializable} because {@code kitchenProcessingFlow}/{@code
- * dispatchProcessingFlow} carry it through {@code .withRetryChannel(...)}: on a failure,
+ * dispatchProcessingFlow} carry it through {@code .withRetry(...)}: on a failure,
  * {@code RetryChannelExceptionHandler} Java-serializes the whole {@code Exchange} (payload
  * included) into the durable {@code FlowExecutionDump} — any payload type used on a flow with a
  * retry channel or dead letter channel must be serializable for that to succeed.
