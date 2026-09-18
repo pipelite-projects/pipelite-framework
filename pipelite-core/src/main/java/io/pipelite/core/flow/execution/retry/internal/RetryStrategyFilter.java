@@ -85,11 +85,19 @@ class RetryStrategyFilter implements Processor {
                             deadLetterFlowName, executionDump.getId());
                     }
                 }
+            } else if(sysLogger.isErrorEnabled()){
+                // Same "make it visible, not silent" fix as GlobalDefaultExceptionHandler (#87) -
+                // this path was previously exactly as silent as that one, just reached via
+                // withRetryChannel(...) alone (no dead-letter configured) instead of no error
+                // handling at all.
+                sysLogger.error("FlowExecutionDump {} discarded after exhausting {} attempt(s) - " +
+                        "no dead-letter channel is configured for this flow, so no further recovery was attempted",
+                    executionDump.getId(), executionDump.getMaxAttempts());
             }
 
-            // Execution stops here either way (dead-lettered, warned about, or silently dropped
-            // per the documented no-dead-letter-configured fallback) - every one of those outcomes
-            // is final for this dump, so it is now safe to remove (see #58: removing any earlier,
+            // Execution stops here either way (dead-lettered, warned about, or discarded per the
+            // documented no-dead-letter-configured fallback) - every one of those outcomes is
+            // final for this dump, so it is now safe to remove (see #58: removing any earlier,
             // before the outcome was known, is exactly the gap this filter exists to close).
             dumpRepository.remove(executionDump.getId());
         }
