@@ -61,36 +61,3 @@ The *Recipient List* pattern sends the message to *multiple flows* simultaneousl
 
 NOTE: The `toRecipientList` API via `ProcessOperations` is deprecated.
 Prefer the variant via `toRoute(route -> route.dynamic())`.
-
-== Routing Slip
-
-The *Routing Slip* dynamically specifies the sequence of flows to traverse.
-The list of destinations is read from the `routing-slip` property of the `Exchange`.
-
-[source,java]
-----
-.toRoute(route -> route.dynamic()
-    .routingSlip()
-)
-----
-
-Setting the routing slip on the Exchange:
-
-[source,java]
-----
-exchange.setRoutingSlip(RoutingSlip.of("flow-a", "flow-b", "flow-c"));
-----
-
-The framework processes the flows in the specified order, using the `RoutingSlipRouterNode`.
-
-== Return Address
-
-The *Return Address* pattern routes the response to the flow indicated in the `return-address` header.
-
-[source,java]
-----
-// Set by the caller before sending the message
-exchange.setReturnAddress("reply-handler-flow");
-----
-
-The `ReturnAddressRouterNode` reads the header and routes the Exchange to the corresponding flow in the registry.

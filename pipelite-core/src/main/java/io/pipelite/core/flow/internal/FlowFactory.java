@@ -20,7 +20,8 @@ import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.flow.FlowNodeConfigurer;
 import io.pipelite.core.flow.process.FlowExecutionExchangePostProcessor;
 import io.pipelite.core.flow.process.FlowExecutionExchangePreProcessor;
-import io.pipelite.core.flow.route.ReturnAddressRouterNode;
+import io.pipelite.core.flow.route.FlowExitNode;
+import io.pipelite.core.flow.route.RouteNodeFactory;
 import io.pipelite.core.support.LogUtils;
 import io.pipelite.dsl.definition.EndpointDefinition;
 import io.pipelite.dsl.definition.FlowDefinition;
@@ -106,11 +107,11 @@ public class FlowFactory {
             injectDependencies(processor);
             setPrePostProcessors(processor);
 
-            if(!processorsIterator.hasNext() && endpointDefinition == null){
-                // If it's last processor and there is no sinkEndpoint
-                // then add Return-Address router proxy
-                processor = new ReturnAddressRouterNode(processor);
-                injectDependencies(processor);
+            if(!processorsIterator.hasNext() && processor instanceof FlowExitNode){
+                // The flow's own exit (toRoute/toRecipientList): a routing slip with routes
+                // left is followed instead of it
+                previousProcessor = appendRoutingSlipGate(previousProcessor, RouteNodeFactory.routingSlipGate(),
+                    flowName, sourceEndpointURL, exceptionHandler);
             }
 
             previousProcessor.setNext(processor);
@@ -132,10 +133,32 @@ public class FlowFactory {
             producer.tag(producerTag);
 
             Objects.requireNonNull(previousProcessor, "previousProcessor is required here!");
+            previousProcessor = appendRoutingSlipGate(previousProcessor, RouteNodeFactory.routingSlipGate(),
+                flowName, sourceEndpointURL, exceptionHandler);
             previousProcessor.setNext(producer);
+        } else if(!(previousProcessor instanceof FlowExitNode)){
+            // No exit of its own: the end of the flow follows a routing slip and, once it is
+            // exhausted, replies to the return address
+            appendRoutingSlipGate(previousProcessor, RouteNodeFactory.endOfFlowGate(),
+                flowName, sourceEndpointURL, exceptionHandler);
         }
 
         return new Flow(flowName, sourceEndpointURL.getResource(), sourceEndpoint, consumer);
+    }
+
+    /**
+     * Named and wired like a processor so a failed hop is reported through the flow's exception
+     * handler and a retry can resume right at the gate (see {@code FlowNodeLocator}).
+     */
+    private FlowNode appendRoutingSlipGate(FlowNode previous, FlowNode gate, String flowName,
+                                           EndpointURL sourceEndpointURL, ExceptionHandler exceptionHandler){
+        gate.setFlowName(flowName);
+        gate.setSourceEndpointResource(sourceEndpointURL.getResource());
+        gate.setProcessorName(RouteNodeFactory.routingSlipGateName());
+        gate.setExceptionHandler(exceptionHandler);
+        injectDependencies(gate);
+        previous.setNext(gate);
+        return gate;
     }
 
     private void injectDependencies(Object flowNode){

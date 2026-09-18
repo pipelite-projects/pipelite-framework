@@ -77,6 +77,12 @@ public class DefaultExchangeFactory implements ExchangeFactory {
 
     @Override
     public Exchange nextExchange(Exchange current) {
+        // An exchange built by hand (new Exchange(input)) has no output message yet. It used to
+        // only matter for a flow with a sink; every flow's last step now also moves on to the
+        // end-of-flow routing slip gate (issue #86), so it has to cope with it.
+        if(current.getOutput() == null){
+            current.setOutput(messageFactory.createMessage());
+        }
         current.forwardIfNecessary();
         final Headers headersCopy = new HeadersImpl((HeadersImpl) current.getHeaders());
         final Exchange exchange = new Exchange(current.getOutput(), headersCopy);

@@ -15,7 +15,14 @@
  */
 package io.pipelite.dsl;
 
-import io.pipelite.dsl.route.RoutingSlip;
+// Disabled for the first stable release (issue #86): the Return Address and Routing Slip
+// activation through the exchange is not settled yet and is likely to change, so it is not part
+// of the public API. The implementation is kept, internal and unchanged: Exchange still has both
+// methods (see Exchange#setReturnAddress/#setRoutingSlip), FlowFactory still wires the end-of-flow
+// gate, RoutingSlip and the tests are all in place. Uncomment the two methods below (and the
+// import), and the @Override on the Exchange side, to bring the feature back.
+//
+// import io.pipelite.dsl.route.RoutingSlip;
 
 public interface IOContext extends Headers {
 
@@ -29,8 +36,16 @@ public interface IOContext extends Headers {
 
     void setOutputPayload(Object payload);
 
-    void setReturnAddress(String flowName);
+    // void setReturnAddress(String flowName);
 
-    void setRoutingSlip(RoutingSlip routingSlip);
+    // /**
+    //  * Attaches the itinerary of this exchange (Routing Slip EIP). At the end of this flow, and of
+    //  * every flow the exchange then goes through, a slip with routes left takes priority over the
+    //  * flow's own exit ({@code toSink}, {@code toRoute}, return address): the exchange hops to the
+    //  * next route instead. Setting a slip therefore changes where this flow's exchange goes. It
+    //  * replaces any slip already attached, so a step can re-plan the remaining route. Not followed
+    //  * if a step fails or stops the execution. See {@link RoutingSlip} for what a route may be.
+    //  */
+    // void setRoutingSlip(RoutingSlip routingSlip);
 
 }

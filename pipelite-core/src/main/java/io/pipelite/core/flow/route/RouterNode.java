@@ -34,7 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Package-private since #82: construct via {@link RouteNodeFactory#router(RoutingTable,
  * TextExpressionEvaluator)}.
  */
-class RouterNode extends AbstractFlowNode implements PipeliteContextAware {
+class RouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowExitNode {
 
     private final RoutingTable<?> routingTable;
     private final TextExpressionEvaluator textExpressionEvaluator;

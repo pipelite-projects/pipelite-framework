@@ -40,4 +40,24 @@ public final class RouteNodeFactory {
         return new RecipientListRouterNode(recipientList, conditionEvaluator);
     }
 
+    /**
+     * Follows a routing slip in front of a flow's exit (the producer of a {@code toSink(...)}, or
+     * a {@link FlowExitNode}): the exit only runs when there is no slip route left to take.
+     */
+    public static FlowNode routingSlipGate() {
+        return new RoutingSlipGateNode(false);
+    }
+
+    /**
+     * The end of a flow with no exit of its own: follows a routing slip, and only once it is
+     * exhausted (or never set) replies to the exchange's return address.
+     */
+    public static FlowNode endOfFlowGate() {
+        return new RoutingSlipGateNode(true);
+    }
+
+    public static String routingSlipGateName() {
+        return RoutingSlipGateNode.PROCESSOR_NAME;
+    }
+
 }
