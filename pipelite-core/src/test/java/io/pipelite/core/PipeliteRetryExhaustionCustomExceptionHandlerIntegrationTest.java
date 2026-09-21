@@ -80,7 +80,7 @@ public class PipeliteRetryExhaustionCustomExceptionHandlerIntegrationTest {
 
             try {
                 final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-                pipeliteContext.supplyExchange("retry-exhaustion-custom-handler-in", exchangeFactory.createExchange("poison-payload"));
+                pipeliteContext.supplyExchange("link://retry-exhaustion-custom-handler-in", exchangeFactory.createExchange("poison-payload"));
 
                 Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> attemptCount.get() == 2);
                 Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> capturedException.get() != null);
@@ -130,7 +130,7 @@ public class PipeliteRetryExhaustionCustomExceptionHandlerIntegrationTest {
             firstRun.start();
 
             final ExchangeFactory exchangeFactory = firstRun.getExchangeFactory();
-            firstRun.supplyExchange("retry-exhaustion-restart-in", exchangeFactory.createExchange("poison-payload"));
+            firstRun.supplyExchange("link://retry-exhaustion-restart-in", exchangeFactory.createExchange("poison-payload"));
 
             final Path dumpsDirectory = temporaryFolder.getRoot().toPath().resolve("state").resolve("retry");
             Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> firstRunAttempts.get() == 1);

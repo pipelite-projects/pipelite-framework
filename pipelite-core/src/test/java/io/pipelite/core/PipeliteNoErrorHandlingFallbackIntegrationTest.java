@@ -16,6 +16,7 @@
 package io.pipelite.core;
 
 import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.awaitility.Awaitility;
@@ -64,7 +65,7 @@ public class PipeliteNoErrorHandlingFallbackIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange(resource, exchangeFactory.createExchange("poison-payload"));
+        pipeliteContext.supplyExchange(ChannelProtocols.linkURL(resource), exchangeFactory.createExchange("poison-payload"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> invocationCount.get() == 1);
 
@@ -100,11 +101,11 @@ public class PipeliteNoErrorHandlingFallbackIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange(resource, exchangeFactory.createExchange("poison-payload"));
+        pipeliteContext.supplyExchange(ChannelProtocols.linkURL(resource), exchangeFactory.createExchange("poison-payload"));
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> invocationCount.get() == 1);
 
         // The dispatch thread must have survived the unhandled failure above to process this one.
-        pipeliteContext.supplyExchange(resource, exchangeFactory.createExchange("good-payload"));
+        pipeliteContext.supplyExchange(ChannelProtocols.linkURL(resource), exchangeFactory.createExchange("good-payload"));
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> successCount.get() == 1);
     }
 

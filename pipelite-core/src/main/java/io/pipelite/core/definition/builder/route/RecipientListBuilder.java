@@ -16,6 +16,7 @@
 package io.pipelite.core.definition.builder.route;
 
 import io.pipelite.common.support.Preconditions;
+import io.pipelite.core.context.internal.DestinationURLs;
 import io.pipelite.core.definition.builder.internal.Builder;
 import io.pipelite.dsl.definition.builder.route.RecipientListOperations;
 import io.pipelite.dsl.route.ExpressionCondition;
@@ -54,6 +55,9 @@ public class RecipientListBuilder implements RecipientListOperations, RecipientL
     public ToRecipientOperations toRecipients(String... recipients) {
 
         Preconditions.notNull(recipients, "recipients is required and cannot be null");
+        for (String recipient : recipients) {
+            DestinationURLs.requireStatic(recipient, "toRecipients(...)");
+        }
         final Collection<String> recipientLists = Arrays.asList(recipients);
         recipientLists.forEach(recipient -> builder.with(t -> t.addRecipient(recipient)));
 

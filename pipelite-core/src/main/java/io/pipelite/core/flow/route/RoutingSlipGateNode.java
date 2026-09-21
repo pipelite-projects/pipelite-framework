@@ -99,8 +99,8 @@ class RoutingSlipGateNode extends AbstractFlowNode implements PipeliteContextAwa
         } catch (RuntimeException exception) {
             undo.run();
             final IllegalStateException failure = new IllegalStateException(String.format(
-                "Unable to forward exchange of flow '%s' to '%s' - is there a flow declaring fromSource('%s')?",
-                getFlowName(), target, target), exception);
+                "Unable to forward exchange of flow '%s' to '%s' - does a registered flow declare that source?",
+                getFlowName(), target), exception);
             if (logger.isErrorEnabled()) {
                 logger.error("An underlying error occurred forwarding message", failure);
             }

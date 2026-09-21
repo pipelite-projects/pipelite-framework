@@ -57,9 +57,9 @@ public class ReturnAddressRouterNodeTest {
         context.start();
 
         final ExchangeImpl exchange = exchangeFactory.createExchange("Hello Pipelite!");
-        exchange.setReturnAddress("recipient-start");
+        exchange.setReturnAddress("link://recipient-start");
 
-        context.supplyExchange("sender-start", exchange);
+        context.supplyExchange("link://sender-start", exchange);
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(replayedToDestination::get);
     }

@@ -20,6 +20,7 @@ import io.pipelite.core.context.impl.DefaultMessageFactory;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.core.definition.internal.FlowDefinitionImpl;
 import io.pipelite.core.definition.internal.SinkDefinitionImpl;
+import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.dsl.definition.EndpointDefinition;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.ProcessorDefinition;
@@ -111,7 +112,6 @@ import java.util.stream.Collectors;
 public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, WhenOperations, ThenOperations {
 
     private static final long DEFAULT_TIMEOUT_SECONDS = 5L;
-    private static final String LINK_PROTOCOL = "link";
 
     // --- shared input ---
     private final HeadersImpl headers;
@@ -248,7 +248,7 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
 
             final ExchangeImpl flowExchange = context.getExchangeFactory().createExchange(headers, inputPayload);
             CaptureChannelAdapter.attachTestId(flowExchange, testId);
-            context.supplyExchange(entryPointEndpoint, flowExchange);
+            context.supplyExchange(toDestinationURL(entryPointEndpoint), flowExchange);
             captured = captureFuture.get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (TimeoutException ignored) {
             final Throwable failure = flowFailure.get();
@@ -271,6 +271,17 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
 
         capturedFlowExchange = captured;
         return this;
+    }
+
+    /**
+     * {@code supplyTo(...)} takes the name of the entry point flow's source endpoint, as its own
+     * {@code fromSource(...)} declares it; the context delivers to URLs only (issue #102), so a bare
+     * name is addressed through {@code link://} here. A value that is already a URL is used as is.
+     */
+    private static String toDestinationURL(String entryPointEndpoint) {
+        return ChannelURL.parse(entryPointEndpoint).hasProtocol()
+            ? entryPointEndpoint
+            : ChannelProtocols.linkURL(entryPointEndpoint);
     }
 
     /**
@@ -301,7 +312,7 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
         }
 
         final EndpointDefinition endpointDefinition = original.endpointDefinition();
-        if (endpointDefinition != null && !LINK_PROTOCOL.equals(ChannelURL.parse(endpointDefinition.getUrl()).getProtocol())) {
+        if (endpointDefinition != null && !ChannelProtocols.LINK.equals(ChannelURL.parse(endpointDefinition.getUrl()).getProtocol())) {
             copy.setEndpointDefinition(new SinkDefinitionImpl(CaptureChannelAdapter.CAPTURE_ENDPOINT_URL));
         } else {
             copy.setEndpointDefinition(endpointDefinition);

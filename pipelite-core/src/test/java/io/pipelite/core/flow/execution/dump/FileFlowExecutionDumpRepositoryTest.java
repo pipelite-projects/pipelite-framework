@@ -49,7 +49,7 @@ public class FileFlowExecutionDumpRepositoryTest {
         dump.setAttemptNumber(2);
         dump.setStackTrace("java.lang.RuntimeException: boom\n\tat Somewhere.java:1");
         dump.setMaxAttempts(5);
-        dump.setDeadLetterFlowName("a-dead-letter-flow");
+        dump.setDeadLetterTarget("a-dead-letter-flow");
         dump.setExchangeData("c29tZS1wYXlsb2Fk", "base64");
         return dump;
     }
@@ -77,22 +77,22 @@ public class FileFlowExecutionDumpRepositoryTest {
         Assert.assertEquals(saved.getAttemptNumber(), loaded.getAttemptNumber());
         Assert.assertEquals(saved.getStackTrace(), loaded.getStackTrace());
         Assert.assertEquals(saved.getMaxAttempts(), loaded.getMaxAttempts());
-        Assert.assertEquals(saved.getDeadLetterFlowName(), loaded.getDeadLetterFlowName());
+        Assert.assertEquals(saved.getDeadLetterTarget(), loaded.getDeadLetterTarget());
         Assert.assertEquals(saved.getExchangeData(), ((SerializedFlowExecutionDump) loaded).getExchangeData());
         Assert.assertEquals(saved.getEncoding(), ((SerializedFlowExecutionDump) loaded).getEncoding());
     }
 
     @Test
-    public void shouldRoundTripNullDeadLetterFlowNameAndFailedProcessorAsNullNotEmptyString() {
+    public void shouldRoundTripNullDeadLetterTargetAndFailedProcessorAsNullNotEmptyString() {
 
         final SerializedFlowExecutionDump saved = aDump("dump-2", LocalDateTime.now());
-        saved.setDeadLetterFlowName(null);
+        saved.setDeadLetterTarget(null);
         saved.setFailedProcessor(null);
         subject.save(saved);
 
         final FlowExecutionDump loaded = subject.tryLoad("dump-2").orElseThrow();
 
-        Assert.assertNull("deadLetterFlowName must round-trip as null, not empty string", loaded.getDeadLetterFlowName());
+        Assert.assertNull("deadLetterTarget must round-trip as null, not empty string", loaded.getDeadLetterTarget());
         Assert.assertNull("failedProcessor must round-trip as null, not empty string", loaded.getFailedProcessor());
     }
 

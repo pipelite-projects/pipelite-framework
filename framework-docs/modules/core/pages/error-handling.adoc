@@ -40,21 +40,12 @@ FlowDefinition flow = Pipelite.defineFlow("flow-with-error-channel")
     .fromSource("http://api/v1/ingest")
     .process("process", exchange -> { /* ... */ })
     .toSink("slf4j://output")
-    .withErrorChannel(builder ->
-        builder.toSink("slf4j://error-log")   // <1>
-               .build()
-    )
+    .withErrorChannel(err -> err.toChannel("link://ingest-dead-letter"))   // <1>
     .build();
 ----
-<1> The error channel sends the error message to the configured sink.
+<1> The target is a URL, like every destination in the DSL: `link://<source endpoint name>` for an internal flow (the name its `fromSource(...)` declares, not the flow's own name), or a registered channel adapter's protocol (`kafka://...`) for an external system. A bare name is rejected when the flow is defined.
 
-`ErrorChannelOperations` exposes:
-
-[source,java]
-----
-builder.toSink(String url)   // destination for the error message
-       .build()              // produces ErrorChannelDefinition
-----
+`err.toDLQ()` targets the framework's built-in dead letter queue instead, with no flow to write.
 
 == Default handler
 

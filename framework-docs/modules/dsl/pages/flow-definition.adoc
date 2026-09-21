@@ -107,8 +107,8 @@ See xref:routing.adoc[Routing] for complete documentation.
 [source,java]
 ----
 .toRoute(route -> route.contentBased()
-    .when(new PayloadTypeCondition(OrderEvent.class), "order-flow")
-    .otherwise("default-flow")
+    .when(new PayloadTypeCondition(OrderEvent.class), "link://order-flow")
+    .otherwise("link://default-flow")
     .build()
 )
 ----

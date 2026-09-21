@@ -17,6 +17,7 @@ package io.pipelite.core.flow.route;
 
 import io.pipelite.core.Pipelite;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
+import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.dsl.route.RoutingSlip;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.awaitility.Awaitility;
@@ -71,7 +72,7 @@ public class RoutingSlipRouterNodeTest {
     }
 
     private void supply(String source, ExchangeImpl exchange) {
-        context.supplyExchange(source, exchange);
+        context.supplyExchange(ChannelProtocols.linkURL(source), exchange);
     }
 
     @Test
@@ -81,7 +82,7 @@ public class RoutingSlipRouterNodeTest {
             .fromSource("a-start")
             .process("plan", (io, c) -> {
                 visit("a");
-                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("b-start", "c-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("link://b-start", "link://c-start"));
             })
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("b-flow")
@@ -108,7 +109,7 @@ public class RoutingSlipRouterNodeTest {
             .fromSource("sink-a-start")
             .process("plan", (io, c) -> {
                 visit("a");
-                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("sink-b-start", "sink-c-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("link://sink-b-start", "link://sink-c-start"));
             })
             .toSink("link://sink-a-out")
             .build());
@@ -146,7 +147,7 @@ public class RoutingSlipRouterNodeTest {
             .fromSource("route-a-start")
             .process("plan", (io, c) -> {
                 visit("a");
-                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("route-b-start", "route-c-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("link://route-b-start", "link://route-c-start"));
             })
             .build());
         for (String name : List.of("b", "c")) {
@@ -181,7 +182,7 @@ public class RoutingSlipRouterNodeTest {
             .fromSource("reply-a-start")
             .process("plan", (io, c) -> {
                 visit("a");
-                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("reply-b-start", "reply-c-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("link://reply-b-start", "link://reply-c-start"));
             })
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("reply-b")
@@ -199,7 +200,7 @@ public class RoutingSlipRouterNodeTest {
         context.start();
 
         final ExchangeImpl exchange = context.getExchangeFactory().createExchange("payload");
-        exchange.setReturnAddress("reply-origin-start");
+        exchange.setReturnAddress("link://reply-origin-start");
         supply("reply-a-start", exchange);
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> replies.size() == 1);
@@ -214,7 +215,7 @@ public class RoutingSlipRouterNodeTest {
         context.registerFlowDefinition(Pipelite.defineFlow("stop-a")
             .fromSource("stop-a-start")
             .process("plan", (io, c) -> {
-                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("stop-b-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("link://stop-b-start"));
                 c.stopExecution();
             })
             .build());
@@ -236,7 +237,7 @@ public class RoutingSlipRouterNodeTest {
         final AtomicReference<Throwable> failure = new AtomicReference<>();
         context.registerFlowDefinition(Pipelite.defineFlow("missing-a")
             .fromSource("missing-a-start")
-            .process("plan", (io, c) -> ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("nobody-declares-this")))
+            .process("plan", (io, c) -> ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("link://nobody-declares-this")))
             .withExceptionHandler((exception, ioContext) -> failure.set(exception))
             .build());
         context.start();

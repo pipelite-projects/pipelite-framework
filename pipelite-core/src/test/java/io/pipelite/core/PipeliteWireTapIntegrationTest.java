@@ -62,7 +62,7 @@ public class PipeliteWireTapIntegrationTest {
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
 
         final ExchangeImpl exchange = exchangeFactory.createExchange("Hello Pipelite!");
-        context.supplyExchange("origin-start", exchange);
+        context.supplyExchange("link://origin-start", exchange);
 
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> forwardedCount.get() == 1);
         Assert.assertTrue(originalProcessed.get());

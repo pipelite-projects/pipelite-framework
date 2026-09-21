@@ -20,16 +20,11 @@ import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ExceptionHandler;
-import io.pipelite.spi.channel.ChannelURL;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.Flow;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Optional;
 
 /**
  * Used when a flow declares {@code .withErrorChannel(err -> err.toChannel(target))} without also
@@ -37,15 +32,12 @@ import java.util.Optional;
  * target on the very first unhandled failure, no retry attempted. (When retry is also declared,
  * it runs first instead — see {@code RetryChannelExceptionHandler}/{@code RetryStrategyFilter},
  * which carry the same target through a {@code FlowExecutionDump} and route to it only once
- * attempts are exhausted.) {@code deadLetterTarget} is either a bare flow name - resolved via
- * {@code PipeliteContext.tryFindFlowByName(...)}, not by its {@code fromSource(...)} resource,
- * which may be a different string entirely - or a protocol-qualified channel adapter URL,
- * delivered directly via {@code PipeliteContext.supplyExchange(...)}'s own protocol resolution,
- * with no {@code Flow} required to receive it.
+ * attempts are exhausted.) {@code deadLetterTarget} is a URL, delivered through {@code
+ * PipeliteContext.supplyExchange(...)}: {@code link://<source endpoint name>} for an internal
+ * flow, or any registered channel adapter's protocol for an external system. Since issue #102 it
+ * is never a flow name: the flow name is an identity, not an address.
  */
 public class DeadLetterChannelExceptionHandler implements ExceptionHandler, PipeliteContextAware {
-
-    private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
     private final String deadLetterTarget;
 
@@ -74,19 +66,10 @@ public class DeadLetterChannelExceptionHandler implements ExceptionHandler, Pipe
         exchangeImpl.putHeader(IOKeys.FAILURE_EXCEPTION_MESSAGE_HEADER_NAME, failureException.getMessage());
         exchangeImpl.putHeader(IOKeys.FAILURE_STACK_TRACE_HEADER_NAME, formatStackTrace(failureException));
 
-        if (ChannelURL.parse(deadLetterTarget).hasProtocol()) {
-            // Reuses PipeliteContext.supplyExchange(...)'s own protocol branch as-is - same
-            // ChannelURL -> ChannelAdapter -> Endpoint -> Producer resolution, no Flow required.
-            pipeliteContext.supplyExchange(deadLetterTarget, exchangeImpl);
-            return;
-        }
-
-        final Optional<Flow> deadLetterFlow = pipeliteContext.tryFindFlowByName(deadLetterTarget);
-        if(deadLetterFlow.isPresent()){
-            deadLetterFlow.get().supply(exchangeImpl);
-        } else if(sysLogger.isWarnEnabled()){
-            sysLogger.warn("Dead letter flow '{}' is not registered, unable to route exchange", deadLetterTarget);
-        }
+        // The target is always a URL (issue #102): the same ChannelURL -> ChannelAdapter ->
+        // Endpoint -> Producer resolution reaches an internal flow (link://) and an external
+        // system alike, and RetryStrategyFilter delivers a retried exchange exactly the same way.
+        pipeliteContext.supplyExchange(deadLetterTarget, exchangeImpl);
 
     }
 

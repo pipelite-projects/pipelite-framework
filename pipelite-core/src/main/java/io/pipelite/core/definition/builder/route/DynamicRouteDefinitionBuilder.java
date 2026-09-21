@@ -16,6 +16,7 @@
 package io.pipelite.core.definition.builder.route;
 
 import io.pipelite.common.support.Preconditions;
+import io.pipelite.core.context.internal.DestinationURLs;
 import io.pipelite.dsl.definition.builder.route.DynamicRouteOperations;
 import io.pipelite.dsl.route.*;
 
@@ -46,6 +47,9 @@ public class DynamicRouteDefinitionBuilder implements DynamicRouteOperations,
     @Override
     public ThenOperations then(String... destinations) {
         Preconditions.state(destinations.length > 0, "Almost one destination is required");
+        for (String destination : destinations) {
+            DestinationURLs.requireStatic(destination, "then(...)");
+        }
         routes.add(new RouteEntry<>(RecipientList.of(destinations),
             new ExpressionCondition(expression)));
         return this;
@@ -53,6 +57,9 @@ public class DynamicRouteDefinitionBuilder implements DynamicRouteOperations,
 
     @Override
     public EndOperations otherwise(String... destinations) {
+        for (String destination : destinations) {
+            DestinationURLs.requireStatic(destination, "otherwise(...)");
+        }
         this.defaultRoutes = destinations;
         return this;
     }

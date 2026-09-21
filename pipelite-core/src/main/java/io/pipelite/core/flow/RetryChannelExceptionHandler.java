@@ -42,7 +42,7 @@ public class RetryChannelExceptionHandler implements ExceptionHandler {
     // re-set afterward.
     private int maxAttempts = RetryBuilder.DEFAULT_MAX_ATTEMPTS;
     private FlowExecutionDump.ExhaustionAction exhaustionAction = FlowExecutionDump.ExhaustionAction.NONE;
-    private String deadLetterFlowName;
+    private String deadLetterTarget;
 
     // Not copied onto FlowExecutionDump (custom handlers are often lambdas, not Serializable) -
     // re-read fresh from this same, currently-registered handler by RetryStrategyFilter at
@@ -78,8 +78,8 @@ public class RetryChannelExceptionHandler implements ExceptionHandler {
         this.exhaustionAction = Preconditions.notNull(exhaustionAction, "exhaustionAction is required and cannot be null");
     }
 
-    public void setDeadLetterFlowName(String deadLetterFlowName) {
-        this.deadLetterFlowName = deadLetterFlowName;
+    public void setDeadLetterTarget(String deadLetterTarget) {
+        this.deadLetterTarget = deadLetterTarget;
     }
 
     public void setExhaustionExceptionHandler(ExceptionHandler exhaustionExceptionHandler) {
@@ -113,7 +113,7 @@ public class RetryChannelExceptionHandler implements ExceptionHandler {
         executionDump.setStackTrace(formatStackTrace(failureException));
         executionDump.setMaxAttempts(maxAttempts);
         executionDump.setExhaustionAction(exhaustionAction);
-        executionDump.setDeadLetterFlowName(deadLetterFlowName);
+        executionDump.setDeadLetterTarget(deadLetterTarget);
 
         final String executionDumpId = executionDump.getId();
         exchangeImpl.setProperty(IOKeys.FLOW_EXECUTION_DUMP_ID_PROPERTY_NAME, executionDumpId);
