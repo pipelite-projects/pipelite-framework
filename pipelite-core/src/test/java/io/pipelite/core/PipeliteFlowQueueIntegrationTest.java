@@ -27,14 +27,13 @@ import org.junit.Test;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class PipeliteFlowLinkIntegrationTest {
+public class PipeliteFlowQueueIntegrationTest {
 
     private PipeliteContext context;
 
     @Before
     public void setup() {
         context = new DefaultPipeliteContext();
-        //context.registerComponent("link", new LinkComponent());
     }
 
     @Test
@@ -43,12 +42,12 @@ public class PipeliteFlowLinkIntegrationTest {
         final AtomicBoolean forwarded = new AtomicBoolean(false);
 
         final FlowDefinition origin = Pipelite.defineFlow("origin-flow")
-            .fromSource("origin-start")
-            .toSink("link://destination-start")
+            .fromSource("queue://origin-start")
+            .toSink("queue://destination-start")
             .build();
 
         final FlowDefinition destination = Pipelite.defineFlow("destination-flow")
-            .fromSource("destination-start")
+            .fromSource("queue://destination-start")
             .process("process-message", (ioContext, contribution) -> forwarded.set(true))
             .build();
 
@@ -57,7 +56,7 @@ public class PipeliteFlowLinkIntegrationTest {
         context.start();
 
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
-        context.supplyExchange("link://origin-start", exchangeFactory.createExchange("Hello Pipelite!"));
+        context.supplyExchange("queue://origin-start", exchangeFactory.createExchange("Hello Pipelite!"));
 
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(forwarded::get);
 

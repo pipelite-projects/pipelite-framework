@@ -61,7 +61,7 @@ public class PipeliteRetryExhaustionCustomExceptionHandlerIntegrationTest {
             final DefaultPipeliteContext pipeliteContext = new DefaultPipeliteContext();
 
             final FlowDefinition testFlow = Pipelite.defineFlow("retry-exhaustion-custom-handler-flow")
-                .fromSource("retry-exhaustion-custom-handler-in")
+                .fromSource("queue://retry-exhaustion-custom-handler-in")
                 .process("always-fail", (io, c) -> {
                     attemptCount.incrementAndGet();
                     throw new RuntimeException("simulated persistent failure");
@@ -80,7 +80,7 @@ public class PipeliteRetryExhaustionCustomExceptionHandlerIntegrationTest {
 
             try {
                 final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-                pipeliteContext.supplyExchange("link://retry-exhaustion-custom-handler-in", exchangeFactory.createExchange("poison-payload"));
+                pipeliteContext.supplyExchange("queue://retry-exhaustion-custom-handler-in", exchangeFactory.createExchange("poison-payload"));
 
                 Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> attemptCount.get() == 2);
                 Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> capturedException.get() != null);
@@ -111,7 +111,7 @@ public class PipeliteRetryExhaustionCustomExceptionHandlerIntegrationTest {
             final AtomicInteger firstRunAttempts = new AtomicInteger(0);
 
             final FlowDefinition failingFlow = Pipelite.defineFlow("retry-exhaustion-restart-flow")
-                .fromSource("retry-exhaustion-restart-in")
+                .fromSource("queue://retry-exhaustion-restart-in")
                 .process("always-fail", (io, c) -> {
                     firstRunAttempts.incrementAndGet();
                     throw new RuntimeException("simulated persistent failure - never recovers this run");
@@ -130,7 +130,7 @@ public class PipeliteRetryExhaustionCustomExceptionHandlerIntegrationTest {
             firstRun.start();
 
             final ExchangeFactory exchangeFactory = firstRun.getExchangeFactory();
-            firstRun.supplyExchange("link://retry-exhaustion-restart-in", exchangeFactory.createExchange("poison-payload"));
+            firstRun.supplyExchange("queue://retry-exhaustion-restart-in", exchangeFactory.createExchange("poison-payload"));
 
             final Path dumpsDirectory = temporaryFolder.getRoot().toPath().resolve("state").resolve("retry");
             Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> firstRunAttempts.get() == 1);
@@ -148,7 +148,7 @@ public class PipeliteRetryExhaustionCustomExceptionHandlerIntegrationTest {
             final AtomicReference<Throwable> capturedException = new AtomicReference<>();
 
             final FlowDefinition recoveredFlow = Pipelite.defineFlow("retry-exhaustion-restart-flow")
-                .fromSource("retry-exhaustion-restart-in")
+                .fromSource("queue://retry-exhaustion-restart-in")
                 .process("always-fail", (io, c) -> {
                     throw new RuntimeException("still failing after the restart");
                 })

@@ -87,10 +87,10 @@ import java.util.stream.Collectors;
  * <p>The flow under test keeps whatever real sink it was written with — e.g.
  * {@code toSink("kafka://orders-out")}. Before the flow is registered with the
  * context, the fixture transparently redirects its terminal sink (any
- * non-{@code link://} endpoint) to an internal {@code test://} capture point
+ * non-{@code queue://} endpoint) to an internal {@code test://} capture point
  * handled by {@link CaptureChannelAdapter}, so the real channel adapter is
  * never actually invoked and the test author never needs to know about it.
- * {@code link://} hops between chained flows are left untouched, since only
+ * {@code queue://} hops between chained flows are left untouched, since only
  * the final flow's real sink should be captured.
  *
  * <pre>{@code
@@ -98,7 +98,7 @@ import java.util.stream.Collectors;
  *         Preconditions.flowDefinition(flow),
  *         Preconditions.header("X-Order-Id", "ORD-001"),
  *         Preconditions.inputPayload(order))
- *     .when(Actions.supplyTo("orders-in"))
+ *     .when(Actions.supplyTo("queue://orders-in"))
  *     .then(
  *         output(Expectations.isExecutionCompleted()),
  *         step("enrich", Expectations.hasHeader("X-Enriched-By")));
@@ -248,7 +248,7 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
 
             final ExchangeImpl flowExchange = context.getExchangeFactory().createExchange(headers, inputPayload);
             CaptureChannelAdapter.attachTestId(flowExchange, testId);
-            context.supplyExchange(toDestinationURL(entryPointEndpoint), flowExchange);
+            context.supplyExchange(entryPointEndpoint, flowExchange);
             captured = captureFuture.get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (TimeoutException ignored) {
             final Throwable failure = flowFailure.get();
@@ -274,21 +274,10 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
     }
 
     /**
-     * {@code supplyTo(...)} takes the name of the entry point flow's source endpoint, as its own
-     * {@code fromSource(...)} declares it; the context delivers to URLs only (issue #102), so a bare
-     * name is addressed through {@code link://} here. A value that is already a URL is used as is.
-     */
-    private static String toDestinationURL(String entryPointEndpoint) {
-        return ChannelURL.parse(entryPointEndpoint).hasProtocol()
-            ? entryPointEndpoint
-            : ChannelProtocols.linkURL(entryPointEndpoint);
-    }
-
-    /**
      * Returns a copy of {@code original} with the same flow name, source,
      * processor steps and exception handler, but with its terminal sink
      * redirected to an internal {@code test://} capture endpoint — unless
-     * that sink is a {@code link://} hop to another registered flow, which
+     * that sink is a {@code queue://} hop to another registered flow, which
      * must be left untouched so multi-flow chaining keeps working. A flow
      * with no sink (e.g. a recipient-list sub-flow) is copied with no sink.
      *
@@ -312,7 +301,7 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
         }
 
         final EndpointDefinition endpointDefinition = original.endpointDefinition();
-        if (endpointDefinition != null && !ChannelProtocols.LINK.equals(ChannelURL.parse(endpointDefinition.getUrl()).getProtocol())) {
+        if (endpointDefinition != null && !ChannelProtocols.QUEUE.equals(ChannelURL.parse(endpointDefinition.getUrl()).getProtocol())) {
             copy.setEndpointDefinition(new SinkDefinitionImpl(CaptureChannelAdapter.CAPTURE_ENDPOINT_URL));
         } else {
             copy.setEndpointDefinition(endpointDefinition);

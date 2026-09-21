@@ -27,7 +27,7 @@ public class DestinationURLsTest {
 
     @Test
     public void givenAURL_whenWrittenInTheDSL_thenItIsAccepted() {
-        Assert.assertEquals("link://x", DestinationURLs.requireStatic("link://x", "toChannel(...)"));
+        Assert.assertEquals("queue://x", DestinationURLs.requireStatic("queue://x", "toChannel(...)"));
         Assert.assertEquals("kafka://orders", DestinationURLs.requireStatic("kafka://orders", "wireTap(...)"));
     }
 
@@ -40,7 +40,7 @@ public class DestinationURLsTest {
             final String message = expected.getMessage();
             Assert.assertTrue(message, message.contains("then(...)"));
             Assert.assertTrue(message, message.contains("'kitchen-start' is not a URL"));
-            Assert.assertTrue(message, message.contains("link://kitchen-start"));
+            Assert.assertTrue(message, message.contains("queue://kitchen-start"));
         }
     }
 
@@ -54,8 +54,8 @@ public class DestinationURLsTest {
 
     @Test
     public void givenAURL_whenAboutToBeDeliveredTo_thenItIsParsed() {
-        final ChannelURL url = DestinationURLs.require("link://kitchen-start");
-        Assert.assertEquals("link", url.getProtocol());
+        final ChannelURL url = DestinationURLs.require("queue://kitchen-start");
+        Assert.assertEquals("queue", url.getProtocol());
         Assert.assertEquals("kitchen-start", url.getEndpointURL());
     }
 
@@ -67,7 +67,7 @@ public class DestinationURLsTest {
         } catch (IllegalArgumentException expected) {
             final String message = expected.getMessage();
             Assert.assertTrue(message, message.contains("'kitchen-start' is not a URL"));
-            Assert.assertTrue(message, message.contains("link://kitchen-start"));
+            Assert.assertTrue(message, message.contains("queue://kitchen-start"));
         }
     }
 

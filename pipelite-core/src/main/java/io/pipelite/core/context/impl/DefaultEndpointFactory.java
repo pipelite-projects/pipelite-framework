@@ -20,6 +20,7 @@ import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.context.ChannelAdapterManager;
 import io.pipelite.core.context.EndpointFactory;
 import io.pipelite.core.context.UnsupportedSourceConcurrencyException;
+import io.pipelite.core.context.internal.SourceURLs;
 import io.pipelite.core.definition.TypedSourceDefinition;
 import io.pipelite.dsl.definition.EndpointDefinition;
 import io.pipelite.dsl.definition.SourceConfigurer;
@@ -71,15 +72,20 @@ public class DefaultEndpointFactory implements EndpointFactory {
         }
 
         final String resolvedUrl = endpointURLPropertyResolver.resolve(endpointDefinition.getUrl());
+        // A source is a URL (issue #111): a value with no protocol, which the DSL could not see
+        // because it came from a placeholder, is rejected here.
+        if (endpointDefinition instanceof SourceDefinition) {
+            SourceURLs.requireProtocol(resolvedUrl);
+        }
         final ChannelURL channelURL = ChannelURL.parse(resolvedUrl);
-        if(channelURL.hasProtocol()){
-            rejectSourceConcurrencyParams(channelURL.getProtocol(), channelURL.getEndpointURL());
+        if (channelURL.hasProtocol()) {
             final ChannelAdapter channel = channelAdapterManager.resolveChannel(channelURL.getProtocol());
+            rejectSourceConcurrencyParams(channel, channelURL.getProtocol(), channelURL.getEndpointURL());
             final String endpointURL = applySourceConfigurer(endpointDefinition, channel, channelURL.getEndpointURL());
             return channel.createEndpoint(endpointURL);
         }
-        final String endpointURL = applySourceConfigurer(endpointDefinition, null, channelURL.getEndpointURL());
-        return new DefaultEndpoint(EndpointURL.parse(endpointURL));
+        // Only a sink can get here: a bare toSink("x") is still a producer that does nothing.
+        return new DefaultEndpoint(EndpointURL.parse(channelURL.getEndpointURL()));
     }
 
     /**
@@ -87,8 +93,8 @@ public class DefaultEndpointFactory implements EndpointFactory {
      * Javadoc) into the exact same query-string shape {@code EndpointURL} already supports, so
      * every downstream reader keeps working unchanged. A no-op for endpoints declared via the
      * plain {@code fromSource(String)} overload ({@code getConfigurerCallback()} is {@code null}).
-     * {@code channel} is {@code null} for the no-protocol/internal case, which always uses {@link
-     * SourceConcurrencyConfigurer} directly rather than asking any {@code ChannelAdapter} for one.
+     * {@code channel} is the adapter that builds the endpoint and hands out its configurer: the
+     * queue one a {@link SourceConcurrencyConfigurer}, the others their own.
      */
     private static String applySourceConfigurer(EndpointDefinition endpointDefinition, ChannelAdapter channel, String endpointURL) {
 
@@ -100,7 +106,7 @@ public class DefaultEndpointFactory implements EndpointFactory {
             return endpointURL;
         }
 
-        final SourceConfigurer settings = channel != null ? channel.newSourceConfigurer() : new SourceConcurrencyConfigurer();
+        final SourceConfigurer settings = channel.newSourceConfigurer();
         if (settings == null) {
             throw new IllegalStateException(String.format(
                 "Endpoint '%s' does not support a SourceConfigurer", endpointURL));
@@ -134,14 +140,18 @@ public class DefaultEndpointFactory implements EndpointFactory {
     }
 
     /**
-     * {@code concurrency}/{@code executorType} only apply to no-protocol (internal) sources —
-     * see {@link UnsupportedSourceConcurrencyException}. Deliberately does NOT call {@link
+     * {@code concurrency}/{@code executorType} only apply to a queue source, the one adapter whose
+     * source configurer is a {@link SourceConcurrencyConfigurer} - see {@link
+     * UnsupportedSourceConcurrencyException}. Deliberately does NOT call {@link
      * EndpointURL#parse(String)} (default resource pattern): some adapters (e.g. File) validate
      * their resource against a wider pattern of their own, and re-validating it here with the
      * default pattern would falsely reject otherwise-legitimate URLs. This only ever looks at the
      * raw query string, never the resource portion.
      */
-    private static void rejectSourceConcurrencyParams(String protocol, String endpointURL) {
+    private static void rejectSourceConcurrencyParams(ChannelAdapter channel, String protocol, String endpointURL) {
+        if (channel.newSourceConfigurer() instanceof SourceConcurrencyConfigurer) {
+            return;
+        }
         final int queryIndex = endpointURL.indexOf('?');
         if (queryIndex < 0) {
             return;

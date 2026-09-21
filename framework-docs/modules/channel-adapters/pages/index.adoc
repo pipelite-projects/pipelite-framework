@@ -35,10 +35,10 @@ Each adapter implements the SPI interface `ChannelAdapter` and is automatically 
 |`default-channel-adapters`
 |Payload logging via SLF4J (sink only).
 
-|xref:link.adoc[Link]
-|`link://`
+|xref:queue.adoc[Queue]
+|`queue://`
 |`default-channel-adapters`
-|Direct link between two internal flows.
+|The queue in front of an internal flow, to chain flows.
 |===
 
 == Automatic discovery

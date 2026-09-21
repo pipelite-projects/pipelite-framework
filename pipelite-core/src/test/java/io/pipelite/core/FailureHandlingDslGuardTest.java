@@ -31,7 +31,7 @@ public class FailureHandlingDslGuardTest {
 
     private static BuildOperations newBuilder() {
         return Pipelite.defineFlow("guard-flow")
-            .fromSource("guard-in")
+            .fromSource("queue://guard-in")
             .toSink("guard-out");
     }
 
@@ -89,7 +89,7 @@ public class FailureHandlingDslGuardTest {
     public void givenAnErrorChannelTargetIsDeclared_whenASecondOneIsDeclared_thenItFailsFast() {
         try {
             newBuilder().withErrorChannel(err -> {
-                err.toChannel("link://some-flow");
+                err.toChannel("queue://some-flow");
                 return err.toDLQ();
             });
             fail("expected IllegalStateException");

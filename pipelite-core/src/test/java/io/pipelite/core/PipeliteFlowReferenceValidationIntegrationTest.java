@@ -62,15 +62,15 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
     }
 
     @Test
-    public void givenALinkNoFlowDeclares_whenTheContextStarts_thenItFailsListingEveryProblemAndStartsNothing() {
+    public void givenAQueueNoFlowReads_whenTheContextStarts_thenItFailsListingEveryProblemAndStartsNothing() {
 
         pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("order-ingress-flow")
             .fromSource("http://orders")
-            .wireTap("audit", "link://missing-audit")
-            .toSink("link://kicthen-start")   // typo: the real source is "kitchen-start"
+            .wireTap("audit", "queue://missing-audit")
+            .toSink("queue://kicthen-start")   // typo: the real source is "kitchen-start"
             .build());
         pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("kitchen-processing-flow")
-            .fromSource("kitchen-start")
+            .fromSource("queue://kitchen-start")
             .process("cook", (io, c) -> { })
             .build());
 
@@ -79,8 +79,8 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
             Assert.fail("expected the context not to start");
         } catch (ContextValidationException expected) {
             Assert.assertEquals(List.of(
-                "Flow 'order-ingress-flow', toSink(...): target 'link://kicthen-start' has no registered flow declaring fromSource(\"kicthen-start\")",
-                "Flow 'order-ingress-flow', wireTap(...): target 'link://missing-audit' has no registered flow declaring fromSource(\"missing-audit\")"),
+                "Flow 'order-ingress-flow', toSink(...): target 'queue://kicthen-start' has no registered flow declaring fromSource(\"queue://kicthen-start\")",
+                "Flow 'order-ingress-flow', wireTap(...): target 'queue://missing-audit' has no registered flow declaring fromSource(\"queue://missing-audit\")"),
                 expected.getProblems());
         }
 
@@ -90,7 +90,7 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
     }
 
     /**
-     * Issue #101: {@code link://dup-src} must reach exactly one flow. Without the check the flow
+     * Issue #101: {@code queue://dup-src} must reach exactly one flow. Without the check the flow
      * registry (first registered wins) and the link adapter (last wins) disagreed about which one.
      */
     @Test
@@ -98,11 +98,11 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
 
         final List<String> seen = new CopyOnWriteArrayList<>();
         pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("dup-first")
-            .fromSource("dup-src")
+            .fromSource("queue://dup-src")
             .process("cap", (io, c) -> seen.add("first"))
             .build());
         pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("dup-second")
-            .fromSource("dup-src")
+            .fromSource("queue://dup-src")
             .process("cap", (io, c) -> seen.add("second"))
             .build());
 
@@ -111,7 +111,7 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
             Assert.fail("expected the context not to start");
         } catch (ContextValidationException expected) {
             Assert.assertEquals(List.of(
-                "Flow 'dup-second', fromSource(\"dup-src\"): source name 'dup-src' is already declared by flow 'dup-first'; link://dup-src must reach exactly one flow"),
+                "Flow 'dup-second', fromSource(\"queue://dup-src\"): queue 'dup-src' is already read by flow 'dup-first'; scale it with concurrency instead of declaring a second flow"),
                 expected.getProblems());
         }
 
@@ -133,12 +133,12 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
             .process("noop", (io, c) -> { })
             .build());
         pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("internal-flow")
-            .fromSource("shared-name")
+            .fromSource("queue://shared-name")
             .process("cook", (io, c) -> cooked.add(io.getInputPayloadAs(String.class)))
             .build());
 
         pipeliteContext.start();
-        pipeliteContext.supplyExchange("link://shared-name", pipeliteContext.getExchangeFactory().createExchange("order-1"));
+        pipeliteContext.supplyExchange("queue://shared-name", pipeliteContext.getExchangeFactory().createExchange("order-1"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> cooked.size() == 1);
         Assert.assertEquals(List.of("order-1"), cooked);
@@ -160,11 +160,11 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
         });
 
         pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("ingress")
-            .fromSource("ingress-start")
-            .toSink("link://kicthen-start")
+            .fromSource("queue://ingress-start")
+            .toSink("queue://kicthen-start")
             .build());
         pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("kitchen-flow")
-            .fromSource("kitchen-start")
+            .fromSource("queue://kitchen-start")
             .build());
 
         try {
@@ -172,7 +172,7 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
             Assert.fail("expected the context not to start");
         } catch (ContextValidationException expected) {
             Assert.assertEquals(List.of(
-                "Flow 'ingress', toSink(...): target 'link://kicthen-start' has no registered flow declaring fromSource(\"kicthen-start\")",
+                "Flow 'ingress', toSink(...): target 'queue://kicthen-start' has no registered flow declaring fromSource(\"queue://kicthen-start\")",
                 "Flow 'ingress', naming: a flow name must end with '-flow'"),
                 expected.getProblems());
         }
@@ -187,7 +187,7 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
             report.warn(null, "worth a look, not worth stopping for");
         };
         ((DefaultPipeliteContext) pipeliteContext).addContextValidator(warning);
-        pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("only-flow").fromSource("only-start").build());
+        pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("only-flow").fromSource("queue://only-start").build());
 
         pipeliteContext.start();
 
@@ -195,20 +195,20 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
     }
 
     @Test
-    public void givenEveryLinkPointsAtAFlow_whenTheContextStarts_thenExchangesFlowAcrossThem() {
+    public void givenEveryQueueIsReadByAFlow_whenTheContextStarts_thenExchangesFlowAcrossThem() {
 
         final List<String> cooked = new CopyOnWriteArrayList<>();
         pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("order-ingress-flow")
-            .fromSource("ingress-start")
-            .toSink("link://kitchen-start")
+            .fromSource("queue://ingress-start")
+            .toSink("queue://kitchen-start")
             .build());
         pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("kitchen-processing-flow")
-            .fromSource("kitchen-start")
+            .fromSource("queue://kitchen-start")
             .process("cook", (io, c) -> cooked.add(io.getInputPayloadAs(String.class)))
             .build());
 
         pipeliteContext.start();
-        pipeliteContext.supplyExchange("link://ingress-start", pipeliteContext.getExchangeFactory().createExchange("order-1"));
+        pipeliteContext.supplyExchange("queue://ingress-start", pipeliteContext.getExchangeFactory().createExchange("order-1"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> cooked.size() == 1);
         Assert.assertEquals(List.of("order-1"), cooked);

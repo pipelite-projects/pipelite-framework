@@ -116,7 +116,7 @@ class RetryStrategyFilter implements Processor {
         } else {
             // A URL, delivered exactly like DeadLetterChannelExceptionHandler delivers it on the
             // first failure (issue #102): before, this path only knew how to look a flow up by
-            // name, so a link:// or kafka:// target was searched for as a flow named after the
+            // name, so a queue:// or kafka:// target was searched for as a flow named after the
             // URL, never found, and the exhausted exchange was lost with a warning (issue #99).
             pipeliteContext.supplyExchange(deadLetterTarget, recoveredExchange);
         }

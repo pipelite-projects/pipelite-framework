@@ -18,7 +18,7 @@
     <dependencies>
         <dependency>
             <groupId>io.pipelite</groupId>
-            <artifactId>link-channel-adapter</artifactId>
+            <artifactId>queue-channel-adapter</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

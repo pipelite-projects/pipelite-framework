@@ -23,7 +23,7 @@ import java.util.Optional;
 /**
  * Locates a {@link FlowNode} by processor name within a single {@link Flow}'s own node chain.
  * A {@code Flow}'s chain is a plain linear {@code next}-linked list — routing constructs
- * (recipient list, routing slip, return address, {@code link://} handoff) all dispatch to a
+ * (recipient list, routing slip, return address, {@code queue://} handoff) all dispatch to a
  * <em>different</em> registered flow/endpoint via {@code PipeliteContext#supplyExchange}, they
  * never fork the same flow's own chain — so a linear scan is sufficient and unambiguous,
  * provided processor names are unique within the flow (enforced at flow-definition build time).

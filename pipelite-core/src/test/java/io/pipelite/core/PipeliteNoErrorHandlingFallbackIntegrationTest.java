@@ -53,7 +53,7 @@ public class PipeliteNoErrorHandlingFallbackIntegrationTest {
         final AtomicInteger invocationCount = new AtomicInteger(0);
 
         final FlowDefinition testFlow = Pipelite.defineFlow("no-error-handling-flow")
-            .fromSource(resource)
+            .fromSource(ChannelProtocols.queueURL(resource))
             .process("always-fail", (io, c) -> {
                 invocationCount.incrementAndGet();
                 throw new RuntimeException("simulated failure - no retry/error channel configured");
@@ -65,7 +65,7 @@ public class PipeliteNoErrorHandlingFallbackIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange(ChannelProtocols.linkURL(resource), exchangeFactory.createExchange("poison-payload"));
+        pipeliteContext.supplyExchange(ChannelProtocols.queueURL(resource), exchangeFactory.createExchange("poison-payload"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> invocationCount.get() == 1);
 
@@ -87,7 +87,7 @@ public class PipeliteNoErrorHandlingFallbackIntegrationTest {
         final AtomicInteger successCount = new AtomicInteger(0);
 
         final FlowDefinition testFlow = Pipelite.defineFlow("no-error-handling-survives-flow")
-            .fromSource(resource)
+            .fromSource(ChannelProtocols.queueURL(resource))
             .process("fail-once-then-succeed", (io, c) -> {
                 if (invocationCount.incrementAndGet() == 1) {
                     throw new RuntimeException("simulated failure - no retry/error channel configured");
@@ -101,11 +101,11 @@ public class PipeliteNoErrorHandlingFallbackIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange(ChannelProtocols.linkURL(resource), exchangeFactory.createExchange("poison-payload"));
+        pipeliteContext.supplyExchange(ChannelProtocols.queueURL(resource), exchangeFactory.createExchange("poison-payload"));
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> invocationCount.get() == 1);
 
         // The dispatch thread must have survived the unhandled failure above to process this one.
-        pipeliteContext.supplyExchange(ChannelProtocols.linkURL(resource), exchangeFactory.createExchange("good-payload"));
+        pipeliteContext.supplyExchange(ChannelProtocols.queueURL(resource), exchangeFactory.createExchange("good-payload"));
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> successCount.get() == 1);
     }
 

@@ -44,7 +44,7 @@ public class EndpointURLTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void givenProtocolPrefix_whenParseURL_thenThrowIllegalArgumentException(){
-        EndpointURL.parse("link://source01");
+        EndpointURL.parse("queue://source01");
     }
 
     @Test

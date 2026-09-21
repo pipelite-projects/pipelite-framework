@@ -22,22 +22,23 @@ package io.pipelite.dsl;
 public final class ChannelProtocols {
 
     /**
-     * The protocol that addresses an internal flow: {@code link://x} delivers to the flow whose
-     * source endpoint is declared as {@code fromSource("x")} (a plain resource name, with no
-     * protocol). It is registered under this name by the {@code link} channel adapter in
-     * {@code META-INF/pipelite.factories}, which cannot reference this constant, so a test keeps
-     * the two aligned.
+     * The protocol of the queue in front of an internal flow (issue #111): {@code queue://x} is the
+     * source of the flow that declares {@code fromSource("queue://x")}, and the same URL, as a
+     * destination, puts an exchange on that queue. It is registered under this name by the {@code
+     * queue} channel adapter in {@code META-INF/pipelite.factories}, which cannot reference this
+     * constant, so a test keeps the two aligned.
      */
-    public static final String LINK = "link";
+    public static final String QUEUE = "queue";
 
     private ChannelProtocols() {
     }
 
     /**
-     * The URL that addresses the internal flow whose source endpoint is {@code sourceEndpointName}.
+     * The URL of the queue named {@code queueName}: what an internal flow declares as its source
+     * and what the other flows send to.
      */
-    public static String linkURL(String sourceEndpointName) {
-        return LINK + "://" + sourceEndpointName;
+    public static String queueURL(String queueName) {
+        return QUEUE + "://" + queueName;
     }
 
 }

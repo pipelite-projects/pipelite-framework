@@ -35,7 +35,7 @@ import java.util.Map;
 
 /**
  * Regression coverage for a real bug found while implementing issue #70: a plain, uncopied
- * forward to another flow's consumer — e.g. {@code LinkProducer}'s {@code .toSink("link://...")},
+ * forward to another flow's consumer — e.g. {@code QueueProducer}'s {@code .toSink("queue://...")},
  * unlike {@code WireTapProcessorNode}, which deliberately taps a <em>copy</em> — hands the exact
  * same {@code Exchange} instance to the destination consumer. The destination's own write-through
  * hook then overwrites {@code IOKeys.DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME} on that shared instance
@@ -88,7 +88,7 @@ public class EventDrivenConsumerDurableInboxTest {
         final EventDrivenConsumer origin = new EventDrivenConsumer(new DefaultEndpoint(EndpointURL.parse("origin-endpoint")));
         origin.setFlowName("origin-flow");
         origin.setProcessorName("origin-endpoint");
-        // Simulates LinkProducer.process(): hands the SAME Exchange instance straight to another
+        // Simulates QueueProducer.process(): hands the SAME Exchange instance straight to another
         // consumer, no exchangeFactory.copyExchange(...) involved.
         origin.setNext(new FlowNode() {
             @Override public void process(ExchangeImpl exchange) { destination.consume(exchange); }

@@ -69,7 +69,7 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
      * Lets a subclass tied to a specific channel adapter (e.g. {@code KafkaConsumerService})
      * give its threads a more specific role than the generic {@value #DEFAULT_ROLE} — otherwise
      * a Kafka-backed flow's polling thread would be visually indistinguishable from a plain
-     * {@code link://}-style flow's dispatch thread(s) in a thread dump.
+     * {@code queue://}-style flow's dispatch thread(s) in a thread dump.
      */
     protected EventDrivenConsumerService(EventDrivenConsumer eventDrivenConsumer, String role) {
         this.eventDrivenConsumer = eventDrivenConsumer;

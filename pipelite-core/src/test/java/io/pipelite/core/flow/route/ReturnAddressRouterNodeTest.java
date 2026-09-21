@@ -44,22 +44,22 @@ public class ReturnAddressRouterNodeTest {
 
         context.registerFlowDefinition(
             Pipelite.defineFlow("sender-flow")
-                .fromSource("sender-start")
+                .fromSource("queue://sender-start")
                 .process("process", (ioContext, contribution) -> {})
                 .build());
 
         context.registerFlowDefinition(
             Pipelite.defineFlow("recipient-flow")
-                .fromSource("recipient-start")
+                .fromSource("queue://recipient-start")
                 .process("process", (ioContext, contribution) -> replayedToDestination.set(true))
                 .build());
 
         context.start();
 
         final ExchangeImpl exchange = exchangeFactory.createExchange("Hello Pipelite!");
-        exchange.setReturnAddress("link://recipient-start");
+        exchange.setReturnAddress("queue://recipient-start");
 
-        context.supplyExchange("link://sender-start", exchange);
+        context.supplyExchange("queue://sender-start", exchange);
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(replayedToDestination::get);
     }

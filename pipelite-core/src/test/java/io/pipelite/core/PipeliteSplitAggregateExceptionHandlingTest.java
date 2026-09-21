@@ -56,7 +56,7 @@ public class PipeliteSplitAggregateExceptionHandlingTest {
         final AtomicInteger processedCount = new AtomicInteger(0);
 
         final FlowDefinition flow = Pipelite.defineFlow("split-no-retry-flow")
-            .fromSource("split-no-retry-in")
+            .fromSource("queue://split-no-retry-in")
             .split("split-step", segment -> segment
                 .process("maybe-fail", (io, c) -> {
                     final int value = io.getInputPayloadAs(Integer.class);
@@ -77,7 +77,7 @@ public class PipeliteSplitAggregateExceptionHandlingTest {
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
         final ExchangeImpl exchange = exchangeFactory.createExchange(List.of(1, 2, 3));
 
-        context.supplyExchange("link://split-no-retry-in", exchange);
+        context.supplyExchange("queue://split-no-retry-in", exchange);
 
         // Item 1 always throws before item 2/3 could ever be reached (single-threaded,
         // sequential loop with no per-item catch) - once the first attempt is observed,
@@ -93,7 +93,7 @@ public class PipeliteSplitAggregateExceptionHandlingTest {
         final AtomicInteger invocationCount = new AtomicInteger(0);
 
         final FlowDefinition flow = Pipelite.defineFlow("split-retry-flow")
-            .fromSource("split-retry-in")
+            .fromSource("queue://split-retry-in")
             .split("split-step", segment -> segment
                 .process("fail-once", (io, c) -> {
                     if (invocationCount.incrementAndGet() == 1) {
@@ -114,7 +114,7 @@ public class PipeliteSplitAggregateExceptionHandlingTest {
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
         final ExchangeImpl exchange = exchangeFactory.createExchange(List.of(1));
 
-        context.supplyExchange("link://split-retry-in", exchange);
+        context.supplyExchange("queue://split-retry-in", exchange);
 
         // If exceptionHandler had been (incorrectly) propagated to inner segment nodes
         // instead of handled once by SplitterNode itself, the collector would never be

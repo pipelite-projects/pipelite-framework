@@ -25,7 +25,7 @@ Complete reference for the Domain Specific Language for declarative flow definit
 
 [.card]
 === xref:channel-adapters:index.adoc[Channel Adapters]
-All available adapters: HTTP, Kafka, Time, SLF4J, Link, and creating custom adapters.
+All available adapters: HTTP, Kafka, Time, SLF4J, Queue, and creating custom adapters.
 
 [.card]
 === xref:spring-integration:index.adoc[Spring Boot Integration]

@@ -103,13 +103,13 @@ For full details see xref:core:error-handling.adoc[Error Handling].
 [source]
 ----
 time:// (order generator)  ──┐
-http:// (order intake)       ─┼──► link:// (concurrent kitchen stage)
+http:// (order intake)       ─┼──► queue:// (concurrent kitchen stage)
 file:// (partner orders)    ──┘             │
                                              ▼
                                         kafka:// (fan-out)
                                              │
                                              ▼
-                                   link:// (concurrent dispatch stage)
+                                   queue:// (concurrent dispatch stage)
                                              │
                                              ▼
                                    file:// (one output file per courier)

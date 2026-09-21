@@ -49,7 +49,7 @@ public class RecipientListRouterNodeTest {
         Mockito.when(pipeliteContext.getExchangeFactory()).thenReturn(exchangeFactory);
 
         subject = new RecipientListRouterNode(
-            RecipientList.of("link://first-in", "link://second-in"),
+            RecipientList.of("queue://first-in", "queue://second-in"),
             new ExpressionConditionEvaluator(new ExpressionParser()));
         subject.setPipeliteContext(pipeliteContext);
     }
@@ -60,15 +60,15 @@ public class RecipientListRouterNodeTest {
         final ExchangeImpl exchange = exchangeFactory.createExchange("payload");
         subject.process(exchange);
 
-        Mockito.verify(pipeliteContext).supplyExchange(Mockito.eq("link://first-in"), Mockito.any());
-        Mockito.verify(pipeliteContext).supplyExchange(Mockito.eq("link://second-in"), Mockito.any());
+        Mockito.verify(pipeliteContext).supplyExchange(Mockito.eq("queue://first-in"), Mockito.any());
+        Mockito.verify(pipeliteContext).supplyExchange(Mockito.eq("queue://second-in"), Mockito.any());
     }
 
     @Test
     public void givenARecipientThatCannotBeDelivered_thenTheFailureIsHandedToTheExceptionHandler() {
 
         final IllegalArgumentException cause = new IllegalArgumentException("nobody there");
-        Mockito.doThrow(cause).when(pipeliteContext).supplyExchange(Mockito.eq("link://second-in"), Mockito.any());
+        Mockito.doThrow(cause).when(pipeliteContext).supplyExchange(Mockito.eq("queue://second-in"), Mockito.any());
         final AtomicReference<Throwable> handled = new AtomicReference<>();
         subject.setProcessorName("to-recipient-list");
         subject.setExceptionHandler((exception, exchange) -> handled.set(exception));
@@ -77,25 +77,25 @@ public class RecipientListRouterNodeTest {
         subject.process(exchange);
 
         Assert.assertTrue(handled.get() instanceof IllegalStateException);
-        Assert.assertTrue(handled.get().getMessage(), handled.get().getMessage().contains("link://second-in"));
+        Assert.assertTrue(handled.get().getMessage(), handled.get().getMessage().contains("queue://second-in"));
         Assert.assertSame(cause, handled.get().getCause());
         Assert.assertEquals("to-recipient-list",
             exchange.getProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, String.class));
         // Not atomic, on purpose: the first recipient was already served when the second failed
-        Mockito.verify(pipeliteContext).supplyExchange(Mockito.eq("link://first-in"), Mockito.any());
+        Mockito.verify(pipeliteContext).supplyExchange(Mockito.eq("queue://first-in"), Mockito.any());
     }
 
     @Test
     public void givenAFailureAndNoExceptionHandler_thenItIsRethrown() {
 
         Mockito.doThrow(new IllegalArgumentException("nobody there"))
-            .when(pipeliteContext).supplyExchange(Mockito.eq("link://first-in"), Mockito.any());
+            .when(pipeliteContext).supplyExchange(Mockito.eq("queue://first-in"), Mockito.any());
 
         try {
             subject.process(exchangeFactory.createExchange("payload"));
             Assert.fail("expected the failure to be rethrown");
         } catch (IllegalStateException expected) {
-            Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("link://first-in"));
+            Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("queue://first-in"));
         }
     }
 

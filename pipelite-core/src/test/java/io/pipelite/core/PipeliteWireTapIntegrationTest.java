@@ -45,13 +45,13 @@ public class PipeliteWireTapIntegrationTest {
         final AtomicBoolean originalProcessed = new AtomicBoolean(false);
 
         final FlowDefinition origin = Pipelite.defineFlow("origin-flow")
-            .fromSource("origin-start")
-            .wireTap("wire-tap-test", "link://destination-01-start")
+            .fromSource("queue://origin-start")
+            .wireTap("wire-tap-test", "queue://destination-01-start")
             .process("mock-target", (ioContext, contribution) -> originalProcessed.set(true))
             .build();
 
         final FlowDefinition destination01 = Pipelite.defineFlow("destination-01-flow")
-            .fromSource("destination-01-start")
+            .fromSource("queue://destination-01-start")
             .process("process-message", (ioContext, contribution) -> forwardedCount.incrementAndGet())
             .build();
 
@@ -62,7 +62,7 @@ public class PipeliteWireTapIntegrationTest {
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
 
         final ExchangeImpl exchange = exchangeFactory.createExchange("Hello Pipelite!");
-        context.supplyExchange("link://origin-start", exchange);
+        context.supplyExchange("queue://origin-start", exchange);
 
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> forwardedCount.get() == 1);
         Assert.assertTrue(originalProcessed.get());

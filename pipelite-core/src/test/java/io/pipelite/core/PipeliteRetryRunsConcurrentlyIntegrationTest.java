@@ -54,7 +54,7 @@ public class PipeliteRetryRunsConcurrentlyIntegrationTest {
         final AtomicInteger successCount = new AtomicInteger(0);
 
         final FlowDefinition testFlow = Pipelite.defineFlow("retry-parallelism-flow")
-            .fromSource("retry-parallelism-in?concurrency=3")
+            .fromSource("queue://retry-parallelism-in?concurrency=3")
             .process("handle", (io, c) -> {
                 final String payload = io.getInputPayloadAs(String.class);
                 if (failedOnce.add(payload)) {
@@ -85,8 +85,8 @@ public class PipeliteRetryRunsConcurrentlyIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("link://retry-parallelism-in", exchangeFactory.createExchange("message-A"));
-        pipeliteContext.supplyExchange("link://retry-parallelism-in", exchangeFactory.createExchange("message-B"));
+        pipeliteContext.supplyExchange("queue://retry-parallelism-in", exchangeFactory.createExchange("message-A"));
+        pipeliteContext.supplyExchange("queue://retry-parallelism-in", exchangeFactory.createExchange("message-B"));
 
         Assert.assertTrue(
             "both independent retries should be running concurrently within a few seconds - " +

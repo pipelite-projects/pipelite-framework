@@ -1,1 +1,1 @@
-link=io.pipelite.components.link.LinkChannelAdapter
+queue=io.pipelite.components.queue.QueueChannelAdapter

@@ -24,17 +24,17 @@ import org.junit.Test;
 import java.util.List;
 
 /**
- * Issues #86 and #102: a slip only names internal flows, each by its {@code link://} URL, and must
+ * Issues #86 and #102: a slip only names internal flows, each by its {@code queue://} URL, and must
  * survive the serialization a durable inbox entry or a retry dump puts the whole exchange through.
  */
 public class RoutingSlipTest {
 
     @Test
-    public void givenAnythingButALinkURL_thenItIsRejectedNamingTheRoute() {
+    public void givenAnythingButAQueueURL_thenItIsRejectedNamingTheRoute() {
         // a channel adapter URL is a terminal producer, and a bare name is not a URL at all
-        for (String route : List.of("kafka://orders", "file://in", "http://x/y", "bare-name", "link://")) {
+        for (String route : List.of("kafka://orders", "file://in", "http://x/y", "bare-name", "queue://")) {
             try {
-                RoutingSlip.create("link://first", route);
+                RoutingSlip.create("queue://first", route);
                 Assert.fail("expected " + route + " to be rejected");
             } catch (IllegalStateException expected) {
                 Assert.assertTrue(expected.getMessage().contains(route));
@@ -44,7 +44,7 @@ public class RoutingSlipTest {
 
     @Test
     public void givenNoRoutesOrABlankOne_thenItIsRejected() {
-        for (String[] routes : new String[][]{{}, {""}, {"  "}, {"link://ok", null}}) {
+        for (String[] routes : new String[][]{{}, {""}, {"  "}, {"queue://ok", null}}) {
             try {
                 RoutingSlip.create(routes);
                 Assert.fail("expected the slip to be rejected");
@@ -55,33 +55,33 @@ public class RoutingSlipTest {
     }
 
     @Test
-    public void givenLinkURLs_thenRoutesAreTakenInOrderUntilExhausted() {
-        final RoutingSlip slip = RoutingSlip.create("link://a-start", "link://b-start");
-        Assert.assertEquals("link://a-start", slip.nextRoute());
-        Assert.assertEquals("link://b-start", slip.nextRoute());
+    public void givenQueueURLs_thenRoutesAreTakenInOrderUntilExhausted() {
+        final RoutingSlip slip = RoutingSlip.create("queue://a-start", "queue://b-start");
+        Assert.assertEquals("queue://a-start", slip.nextRoute());
+        Assert.assertEquals("queue://b-start", slip.nextRoute());
         Assert.assertFalse(slip.hasNext());
         Assert.assertNull(slip.nextRoute());
     }
 
     @Test
     public void givenARestoredRoute_thenItIsTakenAgainFirst() {
-        final RoutingSlip slip = RoutingSlip.create("link://a-start", "link://b-start");
+        final RoutingSlip slip = RoutingSlip.create("queue://a-start", "queue://b-start");
         final String taken = slip.nextRoute();
         slip.restoreRoute(taken);
-        Assert.assertEquals("link://a-start", slip.nextRoute());
-        Assert.assertEquals("link://b-start", slip.nextRoute());
+        Assert.assertEquals("queue://a-start", slip.nextRoute());
+        Assert.assertEquals("queue://b-start", slip.nextRoute());
     }
 
     @Test
     public void givenASlipPartiallyFollowed_thenTheRemainingRoutesSurviveSerialization() {
-        final RoutingSlip slip = RoutingSlip.create("link://a-start", "link://b-start", "link://c-start");
+        final RoutingSlip slip = RoutingSlip.create("queue://a-start", "queue://b-start", "queue://c-start");
         slip.nextRoute();
 
         final byte[] bytes = new ObjectToByteArrayConverter().convert(slip);
         final RoutingSlip restored = new ByteArrayToObjectConverter().convert(bytes, RoutingSlip.class);
 
-        Assert.assertEquals("link://b-start", restored.nextRoute());
-        Assert.assertEquals("link://c-start", restored.nextRoute());
+        Assert.assertEquals("queue://b-start", restored.nextRoute());
+        Assert.assertEquals("queue://c-start", restored.nextRoute());
         Assert.assertFalse(restored.hasNext());
     }
 

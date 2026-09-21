@@ -105,7 +105,7 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
         final AtomicInteger pendingCountDuringRetry = new AtomicInteger(-1);
 
         final FlowDefinition testFlow = Pipelite.defineFlow("dump-removal-timing-flow")
-            .fromSource("dump-removal-timing-in")
+            .fromSource("queue://dump-removal-timing-in")
             .process("maybe-fail", (io, c) -> {
                 if (invocationCount.incrementAndGet() == 1) {
                     throw new RuntimeException("simulated failure - triggers the first dump");
@@ -123,7 +123,7 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("link://dump-removal-timing-in", exchangeFactory.createExchange("test-message"));
+        pipeliteContext.supplyExchange("queue://dump-removal-timing-in", exchangeFactory.createExchange("test-message"));
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> invocationCount.get() >= 2);
 
@@ -147,7 +147,7 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
         pipeliteContext.setDeadLetterQueueRepository(dlqEntries::add);
 
         final FlowDefinition testFlow = Pipelite.defineFlow("dump-removal-exhaustion-flow")
-            .fromSource("dump-removal-exhaustion-in")
+            .fromSource("queue://dump-removal-exhaustion-in")
             .process("always-fail", (io, c) -> {
                 attemptCount.incrementAndGet();
                 throw new RuntimeException("simulated persistent failure");
@@ -160,7 +160,7 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("link://dump-removal-exhaustion-in", exchangeFactory.createExchange("poison-payload"));
+        pipeliteContext.supplyExchange("queue://dump-removal-exhaustion-in", exchangeFactory.createExchange("poison-payload"));
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> attemptCount.get() == 2);
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> repository.pendingCount() == 0);

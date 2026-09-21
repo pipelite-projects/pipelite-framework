@@ -22,24 +22,21 @@ import io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties;
 import java.util.Map;
 
 /**
- * The {@link SourceConfigurer} for a no-protocol, internal source — a plain resource name with no
- * {@code scheme://} prefix (e.g. {@code .fromSource("destination")}), always built as a bare
- * {@link DefaultEndpoint} by {@code DefaultEndpointFactory}'s no-protocol fallback branch, never
- * through any {@code ChannelAdapter}. In practice this is always the receiving end of another
- * flow's {@code .toSink("link://name")} hop — confirmed there is no other way to reach a
- * no-protocol source, and {@code link://} itself has no consumer/source side at all ({@code
- * LinkEndpoint} implements only {@code createProducer()}). Named for what it actually configures
- * — {@link #concurrency(int)}/{@link #executorType(ExecutorType)} — rather than for {@code
- * link://}, which it has no real tie to. Lives here, next to {@code DefaultEndpoint}, rather than
- * in the {@code link-channel-adapter} module, precisely because it configures the framework's own
- * default endpoint, not anything {@code link-channel-adapter} builds.
+ * The {@link SourceConfigurer} of a queue source, {@code fromSource("queue://name", ...)}: the
+ * consumers of the queue are the concurrent consumers of the one flow that reads it, and this
+ * configures how many ({@link #concurrency(int)}) and on which kind of executor ({@link
+ * #executorType(ExecutorType)}). Handed out by the {@code queue} channel adapter through {@code
+ * ChannelAdapter#newSourceConfigurer()}. Lives here, next to {@code DefaultEndpoint}, rather than
+ * in the {@code queue-channel-adapter} module, because what it configures ({@code
+ * EventDrivenConsumerService}, {@code SourceConcurrencyProperties}) is the framework's own
+ * default consumer machinery, not something {@code queue-channel-adapter} builds.
  * <p>
  * {@link #concurrency(int)}/{@link #executorType(ExecutorType)} exist <strong>only</strong> here —
- * no protocol-backed adapter's own configurer (e.g. {@code KafkaSourceConfigurer}) declares them
- * at all. This is the compile-time-enforced replacement for what {@code
+ * no other adapter's own configurer (e.g. {@code KafkaSourceConfigurer}) declares them at all.
+ * This is the compile-time-enforced replacement for what {@code
  * DefaultEndpointFactory#rejectSourceConcurrencyParams} still separately checks at runtime, for
- * anyone bypassing the configurer and typing {@code ?concurrency=} directly into a protocol-backed
- * URL's query string by hand.
+ * anyone bypassing the configurer and typing {@code ?concurrency=} directly into the query string
+ * of a source that is not a queue.
  */
 public final class SourceConcurrencyConfigurer extends SourceConfigurer {
 

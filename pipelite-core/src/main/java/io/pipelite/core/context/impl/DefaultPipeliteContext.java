@@ -26,7 +26,7 @@ import io.pipelite.core.context.*;
 import io.pipelite.core.context.internal.DestinationURLs;
 import io.pipelite.core.context.internal.validation.ContextValidatorChain;
 import io.pipelite.core.context.internal.validation.FlowReferenceValidator;
-import io.pipelite.core.context.internal.validation.InternalSourceUniquenessValidator;
+import io.pipelite.core.context.internal.validation.QueueSourceUniquenessValidator;
 import io.pipelite.core.context.internal.validation.ContextValidator;
 import io.pipelite.core.context.internal.validation.ValidationContext;
 import io.pipelite.core.flow.DeadLetterChannelExceptionHandler;
@@ -48,6 +48,7 @@ import io.pipelite.core.flow.execution.retry.internal.RetryService;
 import io.pipelite.core.support.LogUtils;
 import io.pipelite.common.support.serialization.Base64ObjectSerializer;
 import io.pipelite.common.support.serialization.ByteArrayToObjectConverter;
+import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
 import io.pipelite.spi.channel.ChannelAdapter;
@@ -171,7 +172,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
         contextValidatorChain = new ContextValidatorChain();
         contextValidatorChain.add(new FlowReferenceValidator());
-        contextValidatorChain.add(new InternalSourceUniquenessValidator());
+        contextValidatorChain.add(new QueueSourceUniquenessValidator());
 
         dependencyRegistry = new DefaultDependencyRegistry();
         flowConfigurationScanner = new FlowConfigurationScanner();
@@ -413,9 +414,9 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
     /**
      * Diagnostic-only: sums the {@code concurrency} declared by every registered flow's
-     * {@code fromSource} (only meaningful for no-protocol/internal sources — see
+     * {@code fromSource} (only meaningful for queue sources - see
      * {@link DefaultEndpointFactory}, which is the actual enforcement point for
-     * channel-adapter-backed sources) and logs the total against the shared pool size.
+     * any other source) and logs the total against the shared pool size.
      * Never throws — a flow whose source URL can't be resolved here (e.g. an unresolved
      * {@code ${...}} placeholder) is simply treated as {@code concurrency=1} for this log;
      * real validation happens later, in {@code DefaultEndpointFactory#createEndpoint}.
@@ -449,9 +450,9 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     private int resolveDeclaredConcurrency(SourceDefinition sourceDefinition) {
         try {
             final ChannelURL channelURL = ChannelURL.parse(sourceDefinition.getUrl());
-            if (channelURL.hasProtocol()) {
-                // channel-adapter-backed sources don't support concurrency in v1 —
-                // DefaultEndpointFactory#createEndpoint is the real enforcement point.
+            if (!ChannelProtocols.QUEUE.equals(channelURL.getProtocol())) {
+                // only a queue has concurrent consumers; another source declaring concurrency is
+                // rejected by DefaultEndpointFactory#createEndpoint, the real enforcement point.
                 return 1;
             }
             return EndpointURL.parse(channelURL.getEndpointURL())

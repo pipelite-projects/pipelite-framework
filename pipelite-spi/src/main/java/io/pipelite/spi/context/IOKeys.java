@@ -56,7 +56,7 @@ public class IOKeys {
      * rather than duplicate. Deliberately a distinct property from {@link
      * #DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME} above: that one is also (over)written whenever this
      * same shared {@code Exchange} instance is forwarded uncopied into a completely different
-     * flow's own consumer (e.g. a plain {@code .toSink("link://...")}), which legitimately DOES
+     * flow's own consumer (e.g. a plain {@code .toSink("queue://...")}), which legitimately DOES
      * need its own fresh entry in ITS OWN inbox — conflating the two would make that destination
      * silently skip its own durability instead. The write-through hook consumes this property
      * (copying its value into {@link #DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME} instead of enqueueing

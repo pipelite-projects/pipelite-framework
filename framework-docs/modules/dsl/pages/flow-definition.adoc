@@ -13,23 +13,26 @@ The flow name must be unique within the `PipeliteContext`.
 == fromSource
 
 Defines the source endpoint of the flow.
-Accepts a URL with the channel adapter scheme.
+A source is always a URL, with the scheme of a channel adapter.
 
 [source,java]
 ----
 .fromSource("time://ticker?period=1000")
 .fromSource("http://ingress")
 .fromSource("kafka://my-topic")
+.fromSource("queue://order-processing")
 ----
 
-A source with no channel adapter scheme is the receiving end of a xref:channel-adapters:link.adoc[`link://`] hop, and its name must be unique within the `PipeliteContext`: `link://order-processing` reaches exactly one flow, and `start()` fails if two declare the same name. It can also declare `?concurrency=N` to process up to `N` messages at the same time instead of one at a time:
+`queue://` is the queue in front of an internal flow: the receiving end of a xref:channel-adapters:queue.adoc[`queue://`] hop. Its name must be unique within the `PipeliteContext`, since `queue://order-processing` is read by exactly one flow: `start()` fails if two flows declare the same one. A bare name with no scheme, such as `.fromSource("order-processing")`, is not a source and is rejected when the flow is defined.
+
+A queue source can also declare `?concurrency=N` to have `N` consumers of the queue process up to `N` messages at the same time instead of one at a time:
 
 [source,java]
 ----
-.fromSource("order-processing?concurrency=4")
+.fromSource("queue://order-processing?concurrency=4")
 ----
 
-Every concurrent source shares one framework-owned worker pool (default 200 threads, override via `ConfigurablePipeliteContext.setMaxSourceWorkerPoolSize(int)`) instead of getting dedicated threads of its own — total thread usage stays bounded regardless of how many flows declare `concurrency`. It is rejected at startup on any source backed by a channel adapter (`http://`, `file://`, `kafka://`, `time://`, ...).
+Every concurrent source shares one framework-owned worker pool (default 200 threads, override via `ConfigurablePipeliteContext.setMaxSourceWorkerPoolSize(int)`) instead of getting dedicated threads of its own — total thread usage stays bounded regardless of how many flows declare `concurrency`. It is rejected at startup on any source that is not a queue (`http://`, `file://`, `kafka://`, `time://`, ...).
 
 == process
 
@@ -107,8 +110,8 @@ See xref:routing.adoc[Routing] for complete documentation.
 [source,java]
 ----
 .toRoute(route -> route.contentBased()
-    .when(new PayloadTypeCondition(OrderEvent.class), "link://order-flow")
-    .otherwise("link://default-flow")
+    .when(new PayloadTypeCondition(OrderEvent.class), "queue://order-flow")
+    .otherwise("queue://default-flow")
     .build()
 )
 ----

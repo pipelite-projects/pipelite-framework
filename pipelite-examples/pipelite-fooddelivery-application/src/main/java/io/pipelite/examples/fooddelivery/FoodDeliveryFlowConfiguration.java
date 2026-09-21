@@ -41,7 +41,7 @@ import java.util.concurrent.TimeUnit;
  *                                                            │ (emits via HTTP or partner file)
  *                                                            ▼
  * http://orders               ─┐
- * file://.../partner-orders   ─┼─► link://kitchen-start   (concurrency=4, "kitchen stations")
+ * file://.../partner-orders   ─┼─► queue://kitchen-start   (concurrency=4, "kitchen stations")
  *                               │       │  .withRetry(maxAttempts=3).onErrorChannel(toDLQ()) —
  *                               │       │  transient "equipment glitch" (see KitchenService),
  *                               │       │  retried in place, exhaustion falls back to the
@@ -52,17 +52,17 @@ import java.util.concurrent.TimeUnit;
  *                               │       ▼
  *                               │   kafka://order-events, groupId=dispatch-service  (consume)
  *                               │       │
- *                               └─► link://dispatch-start (concurrency=3, "dispatch coordinators")
+ *                               └─► queue://dispatch-start (concurrency=3, "dispatch coordinators")
  *                                       │  .withRetry(maxAttempts=2)
- *                                       │  .onErrorChannel(toChannel("link://dispatch-dead-letter"))
+ *                                       │  .onErrorChannel(toChannel("queue://dispatch-dead-letter"))
  *                                       │  validate-order-amount: orders over the manual-review
  *                                       │  threshold always fail (deterministic, not transient) —
  *                                       │  retried twice regardless, then dead-lettered
  *                                       ▼
  *                                  DeliveryLogWriter: one file://.../delivery-log-&lt;driver&gt;.csv per courier
  *
- * toChannel("link://dispatch-dead-letter") ─► dispatchDeadLetterFlow (addressed by its source
- *                                       endpoint name; its flow name, "dispatch-dead-letter-flow",
+ * toChannel("queue://dispatch-dead-letter") ─► dispatchDeadLetterFlow (addressed by the queue it
+ *                                       reads; its flow name, "dispatch-dead-letter-flow",
  *                                       is an identity, never an address)
  *                                           ─► file://.../rejected-orders.log
  * </pre>
@@ -70,8 +70,8 @@ import java.util.concurrent.TimeUnit;
  * <p>Every {@code fromSource(...)} below uses the typed {@code SourceConfigurer} mechanism
  * (issue #79) instead of hand-built query strings — e.g. {@code (KafkaSourceConfigurer c) ->
  * c.groupId(...)} rather than {@code "kafka://order-events?group.id=..."}. {@code
- * SourceConcurrencyConfigurer.concurrency(...)} is only exposed for the two bare, protocol-less {@code
- * link://} target sources ({@code kitchen-start}, {@code dispatch-start}) — {@code
+ * SourceConcurrencyConfigurer.concurrency(...)} is only exposed for the two {@code queue://}
+ * sources ({@code kitchen-start}, {@code dispatch-start}), which are queues with N consumers — {@code
  * DefaultEndpointFactory} still rejects a literal {@code concurrency} on any {@code http://}/
  * {@code file://}/{@code kafka://}/{@code time://} URL, configurer or not. The Kafka hop exists
  * specifically so the dispatch stage gets its own, separately-sized concurrency budget: a single
@@ -168,7 +168,7 @@ public class FoodDeliveryFlowConfiguration {
             .fromSource("http://orders", (HttpSourceConfigurer c) -> c.method("POST"))
             .transformPayload("parse-http-order", payload -> Order.fromHttpPayload(payload.getPayloadAs(String.class)))
             .wireTap("log-incoming-http-order", "slf4j://orders-received")
-            .toSink("link://kitchen-start")
+            .toSink("queue://kitchen-start")
             .build();
     }
 
@@ -180,14 +180,14 @@ public class FoodDeliveryFlowConfiguration {
                 .period(250))
             .transformPayload("parse-partner-order", payload -> Order.fromCsvLine(payload.getPayloadAs(String.class)))
             .wireTap("log-incoming-partner-order", "slf4j://orders-received")
-            .toSink("link://kitchen-start")
+            .toSink("queue://kitchen-start")
             .build();
     }
 
     @DefineFlow
     public FlowDefinition kitchenProcessingFlow() {
         return Pipelite.defineFlow("kitchen-processing-flow")
-            .fromSource("kitchen-start", (SourceConcurrencyConfigurer c) -> c.concurrency(KITCHEN_CONCURRENCY))
+            .fromSource("queue://kitchen-start", (SourceConcurrencyConfigurer c) -> c.concurrency(KITCHEN_CONCURRENCY))
             .process("prepare-order", (exchange, contribution) -> {
                 final Order order = exchange.getInputPayloadAs(Order.class);
                 kitchenService.prepareOrder(order);
@@ -211,14 +211,14 @@ public class FoodDeliveryFlowConfiguration {
             .fromSource(String.format("kafka://%s", ORDER_EVENTS_TOPIC),
                 (KafkaSourceConfigurer c) -> c.groupId(DISPATCH_CONSUMER_GROUP))
             .transformPayload("parse-order-event", payload -> Order.fromKafkaEventJson(payload.getPayloadAs(String.class), objectMapper))
-            .toSink("link://dispatch-start")
+            .toSink("queue://dispatch-start")
             .build();
     }
 
     @DefineFlow
     public FlowDefinition dispatchProcessingFlow() {
         return Pipelite.defineFlow("dispatch-processing-flow")
-            .fromSource("dispatch-start", (SourceConcurrencyConfigurer c) -> c.concurrency(DISPATCH_CONCURRENCY))
+            .fromSource("queue://dispatch-start", (SourceConcurrencyConfigurer c) -> c.concurrency(DISPATCH_CONCURRENCY))
             .process("validate-order-amount", (exchange, contribution) -> {
                 final Order order = exchange.getInputPayloadAs(Order.class);
                 if (order.getTotalAmount().compareTo(MANUAL_REVIEW_THRESHOLD) > 0) {
@@ -239,7 +239,7 @@ public class FoodDeliveryFlowConfiguration {
             // retries jump directly back to validate-order-amount, not the flow's source.
             .withRetry(retry -> retry
                 .maxAttempts(DISPATCH_MAX_ATTEMPTS)
-                .onErrorChannel(err -> err.toChannel("link://" + DISPATCH_DEAD_LETTER_SOURCE)))
+                .onErrorChannel(err -> err.toChannel("queue://" + DISPATCH_DEAD_LETTER_SOURCE)))
             .build();
     }
 
@@ -247,15 +247,15 @@ public class FoodDeliveryFlowConfiguration {
      * Where orders land once {@code dispatchProcessingFlow}'s dead letter channel routes them —
      * i.e. every order whose total stayed above {@link #MANUAL_REVIEW_THRESHOLD} through all
      * {@value #DISPATCH_MAX_ATTEMPTS} attempts. {@code dispatchProcessingFlow}'s {@code
-     * .toChannel("link://" + DISPATCH_DEAD_LETTER_SOURCE)} addresses this flow by the name its {@code
-     * fromSource(...)} declares, as any flow is addressed (issue #102). The flow's own name,
+     * .toChannel("queue://" + DISPATCH_DEAD_LETTER_SOURCE)} addresses this flow by the queue its {@code
+     * fromSource(...)} reads, as any flow is addressed (issue #102). The flow's own name,
      * {@code DISPATCH_DEAD_LETTER_FLOW}, is deliberately a different string: it is an identity, not
      * an address.
      */
     @DefineFlow
     public FlowDefinition dispatchDeadLetterFlow() {
         return Pipelite.defineFlow(DISPATCH_DEAD_LETTER_FLOW)
-            .fromSource(DISPATCH_DEAD_LETTER_SOURCE)
+            .fromSource("queue://" + DISPATCH_DEAD_LETTER_SOURCE)
             .wireTap("log-rejected-order", "slf4j://orders-rejected")
             .transformPayload("format-rejected-record", payload -> payload.getPayloadAs(Order.class).toRejectedLogLine())
             .toSink(String.format("file://%s", FoodDeliveryPaths.REJECTED_ORDERS_FILE))

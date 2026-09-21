@@ -46,7 +46,7 @@ public class PipeliteBackpressureIntegrationTest {
 
     /**
      * "relay-flow" does nothing but forward every Exchange to "slow-sink-flow" via {@code
-     * link://} — no processing of its own. "slow-sink-flow" processes deliberately slowly. Before
+     * queue://} — no processing of its own. "slow-sink-flow" processes deliberately slowly. Before
      * #63, neither flow's intake queue applied any backpressure (both unbounded in practice), so
      * feeding messages into "relay-source" as fast as possible would return near-instantly
      * regardless of how far behind "slow-sink-flow" was — this is exactly the risk #63's own
@@ -55,22 +55,22 @@ public class PipeliteBackpressureIntegrationTest {
      * thread trying to hand it exchanges, which in turn saturates relay-flow's own queue, which
      * in turn must block this test's own {@code supplyExchange(...)} calls — backpressure
      * cascading two hops back to the original producer, exactly as it would for a real HTTP
-     * handler thread or an actual {@code link://}-producing flow.
+     * handler thread or an actual {@code queue://}-producing flow.
      */
     @Test
-    public void shouldPropagateBackpressureThroughALinkHopBackToTheOriginalProducer() {
+    public void shouldPropagateBackpressureThroughAQueueHopBackToTheOriginalProducer() {
 
         final int messages = 100;
         final long slowStepMillis = 30;
         final AtomicInteger processedCount = new AtomicInteger(0);
 
         final FlowDefinition relay = Pipelite.defineFlow("relay-flow")
-            .fromSource("relay-source")
-            .toSink("link://slow-sink")
+            .fromSource("queue://relay-source")
+            .toSink("queue://slow-sink")
             .build();
 
         final FlowDefinition slowSink = Pipelite.defineFlow("slow-sink-flow")
-            .fromSource("slow-sink")
+            .fromSource("queue://slow-sink")
             .process("slow-step", (ioContext, contribution) -> {
                 try {
                     Thread.sleep(slowStepMillis);
@@ -90,7 +90,7 @@ public class PipeliteBackpressureIntegrationTest {
 
         final long feedStart = System.nanoTime();
         for (int i = 0; i < messages; i++) {
-            context.supplyExchange("link://relay-source", exchangeFactory.createExchange("message-" + i));
+            context.supplyExchange("queue://relay-source", exchangeFactory.createExchange("message-" + i));
         }
         final long feedElapsedMillis = (System.nanoTime() - feedStart) / 1_000_000;
 

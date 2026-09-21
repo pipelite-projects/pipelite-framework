@@ -1,0 +1,72 @@
+= Queue Channel Adapter
+:description: Adapter for the queue in front of an internal flow, to hand an Exchange from one flow to another
+
+The `queue` adapter is the entrance of an internal flow: a named queue, inside the `PipeliteContext`, that one flow reads and that any other flow (or the application) can put an `Exchange` on. It is how flows are chained.
+
+== Availability
+
+Included in `default-channel-adapters`, transitively available with `pipelite-core`.
+
+== Usage
+
+[source,java]
+----
+// Main flow
+Pipelite.defineFlow("main-flow")
+    .fromSource("http://ingest")
+    .process("enrich", exchange -> { /* enrichment */ })
+    .toSink("queue://secondary")               // <1>
+    .build();
+
+// Secondary flow
+Pipelite.defineFlow("secondary-flow")
+    .fromSource("queue://secondary")           // <2>
+    .process("finalize", exchange -> { /* ... */ })
+    .toSink("slf4j://output")
+    .build();
+----
+<1> `queue://secondary` as a destination puts the Exchange on the queue named `secondary`.
+<2> `queue://secondary` as a source declares that this flow reads that queue. The same URL on both sides: what one flow writes to, the other reads from.
+
+== URL format
+
+[source]
+----
+queue://<queue-name>
+----
+
+[cols="1,3"]
+|===
+|Parameter |Description
+
+|`queue-name`
+|The name of the queue. Not the flow's own `defineFlow(...)` name: the flow name is an identity, the queue name is an address.
+|===
+
+== Every endpoint is a URL
+
+A flow is always addressed by URL, and `queue://<queue name>` is the URL of an internal one. The same rule holds everywhere a destination is written - `toSink(...)`, the destinations of `toRoute(...)` and `toRecipientList(...)`, `wireTap(...)`, `toChannel(...)` - and for `PipeliteContext.supplyExchange(...)`. A source is a URL too: `fromSource(...)` always takes a protocol. A bare name is neither a destination nor a source, and it is rejected when the flow is defined - or, for a value that is only known at runtime, when the endpoint is created or the exchange is delivered.
+
+[source,java]
+----
+.fromSource("orders")
+// IllegalArgumentException: fromSource("orders"): 'orders' is not a URL - a source always has a protocol.
+// Write 'queue://orders' for the queue in front of an internal flow, or the protocol of the channel adapter
+// that feeds it (http://, kafka://, ...)
+----
+
+== Characteristics
+
+* *One queue, one flow, N consumers.* A queue is read by exactly one flow. To process its Exchanges concurrently, declare `concurrency` on the source (`?concurrency=N`, or `fromSource("queue://orders", (SourceConcurrencyConfigurer c) -> c.concurrency(N))`): the N consumers of the queue all run that flow. It is the only source that can declare `concurrency` - see xref:dsl:flow-definition.adoc[Flow Definition].
+* The sender *enqueues and moves on*: the receiving flow runs on the consumer threads of its own queue, not on the sender's thread. If the queue is full the sender waits (backpressure), so a slow flow slows its senders down instead of letting the queue grow without limit.
+* The queue holds the `Exchange` itself: the receiving flow gets the very instance the sender handed over, not a copy. With the durable inbox on (the default, `durableInbox=false` opts a source out) a serialized copy is also written to disk before the Exchange is enqueued, so it survives a restart.
+* The queue lives in memory, inside one `PipeliteContext`: it is not a broker and does not reach another process. To leave the process, use a channel adapter such as `kafka://`.
+* Useful for splitting complex pipelines into modular, reusable flows.
+
+== Startup validation
+
+`PipeliteContext.start()` checks that every `queue://` target is a queue that a flow registered in the same context reads: the destinations of `toSink(...)`, of the routes and the recipient list, of `wireTap(...)`, and the target of `toChannel(...)`, alone or as the exhaustion action of a retry. If one is not - a typo, a rename on one side only - `start()` throws a `ContextValidationException` that lists every problem, naming the flow and the DSL construct, before anything is started.
+
+A destination that contains an expression (`#{...}`) is only known when an exchange is routed, so it is not checked at startup; if it names no flow then, the delivery fails with an `IllegalArgumentException`. Destinations with any other protocol are not checked either.
+
+Because a queue is read by exactly one flow, `start()` also fails if two flows declare the same `queue://` source. The error names the second flow and the one that read the queue first, and points at `concurrency` as the way to scale it. Only queues count: `http://orders`, `queue://orders` and two flows reading the same Kafka topic can coexist, since what belongs to a flow - its durable inbox, the resumption of its retries - is keyed by the flow's name and not by the resource of its source.

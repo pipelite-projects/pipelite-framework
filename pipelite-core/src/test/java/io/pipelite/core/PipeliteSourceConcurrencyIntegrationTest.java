@@ -34,9 +34,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * End-to-end coverage of {@code fromSource} concurrency (issue #4): a plain, non-concurrent
- * ingress flow ({@code fromSource("origin-...")}) linked via {@code toSink("link://...")} to a
+ * ingress flow ({@code fromSource("queue://origin-...")}) linked via {@code toSink("queue://...")} to a
  * second flow whose {@code fromSource} declares {@code concurrency > 1} — exactly the two-flow
- * pattern the requirements doc settled on, mirroring {@link PipeliteFlowLinkIntegrationTest} but
+ * pattern the requirements doc settled on, mirroring {@link PipeliteFlowQueueIntegrationTest} but
  * asserting genuine parallel execution instead of a single forwarded message.
  */
 public class PipeliteSourceConcurrencyIntegrationTest {
@@ -54,7 +54,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
     }
 
     @Test
-    public void shouldProcessConcurrentlyWhenConcurrencyConfiguredOnLinkedFlow() {
+    public void shouldProcessConcurrentlyWhenConcurrencyConfiguredOnAQueueFlow() {
 
         final int numOfMessages = 20;
         final int concurrency = 4;
@@ -65,12 +65,12 @@ public class PipeliteSourceConcurrencyIntegrationTest {
         final AtomicInteger receivedCount = new AtomicInteger(0);
 
         final FlowDefinition origin = Pipelite.defineFlow("origin-flow-concurrency")
-            .fromSource("origin-start-concurrency")
-            .toSink("link://destination-start-concurrency")
+            .fromSource("queue://origin-start-concurrency")
+            .toSink("queue://destination-start-concurrency")
             .build();
 
         final FlowDefinition destination = Pipelite.defineFlow("destination-flow-concurrency")
-            .fromSource("destination-start-concurrency?concurrency=" + concurrency)
+            .fromSource("queue://destination-start-concurrency?concurrency=" + concurrency)
             .process("process-message", (ioContext, contribution) -> {
                 observedThreadIds.add(Thread.currentThread().getId());
                 final int current = inFlight.incrementAndGet();
@@ -92,7 +92,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
 
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
         for (int i = 0; i < numOfMessages; i++) {
-            context.supplyExchange("link://origin-start-concurrency", exchangeFactory.createExchange("message-" + i));
+            context.supplyExchange("queue://origin-start-concurrency", exchangeFactory.createExchange("message-" + i));
         }
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> receivedCount.get() == numOfMessages);
@@ -112,12 +112,12 @@ public class PipeliteSourceConcurrencyIntegrationTest {
         final AtomicInteger receivedCount = new AtomicInteger(0);
 
         final FlowDefinition origin = Pipelite.defineFlow("origin-flow-sequential")
-            .fromSource("origin-start-sequential")
-            .toSink("link://destination-start-sequential")
+            .fromSource("queue://origin-start-sequential")
+            .toSink("queue://destination-start-sequential")
             .build();
 
         final FlowDefinition destination = Pipelite.defineFlow("destination-flow-sequential")
-            .fromSource("destination-start-sequential") // no concurrency param — today's exact behavior
+            .fromSource("queue://destination-start-sequential") // no concurrency param — today's exact behavior
             .process("process-message", (ioContext, contribution) -> {
                 observedThreadIds.add(Thread.currentThread().getId());
                 receivedCount.incrementAndGet();
@@ -130,7 +130,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
 
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
         for (int i = 0; i < numOfMessages; i++) {
-            context.supplyExchange("link://origin-start-sequential", exchangeFactory.createExchange("message-" + i));
+            context.supplyExchange("queue://origin-start-sequential", exchangeFactory.createExchange("message-" + i));
         }
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> receivedCount.get() == numOfMessages);
@@ -150,7 +150,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
 
         // occupies every thread in the shared pool for the duration of the test
         final FlowDefinition saturating = Pipelite.defineFlow("saturating-flow")
-            .fromSource("saturating-start?concurrency=" + poolSize)
+            .fromSource("queue://saturating-start?concurrency=" + poolSize)
             .process("occupy-pool", (ioContext, contribution) -> {
                 saturatingTasksStarted.countDown();
                 try {
@@ -165,7 +165,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
         // concurrency left unset: processes inline on its own dedicated thread, never touches
         // the shared pool the saturating flow is monopolizing
         final FlowDefinition sequential = Pipelite.defineFlow("sequential-flow")
-            .fromSource("sequential-start")
+            .fromSource("queue://sequential-start")
             .process("quick-process", (ioContext, contribution) -> sequentialReceivedCount.incrementAndGet())
             .build();
 
@@ -176,14 +176,14 @@ public class PipeliteSourceConcurrencyIntegrationTest {
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
         try {
             for (int i = 0; i < poolSize; i++) {
-                context.supplyExchange("link://saturating-start", exchangeFactory.createExchange("saturate-" + i));
+                context.supplyExchange("queue://saturating-start", exchangeFactory.createExchange("saturate-" + i));
             }
             Assert.assertTrue("expected the shared pool to be fully occupied by the saturating flow",
                 saturatingTasksStarted.await(5, TimeUnit.SECONDS));
 
             final int numOfMessages = 5;
             for (int i = 0; i < numOfMessages; i++) {
-                context.supplyExchange("link://sequential-start", exchangeFactory.createExchange("seq-" + i));
+                context.supplyExchange("queue://sequential-start", exchangeFactory.createExchange("seq-" + i));
             }
 
             // if the sequential flow were queueing behind the saturated shared pool instead of
@@ -213,7 +213,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
 
         for (int f = 0; f < numFlows; f++) {
             final FlowDefinition flow = Pipelite.defineFlow("shared-pool-flow-" + f)
-                .fromSource("shared-pool-start-" + f + "?concurrency=" + concurrencyPerFlow)
+                .fromSource("queue://shared-pool-start-" + f + "?concurrency=" + concurrencyPerFlow)
                 .process("process-message", (ioContext, contribution) -> {
                     observedThreadIds.add(Thread.currentThread().getId());
                     final int current = inFlight.incrementAndGet();
@@ -235,7 +235,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
         for (int f = 0; f < numFlows; f++) {
             for (int i = 0; i < messagesPerFlow; i++) {
-                context.supplyExchange("link://shared-pool-start-" + f, exchangeFactory.createExchange("msg-" + f + "-" + i));
+                context.supplyExchange("queue://shared-pool-start-" + f, exchangeFactory.createExchange("msg-" + f + "-" + i));
             }
         }
 

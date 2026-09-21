@@ -19,7 +19,7 @@ import java.util.List;
 
 /**
  * Thrown by {@link PipeliteContext#start()} when the flows registered in the context do not fit
- * together (issue #88), for instance a {@code link://} target that no flow declares as its source.
+ * together (issue #88), for instance a {@code queue://} target that no flow declares as its source.
  * It lists every problem found, and is thrown before anything is started: no flow is registered,
  * no consumer runs, no pending durable inbox entry has been recovered.
  */

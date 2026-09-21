@@ -39,7 +39,7 @@ public final class Preconditions {
 
     /**
      * Registers a flow definition to be deployed in the test context.
-     * Multiple flows can be chained with {@code link://} between them.
+     * Multiple flows can be chained with {@code queue://} between them.
      */
     public static Precondition flowDefinition(FlowDefinition flowDefinition) {
         return target -> target.flowDefinition(flowDefinition);

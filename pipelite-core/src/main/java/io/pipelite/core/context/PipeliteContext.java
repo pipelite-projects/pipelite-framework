@@ -58,11 +58,10 @@ public interface PipeliteContext {
 
     /**
      * Delivers {@code exchange} to {@code destinationURL}: a URL, always (issue #102). An internal
-     * flow is addressed as {@code link://<source endpoint name>} - the name its own
-     * {@code fromSource("<source endpoint name>")} declares, without protocol - and an external
-     * system through its channel adapter's protocol ({@code kafka://...}). A bare name is not a
-     * destination and is rejected: it would be ambiguous between a source endpoint name and a
-     * flow name.
+     * flow is addressed as {@code queue://<queue name>} - the queue its own
+     * {@code fromSource("queue://<queue name>")} reads - and an external system through its
+     * channel adapter's protocol ({@code kafka://...}). A bare name is not a destination and is
+     * rejected: it would be ambiguous between a queue name and a flow name.
      *
      * @throws IllegalArgumentException if {@code destinationURL} is not a URL, or its protocol has
      *                                  no registered channel adapter.
@@ -100,7 +99,7 @@ public interface PipeliteContext {
     DurableInboxProvider getDurableInboxProvider();
 
     /**
-     * The shared, application-wide worker pool used by internal (no-protocol) {@code fromSource}
+     * The shared, application-wide worker pool used by {@code fromSource("queue://...")}
      * endpoints when {@code concurrency > 1} is configured on their URL. A single pool sized
      * independently of how many flows use it or how high each sets its own {@code concurrency} —
      * see {@link io.pipelite.core.context.ConfigurablePipeliteContext#setMaxSourceWorkerPoolSize(int)}.

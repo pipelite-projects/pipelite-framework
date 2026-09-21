@@ -109,10 +109,10 @@ public class SourceConcurrencyConfigurationTest {
     }
 
     @Test
-    public void shouldAllowConcurrencyOnNoProtocolSource() {
+    public void shouldAllowConcurrencyOnAQueueSource() {
         context = new DefaultPipeliteContext();
         final FlowDefinition flow = Pipelite.defineFlow("internal-flow-with-concurrency")
-            .fromSource("internal-source?concurrency=4")
+            .fromSource("queue://internal-source?concurrency=4")
             .toSink("slf4j://main-logger")
             .build();
         context.registerFlowDefinition(flow);

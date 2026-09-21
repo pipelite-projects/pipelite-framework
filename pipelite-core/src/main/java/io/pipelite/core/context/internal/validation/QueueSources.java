@@ -16,6 +16,7 @@
 package io.pipelite.core.context.internal.validation;
 
 import io.pipelite.core.definition.TypedSourceDefinition;
+import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
 import io.pipelite.spi.channel.ChannelURL;
@@ -24,21 +25,21 @@ import io.pipelite.spi.endpoint.EndpointURL;
 import java.util.Optional;
 
 /**
- * Which flows are reached by name: the ones whose source has no protocol, the internal sources.
- * That is what {@code LinkChannelAdapter} registers a consumer for, so {@code link://x} resolves
- * to the internal flow that declares {@code fromSource("x")} and to no other. A source with a
+ * Which flows a {@code queue://} destination reaches: the ones whose source is a queue. That is
+ * what {@code QueueChannelAdapter} registers a consumer for, so {@code queue://x} resolves to the
+ * flow that declares {@code fromSource("queue://x")} and to no other. A source of any other
  * protocol is never an address of this kind.
  */
-final class InternalSources {
+final class QueueSources {
 
-    private InternalSources() {
+    private QueueSources() {
     }
 
     /**
-     * The name {@code flow}'s source declares, resolved the way the endpoint factory resolves it
-     * ({@code ${...}} placeholders replaced, query parameters ignored), or empty if its source has
-     * a protocol, is a framework-built typed source, or cannot be resolved - which fails on its
-     * own, clearly, when the flow is registered, so it is not a finding of the validators.
+     * The name of the queue {@code flow}'s source reads, resolved the way the endpoint factory
+     * resolves it ({@code ${...}} placeholders replaced, query parameters ignored), or empty if its
+     * source is not a queue, is a framework-built typed source, or cannot be resolved - which fails
+     * on its own, clearly, when the flow is registered, so it is not a finding of the validators.
      */
     static Optional<String> nameOf(FlowDefinition flow, ValidationContext context) {
         final SourceDefinition source = flow.sourceDefinition();
@@ -47,7 +48,7 @@ final class InternalSources {
         }
         try {
             final ChannelURL channelURL = ChannelURL.parse(context.resolveURL(source.getUrl()));
-            if (channelURL.hasProtocol()) {
+            if (!channelURL.hasProtocol() || !ChannelProtocols.QUEUE.equals(channelURL.getProtocol())) {
                 return Optional.empty();
             }
             return Optional.of(EndpointURL.parse(channelURL.getEndpointURL()).getResource());

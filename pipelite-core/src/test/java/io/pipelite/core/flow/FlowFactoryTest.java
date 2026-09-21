@@ -26,6 +26,7 @@ import io.pipelite.spi.context.Service;
 import io.pipelite.spi.flow.Flow;
 import io.pipelite.spi.flow.exchange.*;
 import org.awaitility.Awaitility;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -45,7 +46,14 @@ public class FlowFactoryTest {
     @Before
     public void setup(){
         ctx = new DefaultPipeliteContext();
+        // Starting it scans the channel adapters: queue://start is built by the queue adapter.
+        ctx.start();
         subject = new FlowFactory(ctx);
+    }
+
+    @After
+    public void tearDown(){
+        ctx.stop();
     }
 
     @Test
@@ -54,7 +62,7 @@ public class FlowFactoryTest {
         final AtomicBoolean targetProcessorInvoked = new AtomicBoolean(false);
 
         final FlowDefinition flowDefinition = Pipelite.defineFlow("simple-flow")
-            .fromSource("start")
+            .fromSource("queue://start")
             .transformPayload("transform-payload",
                 inputPayload ->
                     String.format("This is transformed payload, original is '%s'", inputPayload.getPayloadAs(String.class)))

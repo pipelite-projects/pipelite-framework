@@ -63,7 +63,7 @@ public class CaptureChannelAdapter implements ChannelAdapter {
     static final String TEST_ID_PROPERTY = "io.pipelite.test.internal.capture.id";
 
     /**
-     * The single {@code test://} endpoint every non-{@code link://} sink is
+     * The single {@code test://} endpoint every non-{@code queue://} sink is
      * silently redirected to by {@link PipeliteTestFixture}. The resource
      * part is irrelevant to capture correctness — only {@link #TEST_ID_PROPERTY}
      * matters — so a fixed URL is enough.

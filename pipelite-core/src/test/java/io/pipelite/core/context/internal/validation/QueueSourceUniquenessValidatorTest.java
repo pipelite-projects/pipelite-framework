@@ -25,13 +25,13 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Issue #101: an internal source name is an address, {@code link://x} has to reach exactly one
+ * Issue #101: an internal source name is an address, {@code queue://x} has to reach exactly one
  * flow. Only internal sources count: a resource shared with a source that has a protocol, or by two
  * flows on the same protocol, is legitimate. Built on real definitions from the DSL.
  */
-public class InternalSourceUniquenessValidatorTest {
+public class QueueSourceUniquenessValidatorTest {
 
-    private final InternalSourceUniquenessValidator subject = new InternalSourceUniquenessValidator();
+    private final QueueSourceUniquenessValidator subject = new QueueSourceUniquenessValidator();
 
     private static ValidationContext contextOf(Map<String, String> placeholders, FlowDefinition... definitions) {
         return new ValidationContext() {
@@ -69,29 +69,29 @@ public class InternalSourceUniquenessValidatorTest {
     @Test
     public void givenEveryInternalSourceNameIsUnique_thenThereIsNothingToReport() {
         Assert.assertEquals(List.of(), errorsFor(
-            flow("first", "first-in"), flow("second", "second-in"), flow("third", "third-in")));
+            flow("first", "queue://first-in"), flow("second", "queue://second-in"), flow("third", "queue://third-in")));
     }
 
     @Test
     public void givenTwoInternalFlowsWithTheSameSourceName_thenTheSecondIsReportedAndTheFirstIsNamed() {
         Assert.assertEquals(List.of(
-            "Flow 'dup-second', fromSource(\"dup-src\"): source name 'dup-src' is already declared by flow 'dup-first'; link://dup-src must reach exactly one flow"),
-            errorsFor(flow("dup-first", "dup-src"), flow("dup-second", "dup-src")));
+            "Flow 'dup-second', fromSource(\"queue://dup-src\"): queue 'dup-src' is already read by flow 'dup-first'; scale it with concurrency instead of declaring a second flow"),
+            errorsFor(flow("dup-first", "queue://dup-src"), flow("dup-second", "queue://dup-src")));
     }
 
     @Test
     public void givenThreeInternalFlowsWithTheSameSourceName_thenEachOfTheLaterOnesNamesTheFirst() {
         Assert.assertEquals(List.of(
-            "Flow 'b', fromSource(\"dup-src\"): source name 'dup-src' is already declared by flow 'a'; link://dup-src must reach exactly one flow",
-            "Flow 'c', fromSource(\"dup-src\"): source name 'dup-src' is already declared by flow 'a'; link://dup-src must reach exactly one flow"),
-            errorsFor(flow("a", "dup-src"), flow("b", "dup-src"), flow("c", "dup-src")));
+            "Flow 'b', fromSource(\"queue://dup-src\"): queue 'dup-src' is already read by flow 'a'; scale it with concurrency instead of declaring a second flow",
+            "Flow 'c', fromSource(\"queue://dup-src\"): queue 'dup-src' is already read by flow 'a'; scale it with concurrency instead of declaring a second flow"),
+            errorsFor(flow("a", "queue://dup-src"), flow("b", "queue://dup-src"), flow("c", "queue://dup-src")));
     }
 
     @Test
     public void givenAnInternalSourceSharingItsResourceWithASourceThatHasAProtocol_thenItIsNotAConflict() {
         Assert.assertEquals(List.of(), errorsFor(
             flow("http-flow", "http://orders"),
-            flow("internal-flow", "orders"),
+            flow("internal-flow", "queue://orders"),
             flow("kafka-flow", "kafka://orders")));
     }
 
@@ -105,15 +105,15 @@ public class InternalSourceUniquenessValidatorTest {
     @Test
     public void givenTheSameNameWithDifferentQueryParameters_thenItIsStillTheSameSource() {
         Assert.assertEquals(List.of(
-            "Flow 'concurrent', fromSource(\"orders\"): source name 'orders' is already declared by flow 'plain'; link://orders must reach exactly one flow"),
-            errorsFor(flow("plain", "orders"), flow("concurrent", "orders?concurrency=2")));
+            "Flow 'concurrent', fromSource(\"queue://orders\"): queue 'orders' is already read by flow 'plain'; scale it with concurrency instead of declaring a second flow"),
+            errorsFor(flow("plain", "queue://orders"), flow("concurrent", "queue://orders?concurrency=2")));
     }
 
     @Test
     public void givenAPlaceholderThatResolvesToTheSameName_thenItIsReported() {
         Assert.assertEquals(List.of(
-            "Flow 'from-placeholder', fromSource(\"orders\"): source name 'orders' is already declared by flow 'literal'; link://orders must reach exactly one flow"),
-            errorsFor(Map.of("inbound", "orders"), flow("literal", "orders"), flow("from-placeholder", "${inbound}")));
+            "Flow 'from-placeholder', fromSource(\"queue://orders\"): queue 'orders' is already read by flow 'literal'; scale it with concurrency instead of declaring a second flow"),
+            errorsFor(Map.of("inbound", "queue://orders"), flow("literal", "queue://orders"), flow("from-placeholder", "${inbound}")));
     }
 
     @Test

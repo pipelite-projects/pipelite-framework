@@ -13,21 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.components.link;
+package io.pipelite.components.queue;
 
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
 
-public class LinkEndpoint extends DefaultEndpoint {
+public class QueueEndpoint extends DefaultEndpoint {
 
-    public LinkEndpoint(EndpointURL endpointURL, ChannelAdapter channel) {
+    public QueueEndpoint(EndpointURL endpointURL, ChannelAdapter channel) {
         super(endpointURL, channel);
     }
 
     @Override
     public Producer createProducer() {
-        return new LinkProducer(this);
+        return new QueueProducer(this);
     }
 }

@@ -23,7 +23,7 @@ import org.springframework.context.annotation.Bean;
 
 /**
  * Food-delivery order processing demo: a Pipelite application built from several
- * {@code link://}-chained flows, two of them independently concurrent, fed by four different
+ * {@code queue://}-chained flows, two of them independently concurrent, fed by four different
  * channel adapters (HTTP, File, Kafka, Time). See {@link FoodDeliveryFlowConfiguration} for the
  * flow topology and {@link FoodDeliveryChannelConfiguration} for infrastructure wiring (shared
  * pool size, Kafka/File adapter configuration) — both are ordinary Spring beans, constructed and

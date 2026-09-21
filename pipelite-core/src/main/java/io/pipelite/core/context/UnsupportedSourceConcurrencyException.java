@@ -17,19 +17,18 @@ package io.pipelite.core.context;
 
 /**
  * Thrown by {@link io.pipelite.core.context.impl.DefaultEndpointFactory#createEndpoint} when a
- * {@code fromSource}/{@code toSink} URL resolved through a channel adapter (i.e. with an explicit
- * {@code protocol://}) declares {@code concurrency} and/or {@code executorType}. Those parameters
- * are only meaningful for internal, no-protocol sources (the construct pipeline linking already
- * builds on, see {@code LinkChannelAdapter}) — a channel-adapter-backed endpoint silently ignoring
+ * {@code fromSource}/{@code toSink} URL resolved through a channel adapter other than the queue one
+ * declares {@code concurrency} and/or {@code executorType}. Those parameters
+ * are only meaningful for a queue source ({@code queue://}, see {@code QueueChannelAdapter}, whose
+ * consumers are the concurrent consumers of one flow) - any other channel adapter silently ignoring
  * them would let a developer believe concurrency is active when it never was.
  */
 public class UnsupportedSourceConcurrencyException extends RuntimeException {
 
     public UnsupportedSourceConcurrencyException(String protocol, String parameterName) {
         super(String.format(
-            "'%s' is not supported on a '%s://' endpoint: concurrency only applies to fromSource URLs " +
-                "without a protocol (internal, link-linkable sources). Remove it from the URL, or move the " +
-                "concurrent work to a second flow linked via 'link://'.", parameterName, protocol));
+            "'%s' is not supported on a '%s://' endpoint: concurrency only applies to a fromSource(\"queue://...\"). " +
+                "Remove it from the URL, or move the concurrent work to a second flow that reads a queue://.", parameterName, protocol));
     }
 
 }

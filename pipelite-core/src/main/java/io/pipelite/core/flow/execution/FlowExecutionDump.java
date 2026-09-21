@@ -79,7 +79,7 @@ public interface FlowExecutionDump {
     ExhaustionAction getExhaustionAction();
 
     /**
-     * The dead-letter target - a URL: {@code link://<source endpoint name>} for an internal flow or
+     * The dead-letter target - a URL: {@code queue://<queue name>} for an internal flow or
      * a channel adapter URL for an external system, see
      * {@code io.pipelite.dsl.definition.builder.error.ErrorChannelOperations#toChannel} - only
      * meaningful when {@link #getExhaustionAction()} is {@link ExhaustionAction#DEAD_LETTER_CHANNEL},

@@ -164,7 +164,7 @@ class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContex
         }
 
         // Through the flow's own consumer, whatever its source is: this used to go through
-        // link://<resource>, which only ever reached an internal source.
+        // queue://<resource>, which only ever reached an internal source.
         flowHolder.get().supply(recoveredExchange);
         // Not equally safe: supply(...) only enqueues on the target flow's own in-memory
         // consumer here (see this class's own Javadoc) - removed anyway for consistency with
