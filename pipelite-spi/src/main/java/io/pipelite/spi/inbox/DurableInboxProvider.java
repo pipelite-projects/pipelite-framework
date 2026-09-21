@@ -16,16 +16,21 @@
 package io.pipelite.spi.inbox;
 
 /**
- * Resolves the one {@link DurableInbox} instance dedicated to a given source resource, creating
- * it on first request and reusing it afterward. Called exactly once per source, at flow-build
- * time (see {@code FlowFactory.createFlow}) — the mapping from resource to inbox is decided at
- * bootstrap, not threaded through every {@link DurableInbox#enqueue} call, which is why {@code
- * enqueue} itself takes no resource-identifying parameter.
+ * Resolves the one {@link DurableInbox} instance dedicated to a given flow, creating it on first
+ * request and reusing it afterward. Called exactly once per flow, at flow-build time (see {@code
+ * FlowFactory.createFlow}) — the mapping from flow to inbox is decided at bootstrap, not threaded
+ * through every {@link DurableInbox#enqueue} call, which is why {@code enqueue} itself takes no
+ * flow-identifying parameter.
+ * <p>
+ * Keyed by the flow's name, never by the resource of its source (issue #108): a resource is an
+ * address, not an identity, and several flows can legitimately share one - {@code http://orders},
+ * an internal {@code orders}, two flows reading the same Kafka topic - while a flow name is unique
+ * in a context.
  * <p>
  * Not a third-party extension point — see {@link DurableInbox}'s own Javadoc.
  */
 public sealed interface DurableInboxProvider permits SegmentedLogDurableInboxProvider {
 
-    DurableInbox forResource(String resourceKey);
+    DurableInbox forFlow(String flowName);
 
 }

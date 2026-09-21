@@ -38,12 +38,12 @@ import io.pipelite.spi.inbox.InboxEntry;
 public interface DurableInboxDeadLetterWriter {
 
     /**
-     * @param resourceKey the source resource {@code entry} belongs to (the same value {@code
-     *                     DurableInboxProvider#forResource(String)} was called with)
+     * @param flowName the flow {@code entry} belongs to (the same value {@code
+     *                 DurableInboxProvider#forFlow(String)} was called with)
      * @param entry        the entry whose payload failed to deserialize; {@link InboxEntry#getPayload()}
      *                     is written as-is, opaque, exactly as it was read from the durable inbox
      * @param cause        the deserialization failure, recorded for diagnosis
      */
-    void write(String resourceKey, InboxEntry entry, Exception cause);
+    void write(String flowName, InboxEntry entry, Exception cause);
 
 }

@@ -42,7 +42,7 @@ import java.util.zip.CRC32;
  * backlog, wrong for a structure that sees a source's <em>entire</em> message volume (see the
  * design doc behind issue #70).
  * <p>
- * {@code namePrefix} must be a stable, deterministic function of the resource key (see {@code
+ * {@code namePrefix} must be a stable, deterministic function of the flow name (see {@code
  * SegmentedLogDurableInboxProvider}, which hashes it the same way {@code FileTailStateStore}
  * does) — not a fresh random value per run: recovery after a restart depends on resolving the
  * exact same prefix for the same resource, with no separate index to look it up by if that

@@ -21,7 +21,6 @@ import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.flow.FlowNodeLocator;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.dump.SerializedFlowExecutionDump;
-import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.common.support.serialization.BaseEncoding;
 import io.pipelite.common.support.serialization.ByteArrayToObjectConverter;
 import io.pipelite.spi.context.IOKeys;
@@ -39,10 +38,11 @@ import java.util.Optional;
  * Resumes a failed flow's execution. Prefers resuming directly at the {@code FlowNode} that
  * actually failed ({@link SerializedFlowExecutionDump#getFailedProcessor()}) — bypassing the
  * flow's source and every already-succeeded step, which would otherwise re-run and could
- * re-apply side effects. Falls back to the pre-existing behavior (resupply from the flow's own
- * source) only when the failed processor's identity or the flow itself can't be resolved, e.g.
- * a dump produced before this resume mechanism existed, or a failure that didn't originate
- * inside a processor's own catch block.
+ * re-apply side effects. The flow is found by the name the dump carries, never by the resource of
+ * its source (issue #108). Falls back to the pre-existing behavior (resupply from the flow's own
+ * source) only when the failed processor's identity can't be resolved, e.g. a dump produced
+ * before this resume mechanism existed, or a failure that didn't originate inside a processor's
+ * own catch block.
  * <p>
  * The direct-resume path runs through the target flow's own {@link EventDrivenConsumerService}
  * (its {@link io.pipelite.spi.endpoint} dispatch strategy) when the target flow has one, instead
@@ -64,9 +64,8 @@ import java.util.Optional;
  * work is submitted, not once it finishes, so removing the dump right after that call would return
  * would reopen exactly the #58 crash window this class exists to close. The ungated fallback call
  * (target flow has no {@code EventDrivenConsumerService}) and the source-resupply fallback below
- * (via {@code pipeliteContext.supplyExchange(...)}, used only when the failed processor or its
- * flow can't be resolved) remove immediately after their own synchronous call returns — the latter
- * is not equally safe in principle (it merely enqueues the exchange on the target flow's own
+ * (through the flow's own consumer, used only when the failed processor can't be resolved) remove
+ * immediately after their own synchronous call returns — the latter is not equally safe in principle (it merely enqueues the exchange on the target flow's own
  * in-memory consumer and returns immediately, the same "accepted but not yet actually processed"
  * gap issue #70 (durable inbox) exists to close generically), removed anyway for consistency with
  * today's behavior on this narrow, already-degraded path, which still carries a smaller version of
@@ -131,12 +130,21 @@ class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContex
         recoveredExchange.setProperty(IOKeys.FLOW_EXECUTION_ATTEMPT_NUMBER_PROPERTY_NAME, executionDump.getAttemptNumber());
         recoveredExchange.setProperty(IOKeys.FLOW_EXECUTION_LAST_EXECUTED_PROCESSOR_PROPERTY_NAME, executionDump.getLastExecutedProcessor());
 
+        // The flow is found by its name, which the dump carries and which is unique in a context -
+        // never by the resource of its source (issue #108): a resource is an address, and several
+        // flows can share one (http://orders, an internal orders, two flows on one Kafka topic), in
+        // which case the registry lookup by resource would resume on whichever was registered first.
+        final String flowName = executionDump.getFlowName();
+        final Optional<Flow> flowHolder = pipeliteContext.tryFindFlowByName(flowName);
+        if (flowHolder.isEmpty()) {
+            // Renamed or removed since the dump was written: there is no flow to resume it on.
+            throw new IllegalStateException(String.format(
+                "Unable to resume FlowExecutionDump %s: no registered flow is named '%s'", dumpId, flowName));
+        }
+
         final String failedProcessor = executionDump.getFailedProcessor();
         if (failedProcessor != null) {
-            final Optional<Flow> flowHolder = pipeliteContext.tryFindFlow(executionDump.getSourceEndpointResource());
-            final FlowNode target = flowHolder
-                .flatMap(flow -> FlowNodeLocator.findByProcessorName(flow, failedProcessor))
-                .orElse(null);
+            final FlowNode target = FlowNodeLocator.findByProcessorName(flowHolder.get(), failedProcessor).orElse(null);
             if (target != null) {
                 // Removal happens inside the onComplete callback, not right after dispatch(...)
                 // returns - dispatch is not always synchronous (see this class's own Javadoc and
@@ -146,18 +154,19 @@ class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContex
                 return;
             }
             if (sysLogger.isWarnEnabled()) {
-                sysLogger.warn("Unable to resolve failed processor '{}' on flow source '{}' for FlowExecutionDump {}, " +
+                sysLogger.warn("Unable to resolve failed processor '{}' on flow '{}' for FlowExecutionDump {}, " +
                         "falling back to source resupply",
-                    failedProcessor, executionDump.getSourceEndpointResource(), executionDump.getId());
+                    failedProcessor, flowName, executionDump.getId());
             }
         } else if (sysLogger.isWarnEnabled()) {
             sysLogger.warn("FlowExecutionDump {} has no failedProcessor, falling back to source resupply",
                 executionDump.getId());
         }
 
-        final String endpointURL = ChannelProtocols.linkURL(executionDump.getSourceEndpointResource());
-        pipeliteContext.supplyExchange(endpointURL, recoveredExchange);
-        // Not equally safe: supplyExchange(...) only enqueues on the target flow's own in-memory
+        // Through the flow's own consumer, whatever its source is: this used to go through
+        // link://<resource>, which only ever reached an internal source.
+        flowHolder.get().supply(recoveredExchange);
+        // Not equally safe: supply(...) only enqueues on the target flow's own in-memory
         // consumer here (see this class's own Javadoc) - removed anyway for consistency with
         // today's behavior on this narrow, already-degraded fallback path.
         dumpRepository.remove(dumpId);

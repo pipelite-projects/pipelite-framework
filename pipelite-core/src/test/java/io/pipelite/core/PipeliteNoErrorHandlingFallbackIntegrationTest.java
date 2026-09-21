@@ -73,7 +73,7 @@ public class PipeliteNoErrorHandlingFallbackIntegrationTest {
         // propagated past dispatchToNext's acknowledge(...) call and the entry stayed pending
         // forever - only a restart (never this same run) would ever attempt it again.
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
-            pipeliteContext.getDurableInboxProvider().forResource(resource).pendingEntries().isEmpty());
+            pipeliteContext.getDurableInboxProvider().forFlow("no-error-handling-flow").pendingEntries().isEmpty());
 
         // Exactly one attempt - no retry was configured, so none should have happened.
         Assert.assertEquals(1, invocationCount.get());
