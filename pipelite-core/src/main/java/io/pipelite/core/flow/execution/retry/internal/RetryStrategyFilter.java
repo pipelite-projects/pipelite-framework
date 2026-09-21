@@ -33,7 +33,6 @@ import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.dsl.process.ProcessContribution;
 import io.pipelite.dsl.process.Processor;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.Flow;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,7 +82,7 @@ class RetryStrategyFilter implements Processor {
             contribution.stopExecution();
 
             switch (executionDump.getExhaustionAction()) {
-                case DEAD_LETTER_FLOW -> routeToDeadLetterTarget(executionDump);
+                case DEAD_LETTER_CHANNEL -> routeToDeadLetterTarget(executionDump);
                 case BUILT_IN_DLQ -> routeToBuiltInDeadLetterQueue(executionDump);
                 case FLOW_EXCEPTION_HANDLER -> invokeFlowExceptionHandler(executionDump);
                 case NONE -> {
@@ -107,21 +106,19 @@ class RetryStrategyFilter implements Processor {
     }
 
     private void routeToDeadLetterTarget(FlowExecutionDump executionDump) {
-        final String deadLetterFlowName = executionDump.getDeadLetterFlowName();
+        final String deadLetterTarget = executionDump.getDeadLetterTarget();
         final ExchangeImpl recoveredExchange = tryDecodeExchange(executionDump);
         if(recoveredExchange == null){
             if(sysLogger.isWarnEnabled()){
-                sysLogger.warn("FlowExecutionDump {} has no recoverable exchange data, unable to route to dead letter flow '{}'",
-                    executionDump.getId(), deadLetterFlowName);
+                sysLogger.warn("FlowExecutionDump {} has no recoverable exchange data, unable to route to dead letter target '{}'",
+                    executionDump.getId(), deadLetterTarget);
             }
         } else {
-            final Optional<Flow> deadLetterFlow = pipeliteContext.tryFindFlowByName(deadLetterFlowName);
-            if(deadLetterFlow.isPresent()){
-                deadLetterFlow.get().supply(recoveredExchange);
-            } else if(sysLogger.isWarnEnabled()){
-                sysLogger.warn("Dead letter flow '{}' is not registered, unable to route exchange for FlowExecutionDump {}",
-                    deadLetterFlowName, executionDump.getId());
-            }
+            // A URL, delivered exactly like DeadLetterChannelExceptionHandler delivers it on the
+            // first failure (issue #102): before, this path only knew how to look a flow up by
+            // name, so a link:// or kafka:// target was searched for as a flow named after the
+            // URL, never found, and the exhausted exchange was lost with a warning (issue #99).
+            pipeliteContext.supplyExchange(deadLetterTarget, recoveredExchange);
         }
     }
 

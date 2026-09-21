@@ -85,7 +85,7 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
     private static final String STACK_TRACE_KEY = "stackTrace";
     private static final String MAX_ATTEMPTS_KEY = "maxAttempts";
     private static final String EXHAUSTION_ACTION_KEY = "exhaustionAction";
-    private static final String DEAD_LETTER_FLOW_NAME_KEY = "deadLetterFlowName";
+    private static final String DEAD_LETTER_TARGET_KEY = "deadLetterTarget";
     private static final String EXCHANGE_DATA_KEY = "exchangeData";
     private static final String ENCODING_KEY = "encoding";
     private static final String STATUS_KEY = "status";
@@ -190,7 +190,7 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
         putIfNotNull(properties, STACK_TRACE_KEY, dump.getStackTrace());
         properties.setProperty(MAX_ATTEMPTS_KEY, String.valueOf(dump.getMaxAttempts()));
         properties.setProperty(EXHAUSTION_ACTION_KEY, dump.getExhaustionAction().name());
-        putIfNotNull(properties, DEAD_LETTER_FLOW_NAME_KEY, dump.getDeadLetterFlowName());
+        putIfNotNull(properties, DEAD_LETTER_TARGET_KEY, dump.getDeadLetterTarget());
         putIfNotNull(properties, EXCHANGE_DATA_KEY, dump.getExchangeData());
         putIfNotNull(properties, ENCODING_KEY, dump.getEncoding());
         properties.setProperty(STATUS_KEY, dump.getStatus().name());
@@ -209,7 +209,7 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
     }
 
     private static void putIfNotNull(Properties properties, String key, String value) {
-        // Properties#setProperty throws NPE on a null value, but deadLetterFlowName and
+        // Properties#setProperty throws NPE on a null value, but deadLetterTarget and
         // failedProcessor are legitimately null in the common case (no dead-letter configured;
         // failure occurred outside a processor's own catch block) and null is semantically
         // distinct from "" for both - so a missing key (Properties#getProperty already returns
@@ -246,7 +246,7 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
         dump.setExhaustionAction(exhaustionActionText != null
             ? FlowExecutionDump.ExhaustionAction.valueOf(exhaustionActionText)
             : FlowExecutionDump.ExhaustionAction.NONE);
-        dump.setDeadLetterFlowName(properties.getProperty(DEAD_LETTER_FLOW_NAME_KEY));
+        dump.setDeadLetterTarget(properties.getProperty(DEAD_LETTER_TARGET_KEY));
         dump.setExchangeData(properties.getProperty(EXCHANGE_DATA_KEY), properties.getProperty(ENCODING_KEY));
         // Defaults to PENDING for a file written before this field existed - never actually
         // happens today (nothing has shipped yet), kept as a safe default rather than a hard

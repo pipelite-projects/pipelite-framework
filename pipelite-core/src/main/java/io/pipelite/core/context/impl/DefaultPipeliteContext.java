@@ -23,6 +23,7 @@ import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.config.FlowConfigurationScanner;
 import io.pipelite.core.config.NoOpEndpointURLPropertyResolver;
 import io.pipelite.core.context.*;
+import io.pipelite.core.context.internal.DestinationURLs;
 import io.pipelite.core.flow.DeadLetterChannelExceptionHandler;
 import io.pipelite.core.flow.internal.FlowFactory;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
@@ -49,7 +50,6 @@ import io.pipelite.spi.channel.ChannelConfigurer;
 import io.pipelite.spi.channel.ChannelURL;
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.context.Service;
-import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
@@ -434,32 +434,20 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     @Override
     public void supplyExchange(String destinationURL, ExchangeImpl exchange) {
 
-        final ChannelURL channelURL = ChannelURL.parse(destinationURL);
-        if(channelURL.hasProtocol()){
-            final Optional<ChannelAdapter> channelHolder = channelAdapterManager.tryResolveChannel(channelURL.getProtocol());
-            if(channelHolder.isPresent()){
-                // create producer and produce exchange
-                final ChannelAdapter channel = channelHolder.get();
-                final Endpoint endpoint = channel.createEndpoint(channelURL.getEndpointURL());
-                final Producer producer = endpoint.createProducer();
-                producer.process(exchange);
-                return;
-            } else {
-                throw new IllegalArgumentException(String.format("Unrecognized destination '%s', unable to supply exchange", destinationURL));
-            }
-        }
+        // A destination is a URL (issue #102): a bare name used to fall through to a lookup in the
+        // flow registry by source endpoint resource, a second, undocumented way in that is gone.
+        final ChannelURL channelURL = DestinationURLs.require(destinationURL);
 
-        final EndpointURL endpointURL = EndpointURL.parse(channelURL.getEndpointURL());
-        final String sourceEndpointURI = endpointURL.getResource();
-
-        final Optional<Flow> flowHolder = flowRegistry.tryFindFlow(sourceEndpointURI);
-        if(flowHolder.isPresent()){
-            final Flow destination = flowHolder.get();
-            final Consumer consumer = destination.getConsumerAs(Consumer.class);
-            consumer.consume(exchange);
-        }else{
+        final Optional<ChannelAdapter> channelHolder = channelAdapterManager.tryResolveChannel(channelURL.getProtocol());
+        if(channelHolder.isEmpty()){
             throw new IllegalArgumentException(String.format("Unrecognized destination '%s', unable to supply exchange", destinationURL));
         }
+
+        // create producer and produce exchange
+        final ChannelAdapter channel = channelHolder.get();
+        final Endpoint endpoint = channel.createEndpoint(channelURL.getEndpointURL());
+        final Producer producer = endpoint.createProducer();
+        producer.process(exchange);
     }
 
 

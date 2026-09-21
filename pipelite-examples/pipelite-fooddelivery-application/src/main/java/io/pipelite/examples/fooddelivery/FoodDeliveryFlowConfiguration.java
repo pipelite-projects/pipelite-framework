@@ -54,15 +54,16 @@ import java.util.concurrent.TimeUnit;
  *                               │       │
  *                               └─► link://dispatch-start (concurrency=3, "dispatch coordinators")
  *                                       │  .withRetry(maxAttempts=2)
- *                                       │  .onErrorChannel(toChannel("dispatch-dead-letter"))
+ *                                       │  .onErrorChannel(toChannel("link://dispatch-dead-letter"))
  *                                       │  validate-order-amount: orders over the manual-review
  *                                       │  threshold always fail (deterministic, not transient) —
  *                                       │  retried twice regardless, then dead-lettered
  *                                       ▼
  *                                  DeliveryLogWriter: one file://.../delivery-log-&lt;driver&gt;.csv per courier
  *
- * toChannel("dispatch-dead-letter") ─► dispatchDeadLetterFlow (resolved by its own defineFlow
- *                                       name, "dispatch-dead-letter" — not by fromSource)
+ * toChannel("link://dispatch-dead-letter") ─► dispatchDeadLetterFlow (addressed by its source
+ *                                       endpoint name; its flow name, "dispatch-dead-letter-flow",
+ *                                       is an identity, never an address)
  *                                           ─► file://.../rejected-orders.log
  * </pre>
  *
@@ -115,6 +116,7 @@ public class FoodDeliveryFlowConfiguration {
     private static final int KITCHEN_MAX_ATTEMPTS = 3;
     private static final int DISPATCH_MAX_ATTEMPTS = 2;
     private static final String DISPATCH_DEAD_LETTER_FLOW = "dispatch-dead-letter-flow";
+    private static final String DISPATCH_DEAD_LETTER_SOURCE = "dispatch-dead-letter";
     // Orders at or below this total are auto-dispatched; above it, validate-order-amount always
     // fails — deterministic, not transient, so retrying doesn't help and the dead letter channel
     // (not silent drop) is what makes the order visible again for manual handling.
@@ -237,7 +239,7 @@ public class FoodDeliveryFlowConfiguration {
             // retries jump directly back to validate-order-amount, not the flow's source.
             .withRetry(retry -> retry
                 .maxAttempts(DISPATCH_MAX_ATTEMPTS)
-                .onErrorChannel(err -> err.toChannel(DISPATCH_DEAD_LETTER_FLOW)))
+                .onErrorChannel(err -> err.toChannel("link://" + DISPATCH_DEAD_LETTER_SOURCE)))
             .build();
     }
 
@@ -245,15 +247,15 @@ public class FoodDeliveryFlowConfiguration {
      * Where orders land once {@code dispatchProcessingFlow}'s dead letter channel routes them —
      * i.e. every order whose total stayed above {@link #MANUAL_REVIEW_THRESHOLD} through all
      * {@value #DISPATCH_MAX_ATTEMPTS} attempts. {@code dispatchProcessingFlow}'s {@code
-     * .definedFlow(DISPATCH_DEAD_LETTER_FLOW)} targets this flow by its own {@code
-     * Pipelite.defineFlow(...)} name, not by its {@code fromSource(...)} resource — the two
-     * happen to share the same string below for clarity, but {@code definedFlow(...)} would
-     * resolve correctly even if they didn't.
+     * .toChannel("link://" + DISPATCH_DEAD_LETTER_SOURCE)} addresses this flow by the name its {@code
+     * fromSource(...)} declares, as any flow is addressed (issue #102). The flow's own name,
+     * {@code DISPATCH_DEAD_LETTER_FLOW}, is deliberately a different string: it is an identity, not
+     * an address.
      */
     @DefineFlow
     public FlowDefinition dispatchDeadLetterFlow() {
         return Pipelite.defineFlow(DISPATCH_DEAD_LETTER_FLOW)
-            .fromSource("dispatch-dead-letter")
+            .fromSource(DISPATCH_DEAD_LETTER_SOURCE)
             .wireTap("log-rejected-order", "slf4j://orders-rejected")
             .transformPayload("format-rejected-record", payload -> payload.getPayloadAs(Order.class).toRejectedLogLine())
             .toSink(String.format("file://%s", FoodDeliveryPaths.REJECTED_ORDERS_FILE))

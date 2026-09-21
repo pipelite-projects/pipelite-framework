@@ -15,6 +15,7 @@
  */
 package io.pipelite.core.definition.builder.error;
 
+import io.pipelite.core.context.internal.DestinationURLs;
 import io.pipelite.dsl.definition.ErrorChannelDefinition;
 import io.pipelite.dsl.definition.builder.error.ChannelErrorChannelOperations;
 import io.pipelite.dsl.definition.builder.error.DeadLetterQueueErrorChannelOperations;
@@ -28,13 +29,15 @@ public class ErrorChannelBuilder implements ErrorChannelOperations, ChannelError
     private ErrorChannelDefinition.ChannelType channelType;
 
     /**
-     * Renamed and broadened from {@code definedFlow(String)} (issue #91) - no longer rejects a
-     * protocol-qualified value; {@code DeadLetterChannelExceptionHandler} branches on {@code
-     * ChannelURL.hasProtocol()} at dispatch time instead.
+     * Renamed and broadened from {@code definedFlow(String)} (issue #91) - accepts any channel
+     * adapter URL - and, since issue #102, only a URL: a bare name (which used to be read as a flow
+     * name) is rejected here, when the flow is defined, unless it is an expression only known at
+     * runtime, which {@code PipeliteContext#supplyExchange} checks when it is delivered.
      */
     @Override
     public ChannelErrorChannelOperations toChannel(String target) {
         Objects.requireNonNull(target, "target is required and cannot be null");
+        DestinationURLs.requireStatic(target, "toChannel(...)");
         rejectSecondTarget("toChannel(...)");
         this.target = target;
         this.channelType = ErrorChannelDefinition.ChannelType.DEFINED_CHANNEL;

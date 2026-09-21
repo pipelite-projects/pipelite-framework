@@ -64,7 +64,7 @@ public class PipeliteRetryChannelIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("ingress", exchangeFactory.createExchange("test-message"));
+        pipeliteContext.supplyExchange("link://ingress", exchangeFactory.createExchange("test-message"));
 
         Awaitility.await().atMost(60, TimeUnit.SECONDS).until(() -> counter.get() > 10);
 

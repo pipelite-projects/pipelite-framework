@@ -16,6 +16,7 @@
 package io.pipelite.core.components;
 
 import io.pipelite.components.link.LinkChannelAdapter;
+import io.pipelite.dsl.ChannelProtocols;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,8 +43,11 @@ public class ResourceCandidateComponentsAnalyzerTest {
         final Collection<CandidateComponentMetadata> candidates = subject.apply(resourceURL);
         Assert.assertNotNull(candidates);
 
+        // ChannelProtocols.LINK is what the framework addresses internal flows with (issue #102); the
+        // link adapter is declared under that name in META-INF/pipelite.factories, which cannot
+        // reference the constant - this is what keeps the two aligned.
         final Optional<CandidateComponentMetadata> candidateHolder = candidates.stream()
-            .filter(ccm -> "link".equals(ccm.getProtocolName()))
+            .filter(ccm -> ChannelProtocols.LINK.equals(ccm.getProtocolName()))
             .findFirst();
 
         Assert.assertTrue(candidateHolder.isPresent());

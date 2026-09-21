@@ -27,7 +27,7 @@ public interface FlowExecutionDump {
      * declare an exhaustion action via {@code .onErrorChannel(...)}/{@code .onExceptionHandler(...)}.
      */
     enum ExhaustionAction {
-        DEAD_LETTER_FLOW, BUILT_IN_DLQ, FLOW_EXCEPTION_HANDLER, NONE
+        DEAD_LETTER_CHANNEL, BUILT_IN_DLQ, FLOW_EXCEPTION_HANDLER, NONE
     }
 
     String getId();
@@ -79,13 +79,14 @@ public interface FlowExecutionDump {
     ExhaustionAction getExhaustionAction();
 
     /**
-     * The dead-letter target - a bare flow name or a protocol-qualified channel adapter URL, see
+     * The dead-letter target - a URL: {@code link://<source endpoint name>} for an internal flow or
+     * a channel adapter URL for an external system, see
      * {@code io.pipelite.dsl.definition.builder.error.ErrorChannelOperations#toChannel} - only
-     * meaningful when {@link #getExhaustionAction()} is {@link ExhaustionAction#DEAD_LETTER_FLOW},
+     * meaningful when {@link #getExhaustionAction()} is {@link ExhaustionAction#DEAD_LETTER_CHANNEL},
      * {@code null} otherwise.
      */
-    void setDeadLetterFlowName(String deadLetterFlowName);
-    String getDeadLetterFlowName();
+    void setDeadLetterTarget(String deadLetterTarget);
+    String getDeadLetterTarget();
 
     /**
      * This dump's own claim state — see {@link FlowExecutionDumpStatus}. A newly created dump

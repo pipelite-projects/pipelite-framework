@@ -19,17 +19,12 @@ public interface ErrorChannelOperations {
 
     /**
      * Declares where a dead-lettered exchange is routed to (issue #91) - renamed and broadened
-     * from {@code definedFlow(String)}. Accepts either:
-     * <ul>
-     *     <li>a bare name - the target flow's own name, the exact value passed to that flow's own
-     *     {@code Pipelite.defineFlow(String flowName)}, not necessarily its {@code fromSource(...)}
-     *     resource; resolved via {@code PipeliteContext.tryFindFlowByName(...)}, exactly as
-     *     {@code definedFlow(...)} always did;</li>
-     *     <li>a protocol-qualified URL (e.g. {@code link://...}, {@code kafka://...}) - delivered
-     *     directly to that channel adapter's {@code Producer}, with no {@code Flow} required to
-     *     receive it. Resolved the same way {@code PipeliteContext.supplyExchange(...)} already
-     *     resolves its own protocol branch.</li>
-     * </ul>
+     * from {@code definedFlow(String)}. The target is a URL, like every destination in the DSL (issue
+     * #102): {@code link://<source endpoint name>} for an internal flow - the name its own {@code
+     * fromSource("<source endpoint name>")} declares, never the flow's {@code defineFlow(...)} name -
+     * or a registered channel adapter's protocol ({@code kafka://...}) for an external system,
+     * delivered directly to that adapter's {@code Producer} with no {@code Flow} required to
+     * receive it. A bare name is rejected when the flow is defined.
      */
     ChannelErrorChannelOperations toChannel(String target);
 

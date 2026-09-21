@@ -37,7 +37,7 @@ All standard Spring `Environment` sources are supported: `application.properties
 
 Placeholder resolution happens once, eagerly, during `PipeliteContext.start()`, just before each endpoint URL is parsed.
 The resolved value becomes the permanent key under which the flow is registered in the internal registry — not the raw placeholder string.
-This means that routing and lookups (e.g. `PipeliteContext.supplyExchange(...)`) must use the resolved name, not the original `${...}` literal.
+This means that routing and lookups (e.g. `PipeliteContext.supplyExchange("link://<name>", ...)`) must use the resolved name, not the original `${...}` literal.
 
 == Fail-fast behaviour
 

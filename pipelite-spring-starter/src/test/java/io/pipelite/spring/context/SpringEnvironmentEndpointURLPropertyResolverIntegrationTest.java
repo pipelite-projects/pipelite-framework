@@ -47,7 +47,7 @@ public class SpringEnvironmentEndpointURLPropertyResolverIntegrationTest {
 
             // does not throw "Unrecognized destination": proves the flow is registered and routable
             // under the *resolved* resource name, not under the literal '${test.source.name}' placeholder.
-            pipeliteContext.supplyExchange("source-resolved", exchangeFactory.createExchange("Hello Pipelite!"));
+            pipeliteContext.supplyExchange("link://source-resolved", exchangeFactory.createExchange("Hello Pipelite!"));
         }
     }
 

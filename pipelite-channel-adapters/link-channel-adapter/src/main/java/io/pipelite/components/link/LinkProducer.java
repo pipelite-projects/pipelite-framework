@@ -15,6 +15,7 @@
  */
 package io.pipelite.components.link;
 
+import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.DefaultProducer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
@@ -35,12 +36,19 @@ public class LinkProducer extends DefaultProducer {
 
         final LinkChannelAdapter component = endpoint.getChannelAdapter(LinkChannelAdapter.class);
         final EndpointURL endpointURL = endpoint.getEndpointURL();
-        component.tryResolveConsumer(endpointURL.getResource())
-            .ifPresent(consumer -> {
-                if(sysLogger.isDebugEnabled()){
-                    sysLogger.debug("Redirecting exchange to '{}'", endpointURL.getResource());
-                }
-                consumer.consume(exchange);
-            });
+
+        // Fails instead of dropping the exchange when no flow declares fromSource(resource): it used
+        // to be discarded in silence (issue #100), which only mattered less while a bare
+        // destination, which did fail, was another way to reach an internal flow (issue #102).
+        // The failure goes through the flow's exception handler like any failed producer (#92).
+        final Consumer consumer = component.tryResolveConsumer(endpointURL.getResource())
+            .orElseThrow(() -> new IllegalArgumentException(String.format(
+                "Unrecognized destination 'link://%s', unable to supply exchange - " +
+                    "no registered flow declares fromSource('%s')", endpointURL.getResource(), endpointURL.getResource())));
+
+        if(sysLogger.isDebugEnabled()){
+            sysLogger.debug("Redirecting exchange to '{}'", endpointURL.getResource());
+        }
+        consumer.consume(exchange);
     }
 }

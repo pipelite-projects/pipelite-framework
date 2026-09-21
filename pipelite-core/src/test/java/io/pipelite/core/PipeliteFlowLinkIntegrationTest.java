@@ -57,7 +57,7 @@ public class PipeliteFlowLinkIntegrationTest {
         context.start();
 
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
-        context.supplyExchange("origin-start", exchangeFactory.createExchange("Hello Pipelite!"));
+        context.supplyExchange("link://origin-start", exchangeFactory.createExchange("Hello Pipelite!"));
 
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(forwarded::get);
 

@@ -71,7 +71,7 @@ public class PipeliteFileFlowExecutionDumpRepositoryIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("ingress", exchangeFactory.createExchange("test-message"));
+        pipeliteContext.supplyExchange("link://ingress", exchangeFactory.createExchange("test-message"));
 
         // Proves RetryChannelExceptionHandler.save(...) landed in the repository passed to the
         // setter, not a stale in-memory default - a dump file must appear on disk.
@@ -115,7 +115,7 @@ public class PipeliteFileFlowExecutionDumpRepositoryIntegrationTest {
             pipeliteContext.start();
 
             final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-            pipeliteContext.supplyExchange("default-repository-ingress", exchangeFactory.createExchange("test-message"));
+            pipeliteContext.supplyExchange("link://default-repository-ingress", exchangeFactory.createExchange("test-message"));
 
             final Path expectedDumpsDirectory = customHome.resolve("state").resolve("retry");
             Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> countDumpFiles(expectedDumpsDirectory) == 1);

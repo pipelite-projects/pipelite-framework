@@ -21,6 +21,7 @@ import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.flow.FlowNodeLocator;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.dump.SerializedFlowExecutionDump;
+import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.common.support.serialization.BaseEncoding;
 import io.pipelite.common.support.serialization.ByteArrayToObjectConverter;
 import io.pipelite.spi.context.IOKeys;
@@ -154,7 +155,7 @@ class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContex
                 executionDump.getId());
         }
 
-        final String endpointURL = String.format("link://%s", executionDump.getSourceEndpointResource());
+        final String endpointURL = ChannelProtocols.linkURL(executionDump.getSourceEndpointResource());
         pipeliteContext.supplyExchange(endpointURL, recoveredExchange);
         // Not equally safe: supplyExchange(...) only enqueues on the target flow's own in-memory
         // consumer here (see this class's own Javadoc) - removed anyway for consistency with

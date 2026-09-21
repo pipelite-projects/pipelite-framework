@@ -56,7 +56,18 @@ public interface PipeliteContext {
 
     boolean isRegistered(String flowName);
 
-    void supplyExchange(String endpointURL, ExchangeImpl exchange);
+    /**
+     * Delivers {@code exchange} to {@code destinationURL}: a URL, always (issue #102). An internal
+     * flow is addressed as {@code link://<source endpoint name>} - the name its own
+     * {@code fromSource("<source endpoint name>")} declares, without protocol - and an external
+     * system through its channel adapter's protocol ({@code kafka://...}). A bare name is not a
+     * destination and is rejected: it would be ambiguous between a source endpoint name and a
+     * flow name.
+     *
+     * @throws IllegalArgumentException if {@code destinationURL} is not a URL, or its protocol has
+     *                                  no registered channel adapter.
+     */
+    void supplyExchange(String destinationURL, ExchangeImpl exchange);
 
     /**
      * Looks up a registered {@link Flow} by its source endpoint resource (the same value
@@ -70,9 +81,8 @@ public interface PipeliteContext {
     /**
      * Looks up a registered {@link Flow} by its own name — the value passed to
      * {@code Pipelite.defineFlow(String flowName)} — not by its {@code fromSource(...)} resource
-     * (see {@link #tryFindFlow(String)} for that). Used to route to a dead-letter flow declared
-     * via {@code .withErrorChannel(err -> err.toChannel(flowName))}: that value identifies the
-     * target flow itself, independent of whatever resource it happens to consume from.
+     * (see {@link #tryFindFlow(String)} for that). The flow name is an identity, not an address:
+     * since issue #102 no DSL method takes it as a destination (see {@link #supplyExchange}).
      */
     Optional<Flow> tryFindFlowByName(String flowName);
 

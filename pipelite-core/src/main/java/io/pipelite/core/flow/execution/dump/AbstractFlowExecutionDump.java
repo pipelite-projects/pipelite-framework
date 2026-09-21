@@ -36,7 +36,7 @@ public abstract class AbstractFlowExecutionDump implements FlowExecutionDump {
     private String stackTrace;
     private int maxAttempts = 3;
     private FlowExecutionDump.ExhaustionAction exhaustionAction = FlowExecutionDump.ExhaustionAction.NONE;
-    private String deadLetterFlowName;
+    private String deadLetterTarget;
     private FlowExecutionDumpStatus status = FlowExecutionDumpStatus.PENDING;
 
     private transient Throwable failureException;
@@ -152,13 +152,13 @@ public abstract class AbstractFlowExecutionDump implements FlowExecutionDump {
     }
 
     @Override
-    public void setDeadLetterFlowName(String deadLetterFlowName) {
-        this.deadLetterFlowName = deadLetterFlowName;
+    public void setDeadLetterTarget(String deadLetterTarget) {
+        this.deadLetterTarget = deadLetterTarget;
     }
 
     @Override
-    public String getDeadLetterFlowName() {
-        return deadLetterFlowName;
+    public String getDeadLetterTarget() {
+        return deadLetterTarget;
     }
 
     @Override

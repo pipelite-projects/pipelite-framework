@@ -89,7 +89,7 @@ public class FailureHandlingDslGuardTest {
     public void givenAnErrorChannelTargetIsDeclared_whenASecondOneIsDeclared_thenItFailsFast() {
         try {
             newBuilder().withErrorChannel(err -> {
-                err.toChannel("some-flow");
+                err.toChannel("link://some-flow");
                 return err.toDLQ();
             });
             fail("expected IllegalStateException");

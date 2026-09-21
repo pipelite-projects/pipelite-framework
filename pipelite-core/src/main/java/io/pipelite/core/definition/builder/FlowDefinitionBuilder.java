@@ -16,6 +16,7 @@
 package io.pipelite.core.definition.builder;
 
 import io.pipelite.core.definition.internal.*;
+import io.pipelite.core.context.internal.DestinationURLs;
 import io.pipelite.core.definition.builder.error.ErrorChannelBuilder;
 import io.pipelite.core.definition.builder.retry.RetryBuilder;
 import io.pipelite.core.definition.builder.internal.Builder;
@@ -63,13 +64,13 @@ public class FlowDefinitionBuilder implements FlowOperations {
     // three mutually-exclusive entry points (issue #91) - composed into a single ExceptionHandler
     // in build() — see resolveExceptionHandler(). retry's own exhaustion action (declared via
     // .onErrorChannel(...)/.onExceptionHandler(...) inside withRetry(...)) reuses the same
-    // deadLetterFlowName/builtInDeadLetterQueueRequested/customExceptionHandler fields a bare
+    // deadLetterTarget/builtInDeadLetterQueueRequested/customExceptionHandler fields a bare
     // top-level withErrorChannel(...)/withExceptionHandler(...) would set.
     private String declaredFailureHandling;
     private boolean retryChannelRequested = false;
     private int retryMaxAttempts = RetryBuilder.DEFAULT_MAX_ATTEMPTS;
     private boolean builtInDeadLetterQueueRequested = false;
-    private String deadLetterFlowName;
+    private String deadLetterTarget;
     private ExceptionHandler customExceptionHandler;
 
     public FlowDefinitionBuilder(String flowName){
@@ -118,6 +119,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
 
     @Override
     public ProcessOperations wireTap(String name, String endpointURL) {
+        DestinationURLs.requireStatic(endpointURL, "wireTap(...)");
         final FlowNode processorNode = ProcessorNodeFactory.wireTap(endpointURL);
         final ProcessorDefinition processorDefinition = new ProcessorDefinitionImpl(name, processorNode);
         builder.with(target -> target.addProcessorDefinition(processorDefinition));
@@ -236,7 +238,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
         if (Objects.requireNonNull(errorChannelDefinition.getErrorChannelType()) == ErrorChannelDefinition.ChannelType.DEAD_LETTER_QUEUE) {
             builtInDeadLetterQueueRequested = true;
         } else {
-            deadLetterFlowName = errorChannelDefinition.getEndpointURL();
+            deadLetterTarget = errorChannelDefinition.getEndpointURL();
         }
     }
 
@@ -265,9 +267,9 @@ public class FlowDefinitionBuilder implements FlowOperations {
             handler.setMaxAttempts(retryMaxAttempts);
             if (builtInDeadLetterQueueRequested) {
                 handler.setExhaustionAction(FlowExecutionDump.ExhaustionAction.BUILT_IN_DLQ);
-            } else if (deadLetterFlowName != null) {
-                handler.setExhaustionAction(FlowExecutionDump.ExhaustionAction.DEAD_LETTER_FLOW);
-                handler.setDeadLetterFlowName(deadLetterFlowName);
+            } else if (deadLetterTarget != null) {
+                handler.setExhaustionAction(FlowExecutionDump.ExhaustionAction.DEAD_LETTER_CHANNEL);
+                handler.setDeadLetterTarget(deadLetterTarget);
             } else {
                 handler.setExhaustionAction(FlowExecutionDump.ExhaustionAction.FLOW_EXCEPTION_HANDLER);
                 handler.setExhaustionExceptionHandler(customExceptionHandler);
@@ -277,8 +279,8 @@ public class FlowDefinitionBuilder implements FlowOperations {
         if (builtInDeadLetterQueueRequested) {
             return new DeadLetterQueueExceptionHandler();
         }
-        if (deadLetterFlowName != null) {
-            return new DeadLetterChannelExceptionHandler(deadLetterFlowName);
+        if (deadLetterTarget != null) {
+            return new DeadLetterChannelExceptionHandler(deadLetterTarget);
         }
         if (customExceptionHandler != null) {
             return customExceptionHandler;

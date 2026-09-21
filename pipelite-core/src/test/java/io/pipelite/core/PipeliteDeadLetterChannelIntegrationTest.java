@@ -23,8 +23,11 @@ import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.awaitility.Awaitility;
+import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -39,19 +42,39 @@ import static org.junit.Assert.fail;
  * err.toChannel(target))} usable independently of retry (immediate dead-lettering, no retry) and
  * composed with it via {@code .withRetry(retry -> retry.onErrorChannel(...))} (retry first,
  * dead-letter only once exhausted). {@code toChannel(...)} was renamed and broadened from
- * {@code definedFlow(...)} by issue #91 to also accept protocol-qualified channel adapter URLs.
+ * {@code definedFlow(...)} by issue #91 to also accept protocol-qualified channel adapter URLs, and
+ * by issue #102 to accept <em>only</em> URLs: an internal flow is addressed as {@code
+ * link://<source endpoint name>}, never by its flow name.
  */
 public class PipeliteDeadLetterChannelIntegrationTest {
 
+    @Rule
+    public TemporaryFolder temporaryFolder = new TemporaryFolder();
+
+    private String previousHome;
     private ConfigurablePipeliteContext pipeliteContext;
 
     @Before
-    public void setup(){
+    public void setup() throws Exception {
+        // Isolated pipelite.home: the default durable inbox is file-backed, and would otherwise
+        // accumulate state under the real ~/.pipelite.
+        previousHome = System.getProperty("pipelite.home");
+        System.setProperty("pipelite.home", temporaryFolder.newFolder("home").toPath().toString());
         pipeliteContext = (ConfigurablePipeliteContext) Pipelite.createContext();
         // Retry-routing/dead-letter mechanics only, not persistence - in-memory keeps this
         // hermetic (DefaultPipeliteContext's own default is now file-backed under PipeliteHome,
         // see issue #68).
         pipeliteContext.setFlowExecutionDumpRepository(new FlowExecutionDumpInMemoryRepository());
+    }
+
+    @After
+    public void tearDown() {
+        pipeliteContext.stop();
+        if (previousHome != null) {
+            System.setProperty("pipelite.home", previousHome);
+        } else {
+            System.clearProperty("pipelite.home");
+        }
     }
 
     @Test
@@ -73,7 +96,7 @@ public class PipeliteDeadLetterChannelIntegrationTest {
                 throw new RuntimeException("simulated poison message");
             })
             .toSink("dlc-only-out")
-            .withErrorChannel(err -> err.toChannel("dlc-only-poison-queue"))
+            .withErrorChannel(err -> err.toChannel("link://dlc-only-poison-queue"))
             .build();
 
         pipeliteContext.registerFlowDefinition(deadLetterQueue);
@@ -81,7 +104,7 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("dlc-only-in", exchangeFactory.createExchange("poison-payload"));
+        pipeliteContext.supplyExchange("link://dlc-only-in", exchangeFactory.createExchange("poison-payload"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> deadLettered.get() != null);
 
@@ -113,7 +136,7 @@ public class PipeliteDeadLetterChannelIntegrationTest {
             .toSink("dlc-composed-out")
             .withRetry(retry -> retry
                 .maxAttempts(3)
-                .onErrorChannel(err -> err.toChannel("dlc-composed-poison-queue")))
+                .onErrorChannel(err -> err.toChannel("link://dlc-composed-poison-queue")))
             .build();
 
         pipeliteContext.registerFlowDefinition(deadLetterQueue);
@@ -121,7 +144,7 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("dlc-composed-in", exchangeFactory.createExchange("persistent-poison-payload"));
+        pipeliteContext.supplyExchange("link://dlc-composed-in", exchangeFactory.createExchange("persistent-poison-payload"));
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> deadLettered.get() != null);
 
@@ -179,51 +202,40 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("link-qualified-dlc-in", exchangeFactory.createExchange("poison-payload"));
+        pipeliteContext.supplyExchange("link://link-qualified-dlc-in", exchangeFactory.createExchange("poison-payload"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> deadLettered.get() != null);
         assertEquals("poison-payload", deadLettered.get().getInputPayloadAs(String.class));
     }
 
+    /**
+     * Issue #102: a flow is addressed by URL, never by name. A bare value is rejected when the
+     * flow is defined, with a message saying what to write, instead of being read as a flow name
+     * (before) or failing at the first dead-lettered message.
+     */
     @Test
-    public void givenPlainFlowName_whenToChannelIsCalled_thenAcceptedAndRedirectionAppliedAutomatically(){
-
-        final AtomicReference<ExchangeImpl> deadLettered = new AtomicReference<>();
-
-        final FlowDefinition deadLetterQueue = Pipelite.defineFlow("plain-name-dlc-poison-queue")
-            .fromSource("plain-name-dlc-poison-queue")
-            .process("capture", (io, c) -> deadLettered.set((ExchangeImpl) io))
-            .toSink("plain-name-dlc-poison-out")
-            .build();
-
-        // Plain name, no protocol - resolved by its own defineFlow(...) name, not its
-        // fromSource(...) resource (see the protocol-qualified case above for the other branch).
-        final FlowDefinition mainFlow = Pipelite.defineFlow("plain-name-dlc-main-flow")
-            .fromSource("plain-name-dlc-in")
-            .process("always-fail", (io, c) -> { throw new RuntimeException("boom"); })
-            .toSink("plain-name-dlc-out")
-            .withErrorChannel(err -> err.toChannel("plain-name-dlc-poison-queue"))
-            .build();
-
-        pipeliteContext.registerFlowDefinition(deadLetterQueue);
-        pipeliteContext.registerFlowDefinition(mainFlow);
-        pipeliteContext.start();
-
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("plain-name-dlc-in", exchangeFactory.createExchange("poison-payload"));
-
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> deadLettered.get() != null);
-        assertEquals("poison-payload", deadLettered.get().getInputPayloadAs(String.class));
+    public void givenABareName_whenToChannelIsCalled_thenRejectedAtDefinitionTimeSayingWhatToWrite(){
+        try {
+            Pipelite.defineFlow("bare-name-dlc-main-flow")
+                .fromSource("bare-name-dlc-in")
+                .process("always-fail", (io, c) -> { throw new RuntimeException("boom"); })
+                .toSink("bare-name-dlc-out")
+                .withErrorChannel(err -> err.toChannel("bare-name-dlc-poison-queue"))
+                .build();
+            fail("Expected a bare name to be rejected");
+        } catch (IllegalArgumentException expected) {
+            assertTrue(expected.getMessage(), expected.getMessage().contains("toChannel(...)"));
+            assertTrue(expected.getMessage(), expected.getMessage().contains("link://bare-name-dlc-poison-queue"));
+        }
     }
 
     @Test
-    public void givenDeadLetterFlowNameDiffersFromItsSourceResource_whenToChannelIsCalled_thenResolvedByFlowNameNotSourceResource(){
+    public void givenFlowNameDiffersFromItsSourceEndpointName_whenToChannelIsCalled_thenTheSourceEndpointNameAddressesIt(){
 
         final AtomicReference<ExchangeImpl> deadLettered = new AtomicReference<>();
 
         // The dead-letter flow's own Pipelite.defineFlow(...) name is deliberately different from
-        // its fromSource(...) resource, proving toChannel(...) resolves by flow identity, not
-        // by the (unrelated) resource that flow happens to consume from.
+        // its fromSource(...) name: only the latter is an address, the flow name is an identity.
         final FlowDefinition deadLetterQueue = Pipelite.defineFlow("distinct-flow-name-dlc-queue")
             .fromSource("totally-unrelated-source-resource")
             .process("capture", (io, c) -> deadLettered.set((ExchangeImpl) io))
@@ -234,7 +246,7 @@ public class PipeliteDeadLetterChannelIntegrationTest {
             .fromSource("distinct-flow-name-dlc-in")
             .process("always-fail", (io, c) -> { throw new RuntimeException("boom"); })
             .toSink("distinct-flow-name-dlc-out-2")
-            .withErrorChannel(err -> err.toChannel("distinct-flow-name-dlc-queue"))
+            .withErrorChannel(err -> err.toChannel("link://totally-unrelated-source-resource"))
             .build();
 
         pipeliteContext.registerFlowDefinition(deadLetterQueue);
@@ -242,10 +254,51 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("distinct-flow-name-dlc-in", exchangeFactory.createExchange("poison-payload"));
+        pipeliteContext.supplyExchange("link://distinct-flow-name-dlc-in", exchangeFactory.createExchange("poison-payload"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> deadLettered.get() != null);
         assertEquals("poison-payload", deadLettered.get().getInputPayloadAs(String.class));
+    }
+
+    /**
+     * Issue #99: the retry path used to look the target up as a flow named after the URL, so a
+     * protocol-qualified target worked without retry and lost the exchange once retry attempts
+     * were exhausted. Both paths deliver through the same {@code supplyExchange} now.
+     */
+    @Test
+    public void givenRetryAndALinkTarget_whenAttemptsAreExhausted_thenDeliveredToTheLinkedFlow(){
+
+        final AtomicInteger attemptCount = new AtomicInteger(0);
+        final AtomicReference<ExchangeImpl> deadLettered = new AtomicReference<>();
+
+        final FlowDefinition receiver = Pipelite.defineFlow("retry-link-dlc-receiver")
+            .fromSource("retry-link-dlc-poison-queue")
+            .process("capture", (io, c) -> deadLettered.set((ExchangeImpl) io))
+            .build();
+
+        final FlowDefinition mainFlow = Pipelite.defineFlow("retry-link-dlc-main-flow")
+            .fromSource("retry-link-dlc-in")
+            .process("always-fail", (io, c) -> {
+                attemptCount.incrementAndGet();
+                throw new RuntimeException("simulated persistent failure");
+            })
+            .toSink("retry-link-dlc-out")
+            .withRetry(retry -> retry
+                .maxAttempts(2)
+                .onErrorChannel(err -> err.toChannel("link://retry-link-dlc-poison-queue")))
+            .build();
+
+        pipeliteContext.registerFlowDefinition(receiver);
+        pipeliteContext.registerFlowDefinition(mainFlow);
+        pipeliteContext.start();
+
+        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        pipeliteContext.supplyExchange("link://retry-link-dlc-in", exchangeFactory.createExchange("persistent-poison-payload"));
+
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> deadLettered.get() != null);
+
+        assertEquals(2, attemptCount.get());
+        assertEquals("persistent-poison-payload", deadLettered.get().getInputPayloadAs(String.class));
     }
 
 }

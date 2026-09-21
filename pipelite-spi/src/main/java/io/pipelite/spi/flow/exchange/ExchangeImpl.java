@@ -168,10 +168,14 @@ public class ExchangeImpl implements Exchange, Serializable {
         return headers.tryGetHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME);
     }
 
+    /**
+     * {@code returnAddress} is a URL (issue #102): {@code link://<source endpoint name>} for an
+     * internal flow. Kept only if none is set yet, so the first caller in a chain wins.
+     */
     // @Override - Exchange#setReturnAddress is disabled for now, see io.pipelite.dsl.Exchange
-    public void setReturnAddress(String flowName) {
+    public void setReturnAddress(String returnAddress) {
         if(!headers.hasHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME)){
-            headers.putHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME, flowName);
+            headers.putHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME, returnAddress);
         }
     }
 

@@ -16,6 +16,7 @@
 package io.pipelite.core;
 
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
+import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.awaitility.Awaitility;
@@ -75,7 +76,7 @@ public class PipeliteFlowExecutionDumpSurvivesRestartIntegrationTest {
             firstRun.start();
 
             final ExchangeFactory exchangeFactory = firstRun.getExchangeFactory();
-            firstRun.supplyExchange(SOURCE, exchangeFactory.createExchange("order-42"));
+            firstRun.supplyExchange(ChannelProtocols.linkURL(SOURCE), exchangeFactory.createExchange("order-42"));
 
             final Path dumpsDirectory = temporaryFolder.getRoot().toPath().resolve("state").resolve("retry");
             Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> countDumpFiles(dumpsDirectory) >= 1);

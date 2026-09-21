@@ -71,7 +71,7 @@ public class PipeliteRecipientListIntegrationTest {
         final ExchangeImpl exchange = exchangeFactory.createExchange("Hello Pipelite!");
         exchange.putHeader("X-Include-Log", "true");
 
-        context.supplyExchange("origin-start", exchange);
+        context.supplyExchange("link://origin-start", exchange);
 
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> forwardedCount.get() == 2);
 

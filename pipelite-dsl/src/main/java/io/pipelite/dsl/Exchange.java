@@ -56,7 +56,7 @@ public interface Exchange {
 
     void setOutputPayload(Object payload);
 
-    // void setReturnAddress(String flowName);
+    // void setReturnAddress(String returnAddressURL);
 
     // /**
     //  * Attaches the itinerary of this exchange (Routing Slip EIP). At the end of this flow, and of

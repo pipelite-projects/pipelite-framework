@@ -92,7 +92,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
 
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
         for (int i = 0; i < numOfMessages; i++) {
-            context.supplyExchange("origin-start-concurrency", exchangeFactory.createExchange("message-" + i));
+            context.supplyExchange("link://origin-start-concurrency", exchangeFactory.createExchange("message-" + i));
         }
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> receivedCount.get() == numOfMessages);
@@ -130,7 +130,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
 
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
         for (int i = 0; i < numOfMessages; i++) {
-            context.supplyExchange("origin-start-sequential", exchangeFactory.createExchange("message-" + i));
+            context.supplyExchange("link://origin-start-sequential", exchangeFactory.createExchange("message-" + i));
         }
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> receivedCount.get() == numOfMessages);
@@ -176,14 +176,14 @@ public class PipeliteSourceConcurrencyIntegrationTest {
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
         try {
             for (int i = 0; i < poolSize; i++) {
-                context.supplyExchange("saturating-start", exchangeFactory.createExchange("saturate-" + i));
+                context.supplyExchange("link://saturating-start", exchangeFactory.createExchange("saturate-" + i));
             }
             Assert.assertTrue("expected the shared pool to be fully occupied by the saturating flow",
                 saturatingTasksStarted.await(5, TimeUnit.SECONDS));
 
             final int numOfMessages = 5;
             for (int i = 0; i < numOfMessages; i++) {
-                context.supplyExchange("sequential-start", exchangeFactory.createExchange("seq-" + i));
+                context.supplyExchange("link://sequential-start", exchangeFactory.createExchange("seq-" + i));
             }
 
             // if the sequential flow were queueing behind the saturated shared pool instead of
@@ -235,7 +235,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
         for (int f = 0; f < numFlows; f++) {
             for (int i = 0; i < messagesPerFlow; i++) {
-                context.supplyExchange("shared-pool-start-" + f, exchangeFactory.createExchange("msg-" + f + "-" + i));
+                context.supplyExchange("link://shared-pool-start-" + f, exchangeFactory.createExchange("msg-" + f + "-" + i));
             }
         }
 

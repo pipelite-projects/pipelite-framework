@@ -16,26 +16,26 @@
 package io.pipelite.dsl.route;
 
 import io.pipelite.common.support.Preconditions;
+import io.pipelite.dsl.ChannelProtocols;
 
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedList;
-import java.util.regex.Pattern;
 
 /**
- * The itinerary of an exchange (Routing Slip EIP): an ordered list of <em>internal source
- * endpoints</em> - the {@code fromSource(...)} resource of each flow to visit, exactly the value
- * {@code Pipelite.defineFlow(...).fromSource("...")} was declared with. When a flow finishes and
- * the exchange carries a slip with routes left, the exchange hops to the next one instead of
- * taking the flow's own exit ({@code toSink}, {@code toRoute}, return address); the slip is
- * followed again at the end of that flow, and so on until it is exhausted, at which point the
- * last flow exits normally.
+ * The itinerary of an exchange (Routing Slip EIP): an ordered list of <em>internal flows</em>, each
+ * addressed by URL as {@code link://<source endpoint name>} - the name its own {@code
+ * fromSource("<source endpoint name>")} was declared with (issue #102: a flow is always addressed
+ * by URL, never by a bare name). When a flow finishes and the exchange carries a slip with routes
+ * left, the exchange hops to the next one instead of taking the flow's own exit ({@code toSink},
+ * {@code toRoute}, return address); the slip is followed again at the end of that flow, and so on
+ * until it is exhausted, at which point the last flow exits normally.
  * <p>
- * Only internal sources are accepted, never a channel adapter URL such as {@code kafka://...}:
- * a channel adapter is a terminal producer, nothing would carry the slip any further after
- * delivering there. To end an itinerary on an external system, let the last flow declare a
- * {@code toSink(...)} for it.
+ * Only {@code link://} URLs are accepted, never another channel adapter URL such as
+ * {@code kafka://...}: a channel adapter is a terminal producer, nothing would carry the slip any
+ * further after delivering there. To end an itinerary on an external system, let the last flow
+ * declare a {@code toSink(...)} for it.
  * <p>
  * Serializable because the exchange carries it as a property and a durable inbox entry or a
  * retry dump serializes the whole exchange. Consumed as it is followed: routes already visited
@@ -49,7 +49,7 @@ public class RoutingSlip implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private static final Pattern PROTOCOL_QUALIFIED = Pattern.compile("^[a-zA-Z][a-zA-Z0-9+.-]*://.*$");
+    private static final String LINK_URL_PREFIX = ChannelProtocols.LINK + "://";
 
     private final LinkedList<String> routes;
 
@@ -66,9 +66,10 @@ public class RoutingSlip implements Serializable {
 
     private static void validate(String route) {
         Preconditions.state(route != null && !route.trim().isEmpty(), "A route cannot be null or blank");
-        Preconditions.state(!PROTOCOL_QUALIFIED.matcher(route).matches(), String.format(
-            "Route '%s' is a channel adapter URL - a routing slip only accepts the fromSource(...) resource " +
-                "of an internal flow. End the itinerary with a flow that declares toSink('%s') instead", route, route));
+        Preconditions.state(route.startsWith(LINK_URL_PREFIX) && route.length() > LINK_URL_PREFIX.length(), String.format(
+            "Route '%s' is not a %s URL - a routing slip only accepts the URL of an internal flow, " +
+                "%s<source endpoint name>. To end the itinerary on an external system, end it with a flow " +
+                "that declares toSink('%s') instead", route, ChannelProtocols.LINK, LINK_URL_PREFIX, route));
     }
 
     /**

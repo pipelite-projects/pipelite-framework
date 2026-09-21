@@ -85,8 +85,8 @@ public class PipeliteRetryRunsConcurrentlyIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("retry-parallelism-in", exchangeFactory.createExchange("message-A"));
-        pipeliteContext.supplyExchange("retry-parallelism-in", exchangeFactory.createExchange("message-B"));
+        pipeliteContext.supplyExchange("link://retry-parallelism-in", exchangeFactory.createExchange("message-A"));
+        pipeliteContext.supplyExchange("link://retry-parallelism-in", exchangeFactory.createExchange("message-B"));
 
         Assert.assertTrue(
             "both independent retries should be running concurrently within a few seconds - " +

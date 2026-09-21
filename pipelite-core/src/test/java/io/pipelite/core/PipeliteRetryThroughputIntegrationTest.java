@@ -66,7 +66,7 @@ public class PipeliteRetryThroughputIntegrationTest {
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
         for (int i = 0; i < messageCount; i++) {
-            pipeliteContext.supplyExchange("retry-throughput-in", exchangeFactory.createExchange("message-" + i));
+            pipeliteContext.supplyExchange("link://retry-throughput-in", exchangeFactory.createExchange("message-" + i));
         }
 
         // At the old one-dump-per-tick rate this would need ~messageCount seconds (10s+) at

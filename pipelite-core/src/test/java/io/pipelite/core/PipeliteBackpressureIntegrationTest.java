@@ -90,7 +90,7 @@ public class PipeliteBackpressureIntegrationTest {
 
         final long feedStart = System.nanoTime();
         for (int i = 0; i < messages; i++) {
-            context.supplyExchange("relay-source", exchangeFactory.createExchange("message-" + i));
+            context.supplyExchange("link://relay-source", exchangeFactory.createExchange("message-" + i));
         }
         final long feedElapsedMillis = (System.nanoTime() - feedStart) / 1_000_000;
 

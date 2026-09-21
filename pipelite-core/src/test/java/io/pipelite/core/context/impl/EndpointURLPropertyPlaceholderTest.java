@@ -69,7 +69,7 @@ public class EndpointURLPropertyPlaceholderTest {
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
         // does not throw "Unrecognized destination": proves the flow is routable under the
         // resolved resource name, not under the literal, unresolved placeholder.
-        context.supplyExchange("resolved-source", exchangeFactory.createExchange("Hello Pipelite!"));
+        context.supplyExchange("link://resolved-source", exchangeFactory.createExchange("Hello Pipelite!"));
     }
 
 }

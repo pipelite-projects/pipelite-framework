@@ -123,7 +123,7 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("dump-removal-timing-in", exchangeFactory.createExchange("test-message"));
+        pipeliteContext.supplyExchange("link://dump-removal-timing-in", exchangeFactory.createExchange("test-message"));
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> invocationCount.get() >= 2);
 
@@ -160,7 +160,7 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("dump-removal-exhaustion-in", exchangeFactory.createExchange("poison-payload"));
+        pipeliteContext.supplyExchange("link://dump-removal-exhaustion-in", exchangeFactory.createExchange("poison-payload"));
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> attemptCount.get() == 2);
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> repository.pendingCount() == 0);
