@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.flow.split;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import io.pipelite.spi.flow.process.ExchangePreProcessor;
@@ -31,16 +31,16 @@ import io.pipelite.spi.flow.process.ExchangePreProcessor;
  */
 final class SplitResultCollectorNode implements FlowNode {
 
-    private final ThreadLocal<Exchange> result = new ThreadLocal<>();
+    private final ThreadLocal<ExchangeImpl> result = new ThreadLocal<>();
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
         exchange.forwardIfNecessary();
         result.set(exchange);
     }
 
-    Exchange consumeResult() {
-        final Exchange exchange = result.get();
+    ExchangeImpl consumeResult() {
+        final ExchangeImpl exchange = result.get();
         result.remove();
         return exchange;
     }

@@ -16,7 +16,7 @@
 package io.pipelite.spi.endpoint;
 
 import io.pipelite.dsl.Headers;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.flow.exchange.Message;
@@ -53,29 +53,29 @@ public class EventDrivenConsumerServiceTest {
      */
     private static final ExchangeFactory TEST_EXCHANGE_FACTORY = new ExchangeFactory() {
         @Override
-        public Exchange createExchange() {
+        public ExchangeImpl createExchange() {
             return createExchange(null, null);
         }
         @Override
-        public Exchange createExchange(Headers headers) {
+        public ExchangeImpl createExchange(Headers headers) {
             return createExchange(headers, null);
         }
         @Override
-        public Exchange createExchange(Headers headers, Object inputPayload) {
+        public ExchangeImpl createExchange(Headers headers, Object inputPayload) {
             final Message message = new SimpleMessage(UUID.randomUUID().toString());
             message.setPayload(inputPayload);
-            return new Exchange(message, headers);
+            return new ExchangeImpl(message, headers);
         }
         @Override
-        public Exchange createExchange(Object inputPayload) {
+        public ExchangeImpl createExchange(Object inputPayload) {
             return createExchange(null, inputPayload);
         }
         @Override
-        public Exchange copyExchange(Exchange exchange) {
+        public ExchangeImpl copyExchange(ExchangeImpl exchange) {
             return createExchange(exchange.getHeaders(), exchange.getInputPayloadAs(Object.class));
         }
         @Override
-        public Exchange nextExchange(Exchange current) {
+        public ExchangeImpl nextExchange(ExchangeImpl current) {
             return copyExchange(current);
         }
     };
@@ -102,7 +102,7 @@ public class EventDrivenConsumerServiceTest {
         subject.setNext(new FlowNode() {
 
             @Override
-            public void process(Exchange exchange) {
+            public void process(ExchangeImpl exchange) {
                 consumerThreadId.set(Thread.currentThread().getId());
                 receivedCount.incrementAndGet();
                 logger.info("Received {}", exchange.getInputPayload());
@@ -144,7 +144,7 @@ public class EventDrivenConsumerServiceTest {
         for(int i=1;i<=numOfMessages;i++){
             Message inputMessage = new SimpleMessage(String.format("Id#%s", i));
             inputMessage.setPayload(String.format("Payload#%s", i));
-            final Exchange exchange = new Exchange(inputMessage);
+            final ExchangeImpl exchange = new ExchangeImpl(inputMessage);
             subject.consume(exchange);
         }
 
@@ -160,7 +160,7 @@ public class EventDrivenConsumerServiceTest {
 
     /**
      * A {@link FlowNode} with every cross-cutting method a no-op, so tests only override
-     * {@link #process(Exchange)} — same shape as the anonymous implementation above, extracted
+     * {@link #process(ExchangeImpl)} — same shape as the anonymous implementation above, extracted
      * so the concurrency tests below don't each repeat six empty method bodies.
      */
     private abstract static class TestFlowNode implements FlowNode {
@@ -173,10 +173,10 @@ public class EventDrivenConsumerServiceTest {
         @Override public void addExchangePostProcessor(ExchangePostProcessor exchangePostProcessor) { }
     }
 
-    private static Exchange exchange(int id) {
+    private static ExchangeImpl exchange(int id) {
         final Message inputMessage = new SimpleMessage(String.format("Id#%s", id));
         inputMessage.setPayload(String.format("Payload#%s", id));
-        return new Exchange(inputMessage);
+        return new ExchangeImpl(inputMessage);
     }
 
     @Test
@@ -201,7 +201,7 @@ public class EventDrivenConsumerServiceTest {
         try {
             concurrentSubject.setNext(new TestFlowNode() {
                 @Override
-                public void process(Exchange exchange) {
+                public void process(ExchangeImpl exchange) {
                     observedThreadIds.add(Thread.currentThread().getId());
                     final int current = inFlight.incrementAndGet();
                     maxObservedInFlight.updateAndGet(previousMax -> Math.max(previousMax, current));
@@ -247,7 +247,7 @@ public class EventDrivenConsumerServiceTest {
         final AtomicInteger receivedCount = new AtomicInteger(0);
         subject.setNext(new TestFlowNode() {
             @Override
-            public void process(Exchange exchange) {
+            public void process(ExchangeImpl exchange) {
                 receivedCount.incrementAndGet();
                 logger.info("processing {} inline on thread {}", exchange.getInputPayload(), Thread.currentThread().getName());
             }
@@ -274,7 +274,7 @@ public class EventDrivenConsumerServiceTest {
         concurrentSubject.setSourceWorkerPool(sharedPool);
         concurrentSubject.setNext(new TestFlowNode() {
             @Override
-            public void process(Exchange exchange) {
+            public void process(ExchangeImpl exchange) {
                 // no-op: this test only cares about the dispatch thread's own lifecycle
             }
         });
@@ -335,7 +335,7 @@ public class EventDrivenConsumerServiceTest {
         concurrentSubject.setSourceWorkerPool(sharedPool);
         concurrentSubject.setNext(new TestFlowNode() {
             @Override
-            public void process(Exchange exchange) {
+            public void process(ExchangeImpl exchange) {
                 // no-op: this test only cares about how many dispatcher threads got created
             }
         });
@@ -377,7 +377,7 @@ public class EventDrivenConsumerServiceTest {
         concurrentSubject.setSourceWorkerPool(sharedPool);
         concurrentSubject.setNext(new TestFlowNode() {
             @Override
-            public void process(Exchange exchange) {
+            public void process(ExchangeImpl exchange) {
                 // no-op: this test only cares about how many dispatcher threads got created
             }
         });
@@ -416,7 +416,7 @@ public class EventDrivenConsumerServiceTest {
         try {
             concurrentSubject.setNext(new TestFlowNode() {
                 @Override
-                public void process(Exchange exchange) {
+                public void process(ExchangeImpl exchange) {
                     receivedCount.incrementAndGet();
                     final int attempt = attemptCount.incrementAndGet();
                     final boolean willFail = attempt % 2 == 0;

@@ -19,7 +19,7 @@ import io.pipelite.dsl.Headers;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.flow.exchange.Message;
@@ -67,18 +67,18 @@ public class KafkaConsumerServiceTest {
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private static final ExchangeFactory TEST_EXCHANGE_FACTORY = new ExchangeFactory() {
-        @Override public Exchange createExchange() { return createExchange(null, null); }
-        @Override public Exchange createExchange(Headers headers) { return createExchange(headers, null); }
-        @Override public Exchange createExchange(Headers headers, Object inputPayload) {
+        @Override public ExchangeImpl createExchange() { return createExchange(null, null); }
+        @Override public ExchangeImpl createExchange(Headers headers) { return createExchange(headers, null); }
+        @Override public ExchangeImpl createExchange(Headers headers, Object inputPayload) {
             final Message message = new SimpleMessage(UUID.randomUUID().toString());
             message.setPayload(inputPayload);
-            return new Exchange(message, headers);
+            return new ExchangeImpl(message, headers);
         }
-        @Override public Exchange createExchange(Object inputPayload) { return createExchange(null, inputPayload); }
-        @Override public Exchange copyExchange(Exchange exchange) {
+        @Override public ExchangeImpl createExchange(Object inputPayload) { return createExchange(null, inputPayload); }
+        @Override public ExchangeImpl copyExchange(ExchangeImpl exchange) {
             return createExchange(exchange.getHeaders(), exchange.getInputPayloadAs(Object.class));
         }
-        @Override public Exchange nextExchange(Exchange current) { return copyExchange(current); }
+        @Override public ExchangeImpl nextExchange(ExchangeImpl current) { return copyExchange(current); }
     };
 
     private static final String TOPIC = "test-topic";
@@ -109,7 +109,7 @@ public class KafkaConsumerServiceTest {
 
     private static FlowNode countingFlowNode(AtomicInteger processedCount) {
         return new FlowNode() {
-            @Override public void process(Exchange exchange) { processedCount.incrementAndGet(); }
+            @Override public void process(ExchangeImpl exchange) { processedCount.incrementAndGet(); }
             @Override public void setFlowName(String flowName) { }
             @Override public void setSourceEndpointResource(String sourceEndpointResource) { }
             @Override public void setProcessorName(String processorName) { }
@@ -124,7 +124,7 @@ public class KafkaConsumerServiceTest {
         final AtomicInteger index = new AtomicInteger(0);
         return new FlowNode() {
             @Override
-            public void process(Exchange exchange) {
+            public void process(ExchangeImpl exchange) {
                 if (index.getAndIncrement() == failAtZeroBasedIndex) {
                     throw new RuntimeException("simulated processing failure, no retry/error channel configured");
                 }

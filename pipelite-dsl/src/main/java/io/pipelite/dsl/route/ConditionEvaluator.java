@@ -15,10 +15,10 @@
  */
 package io.pipelite.dsl.route;
 
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 
 public interface ConditionEvaluator {
 
-    boolean evaluate(Condition condition, IOContext ioContext);
+    boolean evaluate(Condition condition, Exchange exchange);
 
 }

@@ -19,11 +19,11 @@ import io.pipelite.dsl.Headers;
 
 public interface ExchangeFactory {
 
-    Exchange createExchange();
-    Exchange createExchange(Headers headers);
-    Exchange createExchange(Headers headers, Object inputPayload);
-    Exchange createExchange(Object inputPayload);
-    Exchange copyExchange(Exchange exchange);
-    Exchange nextExchange(Exchange current);
+    ExchangeImpl createExchange();
+    ExchangeImpl createExchange(Headers headers);
+    ExchangeImpl createExchange(Headers headers, Object inputPayload);
+    ExchangeImpl createExchange(Object inputPayload);
+    ExchangeImpl copyExchange(ExchangeImpl exchange);
+    ExchangeImpl nextExchange(ExchangeImpl current);
 
 }

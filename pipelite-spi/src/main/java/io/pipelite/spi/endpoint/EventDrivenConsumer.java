@@ -18,7 +18,7 @@ package io.pipelite.spi.endpoint;
 import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.concurrent.QueuePressureGate;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.inbox.DurableInbox;
 import io.pipelite.spi.inbox.NoOpDurableInbox;
 import org.slf4j.Logger;
@@ -66,7 +66,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
     /**
      * See {@link QueuePressureGate}: the queue above is unbounded in practice (confirmed
      * empirically, see its own comment), so nothing short of this gate ever signals "slow down"
-     * back to whoever is calling {@link #process(Exchange)} — an HTTP handler thread, a {@code
+     * back to whoever is calling {@link #process(ExchangeImpl)} — an HTTP handler thread, a {@code
      * link://}-producing flow, etc. Sized off {@code queueSize}, which until now only affected
      * {@code PriorityBlockingQueue}'s initial array size and had no other effect.
      */
@@ -99,7 +99,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
         final long exchangeNumber = exchangeCount.incrementAndGet();
         try {
             preProcessExchange(exchange);
@@ -158,7 +158,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
                 throw new IllegalStateException("DefaultConsumer does not have a next FlowNode");
             }
             final PriorityExchange priorityExchange = takeNext();
-            final Exchange exchange = priorityExchange.getExchange();
+            final ExchangeImpl exchange = priorityExchange.getExchange();
             synchronized (this){
                 if(tag != null && sysLogger.isTraceEnabled()){
                     sysLogger.trace("{} - Exchange #{} extracted from queue, processing.", tag, priorityExchange.priority);
@@ -178,7 +178,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
     }
 
     /**
-     * Blocks until an {@link Exchange} is available. Exposed separately from {@link #receive()}
+     * Blocks until an {@link ExchangeImpl} is available. Exposed separately from {@link #receive()}
      * so a concurrent dispatch loop (see {@code EventDrivenConsumerService}, {@code concurrency > 1})
      * can pull from the queue on its own dedicated thread without also running {@link
      * #dispatchToNext} inline — the actual pipeline execution for that exchange is instead
@@ -190,7 +190,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
         return result;
     }
 
-    boolean isPoisonPill(Exchange exchange) {
+    boolean isPoisonPill(ExchangeImpl exchange) {
         return POISON_PILL.equals(exchange.getInputPayloadAs(Object.class));
     }
 
@@ -213,7 +213,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
 
     /**
      * Dispatches {@code exchange} to {@code next}, i.e. runs the pipeline attached to this
-     * consumer synchronously to completion. Named distinctly from {@link #process(Exchange)}
+     * consumer synchronously to completion. Named distinctly from {@link #process(ExchangeImpl)}
      * (overridden in this class to mean "enqueue") so callers outside this class — which can't
      * do {@code super.process(...)} — have an unambiguous way to invoke the same behavior
      * {@link #receive()} already gets via its own {@code super.process(exchange)} call.
@@ -224,7 +224,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
      * does (see {@code EventDrivenConsumerService.ConcurrentDispatchTask}, which relies on this
      * MDC value instead of renaming the thread per message).
      */
-    void dispatchToNext(Exchange exchange) {
+    void dispatchToNext(ExchangeImpl exchange) {
         final String previousCorrelationId = MDC.get(MDC_EXCHANGE_ID_KEY);
         final String previousFlowName = MDC.get(MDC_FLOW_NAME_KEY);
         MDC.put(MDC_EXCHANGE_ID_KEY, exchange.getInput().getId());
@@ -264,23 +264,23 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
 
     public static class PriorityExchange implements Comparable<PriorityExchange> {
 
-        private final Exchange exchange;
+        private final ExchangeImpl exchange;
         private final long priority;
 
-        public static PriorityExchange withMaxPriority(Exchange exchange) {
+        public static PriorityExchange withMaxPriority(ExchangeImpl exchange) {
             return new PriorityExchange(exchange, Integer.MIN_VALUE);
         }
 
-        public static PriorityExchange withNormalPriority(Exchange exchange, long ticketNumber) {
+        public static PriorityExchange withNormalPriority(ExchangeImpl exchange, long ticketNumber) {
             return new PriorityExchange(exchange, ticketNumber);
         }
 
-        private PriorityExchange(Exchange exchange, long priority) {
+        private PriorityExchange(ExchangeImpl exchange, long priority) {
             this.exchange = exchange;
             this.priority = priority;
         }
 
-        public Exchange getExchange() {
+        public ExchangeImpl getExchange() {
             return exchange;
         }
 

@@ -153,10 +153,10 @@ public class FoodDeliveryFlowConfiguration {
             .fromSource("time://order-generator-tick", (TimeSourceConfigurer c) -> c
                 .period(ORDER_GENERATOR_TICK_PERIOD_MILLIS)
                 .timeUnit(TimeUnit.MILLISECONDS))
-            .process("roll-tick-dice", (ioContext, contribution) ->
-                ioContext.putHeader(TICK_ROLL_HEADER, BigDecimal.valueOf(ThreadLocalRandom.current().nextDouble())))
+            .process("roll-tick-dice", (exchange, contribution) ->
+                exchange.putHeader(TICK_ROLL_HEADER, BigDecimal.valueOf(ThreadLocalRandom.current().nextDouble())))
             .filter("random-tick-jitter", String.format("Headers['%s'] >= %s", TICK_ROLL_HEADER, TICK_DROP_PROBABILITY))
-            .process("generate-and-emit-order", (ioContext, contribution) -> orderGenerator.generateAndEmitNextOrder())
+            .process("generate-and-emit-order", (exchange, contribution) -> orderGenerator.generateAndEmitNextOrder())
             .build();
     }
 
@@ -186,8 +186,8 @@ public class FoodDeliveryFlowConfiguration {
     public FlowDefinition kitchenProcessingFlow() {
         return Pipelite.defineFlow("kitchen-processing-flow")
             .fromSource("kitchen-start", (SourceConcurrencyConfigurer c) -> c.concurrency(KITCHEN_CONCURRENCY))
-            .process("prepare-order", (ioContext, contribution) -> {
-                final Order order = ioContext.getInputPayloadAs(Order.class);
+            .process("prepare-order", (exchange, contribution) -> {
+                final Order order = exchange.getInputPayloadAs(Order.class);
                 kitchenService.prepareOrder(order);
             })
             .transformPayload("serialize-order-event", payloadHolder -> payloadHolder.getPayloadAs(Order.class).toKafkaEventJson(objectMapper))
@@ -217,19 +217,19 @@ public class FoodDeliveryFlowConfiguration {
     public FlowDefinition dispatchProcessingFlow() {
         return Pipelite.defineFlow("dispatch-processing-flow")
             .fromSource("dispatch-start", (SourceConcurrencyConfigurer c) -> c.concurrency(DISPATCH_CONCURRENCY))
-            .process("validate-order-amount", (ioContext, contribution) -> {
-                final Order order = ioContext.getInputPayloadAs(Order.class);
+            .process("validate-order-amount", (exchange, contribution) -> {
+                final Order order = exchange.getInputPayloadAs(Order.class);
                 if (order.getTotalAmount().compareTo(MANUAL_REVIEW_THRESHOLD) > 0) {
                     throw new IllegalStateException(String.format(
                         "Order %s total %s exceeds the manual-review threshold (%s) and cannot be auto-dispatched",
                         order.getOrderId(), order.getTotalAmount(), MANUAL_REVIEW_THRESHOLD));
                 }
             })
-            .process("assign-driver", (ioContext, contribution) ->
-                ioContext.setOutputPayload(dispatchService.assignDriver(ioContext.getInputPayloadAs(Order.class))))
+            .process("assign-driver", (exchange, contribution) ->
+                exchange.setOutputPayload(dispatchService.assignDriver(exchange.getInputPayloadAs(Order.class))))
             .wireTap("log-dispatched-order", "slf4j://deliveries-dispatched")
-            .process("write-delivery-record", (ioContext, contribution) -> {
-                final Order order = ioContext.getInputPayloadAs(Order.class);
+            .process("write-delivery-record", (exchange, contribution) -> {
+                final Order order = exchange.getInputPayloadAs(Order.class);
                 deliveryLogWriter.writeRecord(order.getDriverId(), order.toDeliveryLogLine());
             })
             // Composed: retry first (in case validate-order-amount's failure were ever transient),

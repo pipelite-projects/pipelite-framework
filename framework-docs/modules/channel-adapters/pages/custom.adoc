@@ -60,7 +60,7 @@ public class MyCustomConsumer extends AbstractConsumer
     implements EventDrivenConsumer {
 
     public void onMessage(Object data) {
-        Exchange exchange = exchangeFactory.createExchange(data);
+        ExchangeImpl exchange = exchangeFactory.createExchange(data);
         process(exchange);
     }
 }
@@ -73,7 +73,7 @@ For *polling* consumers:
 public class MyCustomPollingConsumer extends DefaultPollingConsumer {
 
     @Override
-    protected Exchange poll() {
+    protected ExchangeImpl poll() {
         Object data = mySystem.fetchNext();
         if (data == null) return null;
         return exchangeFactory.createExchange(data);
@@ -88,7 +88,7 @@ public class MyCustomPollingConsumer extends DefaultPollingConsumer {
 public class MyCustomProducer extends AbstractProducer {
 
     @Override
-    public void produce(Exchange exchange) throws Exception {
+    public void produce(ExchangeImpl exchange) throws Exception {
         Object payload = exchange.getInputPayload();
         mySystem.send(payload);
     }

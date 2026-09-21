@@ -17,7 +17,7 @@ package io.pipelite.core.flow.route;
 
 import io.pipelite.core.context.impl.DefaultExchangeFactory;
 import io.pipelite.core.context.impl.DefaultMessageFactory;
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.route.ExpressionCondition;
 import io.pipelite.expression.ExpressionParser;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
@@ -39,7 +39,7 @@ public class ExpressionConditionEvaluatorTest {
 
     @Test
     public void shouldEvaluatePayloadExpressionRouteCondition(){
-        final IOContext ioContext = exchangeFactory.createExchange(new Person("Wayne", "Bruce"));
+        final Exchange ioContext = exchangeFactory.createExchange(new Person("Wayne", "Bruce"));
         final ExpressionCondition expressionRouteCondition = new ExpressionCondition("Payload.name == 'Bruce'");
         final boolean result = subject.evaluate(expressionRouteCondition, ioContext);
         Assert.assertTrue(result);
@@ -47,7 +47,7 @@ public class ExpressionConditionEvaluatorTest {
 
     @Test
     public void shouldEvaluateHeadersExpressionRouteCondition(){
-        final IOContext ioContext = exchangeFactory.createExchange();
+        final Exchange ioContext = exchangeFactory.createExchange();
         ioContext.putHeader("Batman-Opponent", "Joker");
         final ExpressionCondition expressionRouteCondition = new ExpressionCondition("Headers['Batman-Opponent'] == 'Joker'");
         final boolean result = subject.evaluate(expressionRouteCondition, ioContext);

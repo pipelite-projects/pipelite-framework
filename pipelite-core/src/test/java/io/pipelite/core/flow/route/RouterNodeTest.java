@@ -22,7 +22,7 @@ import io.pipelite.core.flow.expression.TextExpressionEvaluator;
 import io.pipelite.dsl.route.*;
 import io.pipelite.expression.ExpressionParser;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.junit.Before;
 import org.junit.Test;
@@ -59,7 +59,7 @@ public class RouterNodeTest {
     @Test
     public void shouldSupplyExchangeCorrectly(){
 
-        final Exchange exchange = exchangeFactory.createExchange();
+        final ExchangeImpl exchange = exchangeFactory.createExchange();
         exchange.putHeader("Destination", "LosAngeles");
         subject.process(exchange);
 
@@ -68,7 +68,7 @@ public class RouterNodeTest {
 
     @Test
     public void shouldSupplyExchangeOnDefaultRoute(){
-        final Exchange exchange = exchangeFactory.createExchange();
+        final ExchangeImpl exchange = exchangeFactory.createExchange();
         exchange.putHeader("Destination", "Okinawa");
         subject.process(exchange);
 

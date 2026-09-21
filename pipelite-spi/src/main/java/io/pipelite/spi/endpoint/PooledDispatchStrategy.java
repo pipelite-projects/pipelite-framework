@@ -15,7 +15,7 @@
  */
 package io.pipelite.spi.endpoint;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import org.slf4j.Logger;
@@ -89,7 +89,7 @@ final class PooledDispatchStrategy implements DispatchStrategy {
         while (isRunAllowed.getAsBoolean()) {
             try {
                 final EventDrivenConsumer.PriorityExchange priorityExchange = consumer.takeNext();
-                final Exchange exchange = priorityExchange.getExchange();
+                final ExchangeImpl exchange = priorityExchange.getExchange();
                 if (consumer.isPoisonPill(exchange)) {
                     return;
                 }
@@ -142,7 +142,7 @@ final class PooledDispatchStrategy implements DispatchStrategy {
      * submitted, safe to retry on a later tick.
      */
     @Override
-    public void dispatch(FlowNode target, Exchange exchange, Runnable onComplete) {
+    public void dispatch(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
         pool.execute(() -> {
             try {
                 semaphore.acquire();

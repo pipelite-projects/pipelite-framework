@@ -16,9 +16,9 @@
 package io.pipelite.core.flow.execution.deadletter;
 
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ExceptionHandler;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 /**
  * Used when a flow declares {@code .withErrorChannel(err -> err.toDLQ())} without also declaring
@@ -44,16 +44,16 @@ public class DeadLetterQueueExceptionHandler implements ExceptionHandler {
     }
 
     @Override
-    public void handleException(Throwable failureException, IOContext ioContext) {
+    public void handleException(Throwable failureException, Exchange exchange) {
 
         Preconditions.notNull(entryFactory, "entryFactory is required and cannot be null");
         Preconditions.notNull(repository, "repository is required and cannot be null");
 
         // Downcast is safe here: this handler is only ever wired by FlowDefinitionBuilder for
         // internal use and always invoked with a real Exchange (see issue #91).
-        final Exchange exchange = (Exchange) ioContext;
+        final ExchangeImpl exchangeImpl = (ExchangeImpl) exchange;
 
-        final DeadLetteredExchange entry = entryFactory.create(failureException, exchange);
+        final DeadLetteredExchange entry = entryFactory.create(failureException, exchangeImpl);
         repository.save(entry);
     }
 

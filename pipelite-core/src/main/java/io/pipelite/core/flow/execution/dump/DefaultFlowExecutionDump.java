@@ -16,23 +16,23 @@
 package io.pipelite.core.flow.execution.dump;
 
 import io.pipelite.core.flow.execution.FlowExecutionDump;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 import java.time.LocalDateTime;
 
 public class DefaultFlowExecutionDump extends AbstractFlowExecutionDump implements FlowExecutionDump {
 
-    private Exchange exchange;
+    private ExchangeImpl exchange;
 
     public DefaultFlowExecutionDump(String id, String flowHash, String flowName, LocalDateTime creationTime) {
         super(id, flowHash, flowName, creationTime);
     }
 
-    public Exchange getExchange() {
+    public ExchangeImpl getExchange() {
         return exchange;
     }
 
-    public void setExchange(Exchange exchange) {
+    public void setExchange(ExchangeImpl exchange) {
         this.exchange = exchange;
     }
 }

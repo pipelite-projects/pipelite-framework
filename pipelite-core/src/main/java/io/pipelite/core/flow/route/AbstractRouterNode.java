@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.flow.route;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.pipelite.spi.flow.exchange.FlowNode;
@@ -31,7 +31,7 @@ public abstract class AbstractRouterNode implements FlowNode, ExchangeFactoryAwa
     }
 
     @Override
-    public abstract void process(Exchange exchange);
+    public abstract void process(ExchangeImpl exchange);
 
     @Override
     public void setNext(FlowNode next) {

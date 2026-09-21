@@ -17,16 +17,36 @@ package io.pipelite.dsl;
 
 // Disabled for the first stable release (issue #86): the Return Address and Routing Slip
 // activation through the exchange is not settled yet and is likely to change, so it is not part
-// of the public API. The implementation is kept, internal and unchanged: Exchange still has both
-// methods (see Exchange#setReturnAddress/#setRoutingSlip), FlowFactory still wires the end-of-flow
-// gate, RoutingSlip and the tests are all in place. Uncomment the two methods below (and the
-// import), and the @Override on the Exchange side, to bring the feature back.
+// of the public API. The implementation is kept, internal and unchanged: ExchangeImpl still has
+// both methods (see ExchangeImpl#setReturnAddress/#setRoutingSlip), FlowFactory still wires the
+// end-of-flow gate, RoutingSlip and the tests are all in place. Uncomment the two methods below
+// (and the import), and the @Override on the ExchangeImpl side, to bring the feature back.
 //
 // import io.pipelite.dsl.route.RoutingSlip;
 
-public interface IOContext extends Headers {
+import java.util.Optional;
+
+/**
+ * What a processor, an exception handler or a condition sees of the message travelling through a
+ * flow: its input payload, the output payload it produces and the headers. The header methods are
+ * shortcuts to {@link #getHeaders()}, which stays available because the expression engine needs
+ * the headers themselves as a map (e.g. {@code Headers['Destination'] == 'Okinawa'}).
+ */
+public interface Exchange {
 
     Headers getHeaders();
+
+    Optional<String> tryGetHeader(String headerName);
+
+    String expectHeader(String headerName);
+
+    <T> Optional<T> tryGetHeaderAs(String headerName, Class<T> expectedType);
+
+    void putHeader(String headerName, Object headerValue);
+
+    void removeHeader(String headerName);
+
+    boolean hasHeader(String headerName);
 
     Class<?> getInputPayloadType();
 

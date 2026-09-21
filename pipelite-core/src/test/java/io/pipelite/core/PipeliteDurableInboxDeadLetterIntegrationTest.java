@@ -19,7 +19,7 @@ import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.SimpleMessage;
 import io.pipelite.spi.inbox.DurableInbox;
 import io.pipelite.spi.inbox.SegmentedLogDurableInboxProvider;
@@ -72,7 +72,7 @@ public class PipeliteDurableInboxDeadLetterIntegrationTest {
             // Not a valid Java-serialized Exchange at all - stands in for a payload class whose
             // shape changed since this entry was written.
             seedInbox.enqueue("not a valid java-serialized exchange".getBytes(StandardCharsets.UTF_8), Map.of());
-            final byte[] goodPayload = new ObjectToByteArrayConverter().convert(new Exchange(new SimpleMessage("order-good")));
+            final byte[] goodPayload = new ObjectToByteArrayConverter().convert(new ExchangeImpl(new SimpleMessage("order-good")));
             seedInbox.enqueue(goodPayload, Map.of());
 
             final List<String> processed = new CopyOnWriteArrayList<>();

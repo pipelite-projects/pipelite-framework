@@ -18,10 +18,10 @@ package io.pipelite.core.flow.process;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ProcessContribution;
 import io.pipelite.dsl.process.Processor;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 
 /**
@@ -31,7 +31,7 @@ class WireTapProcessorNode extends AbstractProcessorNode implements PipeliteCont
 
     private static final class NoOpProcessor implements Processor {
         @Override
-        public void process(IOContext ioContext, ProcessContribution contribution) {
+        public void process(Exchange exchange, ProcessContribution contribution) {
         }
     }
 
@@ -48,7 +48,7 @@ class WireTapProcessorNode extends AbstractProcessorNode implements PipeliteCont
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
 
         pipeliteContext.supplyExchange(endpointURL, exchangeFactory.copyExchange(exchange));
         super.process(exchange);

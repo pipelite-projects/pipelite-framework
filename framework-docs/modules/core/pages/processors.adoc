@@ -12,7 +12,7 @@ The `Processor` interface represents generic application logic.
 ----
 @FunctionalInterface
 public interface Processor {
-    void process(IOContext exchange) throws Exception;
+    void process(Exchange exchange) throws Exception;
 }
 ----
 
@@ -26,7 +26,7 @@ Usage in DSL:
 })
 ----
 
-The `Processor` receives an `IOContext` (superinterface of `Exchange`) that exposes full access to input, output, and headers.
+The `Processor` receives an `Exchange` that exposes full access to input, output, and headers.
 
 == PayloadTransformer
 

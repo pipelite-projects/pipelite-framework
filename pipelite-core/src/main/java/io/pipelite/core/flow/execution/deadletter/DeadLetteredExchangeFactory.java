@@ -18,7 +18,7 @@ package io.pipelite.core.flow.execution.deadletter;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.common.support.serialization.ObjectSerializer;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.IdentityGenerator;
 
 import java.io.PrintWriter;
@@ -41,7 +41,7 @@ public class DeadLetteredExchangeFactory {
         this.objectSerializer = objectSerializer;
     }
 
-    public DeadLetteredExchange create(Throwable failureException, Exchange exchange) {
+    public DeadLetteredExchange create(Throwable failureException, ExchangeImpl exchange) {
 
         final String id = identityGenerator.nextIdAsText();
 

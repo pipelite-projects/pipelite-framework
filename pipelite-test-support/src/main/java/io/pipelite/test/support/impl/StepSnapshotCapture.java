@@ -15,7 +15,7 @@
  */
 package io.pipelite.test.support.impl;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import io.pipelite.spi.flow.process.FlowExecutionContext;
@@ -43,11 +43,11 @@ import java.util.Map;
  */
 public class StepSnapshotCapture implements ExchangePostProcessor {
 
-    private final Map<String, Exchange> snapshots;
+    private final Map<String, ExchangeImpl> snapshots;
     private final ExchangeFactory exchangeFactory;
     private volatile boolean active = true;
 
-    public StepSnapshotCapture(Map<String, Exchange> snapshots, ExchangeFactory exchangeFactory) {
+    public StepSnapshotCapture(Map<String, ExchangeImpl> snapshots, ExchangeFactory exchangeFactory) {
         this.snapshots = snapshots;
         this.exchangeFactory = exchangeFactory;
     }
@@ -62,7 +62,7 @@ public class StepSnapshotCapture implements ExchangePostProcessor {
     }
 
     @Override
-    public void postProcess(FlowExecutionContext ctx, Exchange exchange) {
+    public void postProcess(FlowExecutionContext ctx, ExchangeImpl exchange) {
         if (!active) {
             return;
         }

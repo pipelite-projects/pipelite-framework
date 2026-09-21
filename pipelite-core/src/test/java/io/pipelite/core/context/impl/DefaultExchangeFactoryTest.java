@@ -16,7 +16,7 @@
 package io.pipelite.core.context.impl;
 
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.junit.Assert;
 import org.junit.Before;
@@ -33,10 +33,10 @@ public class DefaultExchangeFactoryTest {
 
     @Test
     public void whenCopyExchange_thenHeadersInstanceIsNotShared() {
-        final Exchange original = exchangeFactory.createExchange();
+        final ExchangeImpl original = exchangeFactory.createExchange();
         original.putHeader("X-Trace-Id", "original-value");
 
-        final Exchange copy = exchangeFactory.copyExchange(original);
+        final ExchangeImpl copy = exchangeFactory.copyExchange(original);
 
         Assert.assertNotSame(original.getHeaders(), copy.getHeaders());
         Assert.assertEquals("original-value", copy.tryGetHeader("X-Trace-Id").orElse(null));
@@ -44,10 +44,10 @@ public class DefaultExchangeFactoryTest {
 
     @Test
     public void whenCopyExchange_thenMutatingCopyHeadersDoesNotAffectOriginal() {
-        final Exchange original = exchangeFactory.createExchange();
+        final ExchangeImpl original = exchangeFactory.createExchange();
         original.putHeader("X-Trace-Id", "original-value");
 
-        final Exchange copy = exchangeFactory.copyExchange(original);
+        final ExchangeImpl copy = exchangeFactory.copyExchange(original);
         copy.putHeader("X-Trace-Id", "mutated-by-copy");
 
         Assert.assertEquals("original-value", original.tryGetHeader("X-Trace-Id").orElse(null));
@@ -55,11 +55,11 @@ public class DefaultExchangeFactoryTest {
 
     @Test
     public void whenTwoCopyExchangeCallsOnSameParent_thenCopiesHaveIndependentHeaders() {
-        final Exchange original = exchangeFactory.createExchange();
+        final ExchangeImpl original = exchangeFactory.createExchange();
         original.putHeader("X-Trace-Id", "seed");
 
-        final Exchange copyOne = exchangeFactory.copyExchange(original);
-        final Exchange copyTwo = exchangeFactory.copyExchange(original);
+        final ExchangeImpl copyOne = exchangeFactory.copyExchange(original);
+        final ExchangeImpl copyTwo = exchangeFactory.copyExchange(original);
 
         Assert.assertNotSame(copyOne.getHeaders(), copyTwo.getHeaders());
 
@@ -71,10 +71,10 @@ public class DefaultExchangeFactoryTest {
 
     @Test
     public void whenCopyExchange_thenOutputMessageInstanceIsNotShared() {
-        final Exchange original = exchangeFactory.createExchange();
+        final ExchangeImpl original = exchangeFactory.createExchange();
         original.setOutputPayload("original-output");
 
-        final Exchange copy = exchangeFactory.copyExchange(original);
+        final ExchangeImpl copy = exchangeFactory.copyExchange(original);
 
         Assert.assertNotSame(original.getOutput(), copy.getOutput());
 
@@ -85,28 +85,28 @@ public class DefaultExchangeFactoryTest {
 
     @Test
     public void whenNextExchange_thenHeaderSetBeforeCallIsPropagated() {
-        final Exchange original = exchangeFactory.createExchange();
+        final ExchangeImpl original = exchangeFactory.createExchange();
         original.putHeader("X-Trace-Id", "set-before");
 
-        final Exchange next = exchangeFactory.nextExchange(original);
+        final ExchangeImpl next = exchangeFactory.nextExchange(original);
 
         Assert.assertEquals("set-before", next.tryGetHeader("X-Trace-Id").orElse(null));
     }
 
     @Test
     public void whenNextExchange_thenHeadersInstanceIsNotShared() {
-        final Exchange original = exchangeFactory.createExchange();
+        final ExchangeImpl original = exchangeFactory.createExchange();
 
-        final Exchange next = exchangeFactory.nextExchange(original);
+        final ExchangeImpl next = exchangeFactory.nextExchange(original);
 
         Assert.assertNotSame(original.getHeaders(), next.getHeaders());
     }
 
     @Test
     public void whenHeaderSetOnOriginalAfterNextExchange_thenNotVisibleOnNext() {
-        final Exchange original = exchangeFactory.createExchange();
+        final ExchangeImpl original = exchangeFactory.createExchange();
 
-        final Exchange next = exchangeFactory.nextExchange(original);
+        final ExchangeImpl next = exchangeFactory.nextExchange(original);
         original.putHeader("X-Late-Header", "added-after");
 
         Assert.assertFalse(next.hasHeader("X-Late-Header"));
@@ -114,9 +114,9 @@ public class DefaultExchangeFactoryTest {
 
     @Test
     public void whenHeaderSetOnNextExchangeAfterCreation_thenNotVisibleOnOriginal() {
-        final Exchange original = exchangeFactory.createExchange();
+        final ExchangeImpl original = exchangeFactory.createExchange();
 
-        final Exchange next = exchangeFactory.nextExchange(original);
+        final ExchangeImpl next = exchangeFactory.nextExchange(original);
         next.putHeader("X-Downstream-Header", "added-on-next");
 
         Assert.assertFalse(original.hasHeader("X-Downstream-Header"));

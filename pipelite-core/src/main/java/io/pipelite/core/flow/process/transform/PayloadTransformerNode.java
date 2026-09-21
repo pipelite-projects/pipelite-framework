@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.flow.process.transform;
 
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.PayloadHolder;
 import io.pipelite.dsl.process.PayloadTransformer;
 import io.pipelite.dsl.process.ProcessContribution;
@@ -40,9 +40,9 @@ class PayloadTransformerNode implements Processor {
     }
 
     @Override
-    public void process(IOContext ioContext, ProcessContribution contribution) {
-        final Object outputPayload = payloadTransformer.transform(new PayloadHolder(ioContext.getInputPayload()));
-        ioContext.setOutputPayload(outputPayload);
+    public void process(Exchange exchange, ProcessContribution contribution) {
+        final Object outputPayload = payloadTransformer.transform(new PayloadHolder(exchange.getInputPayload()));
+        exchange.setOutputPayload(outputPayload);
     }
 
     @SuppressWarnings("unused")

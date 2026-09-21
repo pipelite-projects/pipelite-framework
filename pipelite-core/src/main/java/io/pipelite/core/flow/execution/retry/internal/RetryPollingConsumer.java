@@ -20,7 +20,7 @@ import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.spi.endpoint.DefaultPollingConsumer;
 import io.pipelite.spi.endpoint.Endpoint;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 
@@ -44,12 +44,12 @@ class RetryPollingConsumer extends DefaultPollingConsumer implements ExchangeFac
     }
 
     @Override
-    public Exchange receive() {
+    public ExchangeImpl receive() {
         return receive(0);
     }
 
     @Override
-    public Exchange receive(long timeout) {
+    public ExchangeImpl receive(long timeout) {
 
         Preconditions.notNull(dumpRepository, "dumpRepository is required and cannot be null");
         final Optional<FlowExecutionDump> nextDumpHolder = dumpRepository.poll();

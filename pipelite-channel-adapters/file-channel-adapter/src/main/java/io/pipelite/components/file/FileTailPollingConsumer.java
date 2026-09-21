@@ -20,7 +20,7 @@ import io.pipelite.spi.endpoint.DefaultPollingConsumer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointProperties;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import org.slf4j.Logger;
@@ -84,12 +84,12 @@ public class FileTailPollingConsumer extends DefaultPollingConsumer implements E
     }
 
     @Override
-    public Exchange receive() {
+    public ExchangeImpl receive() {
         return receive(0);
     }
 
     @Override
-    public Exchange receive(long timeout) {
+    public ExchangeImpl receive(long timeout) {
         Preconditions.notNull(exchangeFactory, "ExchangeFactory is required and cannot be null");
         pollAndEnqueueNewRecords();
         // Always drain the queue, even when this tick found no new content: a previous tick
@@ -139,7 +139,7 @@ public class FileTailPollingConsumer extends DefaultPollingConsumer implements E
         }
 
         for (Object record : records) {
-            final Exchange exchange = exchangeFactory.createExchange(record);
+            final ExchangeImpl exchange = exchangeFactory.createExchange(record);
             exchange.putHeader(FileConstants.FILE_NAME_EXCHANGE_HEADER_NAME, path.getFileName().toString());
             exchange.putHeader(FileConstants.FILE_PATH_EXCHANGE_HEADER_NAME, path.toAbsolutePath().toString());
             consume(exchange);

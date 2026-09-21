@@ -18,7 +18,7 @@ package io.pipelite.core.flow.split;
 import io.pipelite.core.context.impl.DefaultExchangeFactory;
 import io.pipelite.core.context.impl.DefaultMessageFactory;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.junit.Before;
 import org.junit.Test;
@@ -44,11 +44,11 @@ public class UseOriginalAggregatorTest {
     @Test
     public void givenIdSavedInRepository_whenAggregate_thenReturnsSameExchangeReferenceWithResultsAsOutputPayload() {
 
-        final Exchange original = exchangeFactory.createExchange(List.of("a", "b"));
+        final ExchangeImpl original = exchangeFactory.createExchange(List.of("a", "b"));
         final String id = original.getInput().getId();
         repository.save(id, original);
 
-        final Exchange aggregated = subject.aggregate(id, List.of("A", "B"));
+        final ExchangeImpl aggregated = subject.aggregate(id, List.of("A", "B"));
 
         assertSame(original, aggregated);
         assertEquals(List.of("A", "B"), aggregated.getOutput().getPayloadAs(List.class));

@@ -27,14 +27,14 @@ import io.pipelite.common.support.serialization.BaseEncoding;
 import io.pipelite.common.support.serialization.Base64ObjectSerializer;
 import io.pipelite.common.support.serialization.ByteArrayToObjectConverter;
 import io.pipelite.common.support.serialization.ObjectSerializer;
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.dsl.process.ProcessContribution;
 import io.pipelite.dsl.process.Processor;
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.Flow;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,9 +75,9 @@ class RetryStrategyFilter implements Processor {
     }
 
     @Override
-    public void process(IOContext ioContext, ProcessContribution contribution) {
+    public void process(Exchange exchange, ProcessContribution contribution) {
 
-        final FlowExecutionDump executionDump = ioContext.getInputPayloadAs(FlowExecutionDump.class);
+        final FlowExecutionDump executionDump = exchange.getInputPayloadAs(FlowExecutionDump.class);
         if(executionDump.getAttemptNumber() > executionDump.getMaxAttempts()){
 
             contribution.stopExecution();
@@ -108,7 +108,7 @@ class RetryStrategyFilter implements Processor {
 
     private void routeToDeadLetterTarget(FlowExecutionDump executionDump) {
         final String deadLetterFlowName = executionDump.getDeadLetterFlowName();
-        final Exchange recoveredExchange = tryDecodeExchange(executionDump);
+        final ExchangeImpl recoveredExchange = tryDecodeExchange(executionDump);
         if(recoveredExchange == null){
             if(sysLogger.isWarnEnabled()){
                 sysLogger.warn("FlowExecutionDump {} has no recoverable exchange data, unable to route to dead letter flow '{}'",
@@ -126,7 +126,7 @@ class RetryStrategyFilter implements Processor {
     }
 
     private void routeToBuiltInDeadLetterQueue(FlowExecutionDump executionDump) {
-        final Exchange recoveredExchange = tryDecodeExchange(executionDump);
+        final ExchangeImpl recoveredExchange = tryDecodeExchange(executionDump);
         if(recoveredExchange == null){
             if(sysLogger.isWarnEnabled()){
                 sysLogger.warn("FlowExecutionDump {} has no recoverable exchange data, unable to route to the built-in dead letter queue",
@@ -155,7 +155,7 @@ class RetryStrategyFilter implements Processor {
     }
 
     private void invokeFlowExceptionHandler(FlowExecutionDump executionDump) {
-        final Exchange recoveredExchange = tryDecodeExchange(executionDump);
+        final ExchangeImpl recoveredExchange = tryDecodeExchange(executionDump);
         if(recoveredExchange == null){
             if(sysLogger.isWarnEnabled()){
                 sysLogger.warn("FlowExecutionDump {} has no recoverable exchange data, unable to invoke the flow's custom exception handler",
@@ -189,7 +189,7 @@ class RetryStrategyFilter implements Processor {
         exhaustionExceptionHandler.handleException(reconstructedException, recoveredExchange);
     }
 
-    private Exchange tryDecodeExchange(FlowExecutionDump executionDump) {
+    private ExchangeImpl tryDecodeExchange(FlowExecutionDump executionDump) {
         if(!(executionDump instanceof SerializedFlowExecutionDump)){
             return null;
         }
@@ -198,7 +198,7 @@ class RetryStrategyFilter implements Processor {
             return null;
         }
         final byte[] exchangeContent = BaseEncoding.base64().decode(serialized.getExchangeData());
-        return converter.convert(exchangeContent, Exchange.class);
+        return converter.convert(exchangeContent, ExchangeImpl.class);
     }
 
 }

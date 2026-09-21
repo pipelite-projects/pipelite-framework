@@ -19,7 +19,7 @@ import io.pipelite.dsl.Headers;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.SimpleMessage;
 import org.junit.Assert;
@@ -142,7 +142,7 @@ public class FileSourceToSinkTest {
      */
     private List<Object> drainWithLineBreaks(FileTailPollingConsumer consumer, FileProducer producer) {
         final List<Object> transferred = new ArrayList<>();
-        Exchange exchange;
+        ExchangeImpl exchange;
         while ((exchange = consumer.receive(0)) != null) {
             final Object record = exchange.getInputPayload();
             transferred.add(record);
@@ -185,18 +185,18 @@ public class FileSourceToSinkTest {
     private static class TestExchangeFactory implements ExchangeFactory {
 
         @Override
-        public Exchange createExchange() {
+        public ExchangeImpl createExchange() {
             return createExchange(null, null);
         }
 
         @Override
-        public Exchange createExchange(Headers headers) {
+        public ExchangeImpl createExchange(Headers headers) {
             return createExchange(headers, null);
         }
 
         @Override
-        public Exchange createExchange(Headers headers, Object inputPayload) {
-            final Exchange exchange = new Exchange(new SimpleMessage(UUID.randomUUID().toString()), headers);
+        public ExchangeImpl createExchange(Headers headers, Object inputPayload) {
+            final ExchangeImpl exchange = new ExchangeImpl(new SimpleMessage(UUID.randomUUID().toString()), headers);
             if (inputPayload != null) {
                 exchange.setInputPayload(inputPayload);
             }
@@ -204,17 +204,17 @@ public class FileSourceToSinkTest {
         }
 
         @Override
-        public Exchange createExchange(Object inputPayload) {
+        public ExchangeImpl createExchange(Object inputPayload) {
             return createExchange(null, inputPayload);
         }
 
         @Override
-        public Exchange copyExchange(Exchange exchange) {
+        public ExchangeImpl copyExchange(ExchangeImpl exchange) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public Exchange nextExchange(Exchange current) {
+        public ExchangeImpl nextExchange(ExchangeImpl current) {
             throw new UnsupportedOperationException();
         }
     }

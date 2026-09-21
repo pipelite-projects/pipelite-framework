@@ -15,7 +15,7 @@
  */
 package io.pipelite.spi.endpoint;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 public class EventDrivenPollingConsumer extends DefaultPollingConsumer {
 
@@ -28,7 +28,7 @@ public class EventDrivenPollingConsumer extends DefaultPollingConsumer {
     }
 
     @Override
-    public Exchange receive() {
+    public ExchangeImpl receive() {
 
         while(isRunAllowed()){
             synchronized (this){

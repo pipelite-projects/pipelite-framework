@@ -18,7 +18,7 @@ package io.pipelite.core.flow.route;
 import io.pipelite.core.Pipelite;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.dsl.route.RoutingSlip;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Assert;
@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Issue #86: a {@code RoutingSlip} set with {@code Exchange#setRoutingSlip(...)} (the {@code IOContext} setter is disabled, see there) is followed at
+ * Issue #86: a {@code RoutingSlip} set with {@code ExchangeImpl#setRoutingSlip(...)} (the {@code Exchange} setter is disabled, see there) is followed at
  * the end of each flow it goes through, taking priority over the flow's own exit (sink, toRoute,
  * return address), which only runs once the slip is exhausted.
  */
@@ -70,7 +70,7 @@ public class RoutingSlipRouterNodeTest {
         visits.add(name);
     }
 
-    private void supply(String source, Exchange exchange) {
+    private void supply(String source, ExchangeImpl exchange) {
         context.supplyExchange(source, exchange);
     }
 
@@ -81,7 +81,7 @@ public class RoutingSlipRouterNodeTest {
             .fromSource("a-start")
             .process("plan", (io, c) -> {
                 visit("a");
-                ((Exchange) io).setRoutingSlip(RoutingSlip.create("b-start", "c-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("b-start", "c-start"));
             })
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("b-flow")
@@ -108,7 +108,7 @@ public class RoutingSlipRouterNodeTest {
             .fromSource("sink-a-start")
             .process("plan", (io, c) -> {
                 visit("a");
-                ((Exchange) io).setRoutingSlip(RoutingSlip.create("sink-b-start", "sink-c-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("sink-b-start", "sink-c-start"));
             })
             .toSink("link://sink-a-out")
             .build());
@@ -146,7 +146,7 @@ public class RoutingSlipRouterNodeTest {
             .fromSource("route-a-start")
             .process("plan", (io, c) -> {
                 visit("a");
-                ((Exchange) io).setRoutingSlip(RoutingSlip.create("route-b-start", "route-c-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("route-b-start", "route-c-start"));
             })
             .build());
         for (String name : List.of("b", "c")) {
@@ -181,7 +181,7 @@ public class RoutingSlipRouterNodeTest {
             .fromSource("reply-a-start")
             .process("plan", (io, c) -> {
                 visit("a");
-                ((Exchange) io).setRoutingSlip(RoutingSlip.create("reply-b-start", "reply-c-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("reply-b-start", "reply-c-start"));
             })
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("reply-b")
@@ -198,7 +198,7 @@ public class RoutingSlipRouterNodeTest {
             .build());
         context.start();
 
-        final Exchange exchange = context.getExchangeFactory().createExchange("payload");
+        final ExchangeImpl exchange = context.getExchangeFactory().createExchange("payload");
         exchange.setReturnAddress("reply-origin-start");
         supply("reply-a-start", exchange);
 
@@ -214,7 +214,7 @@ public class RoutingSlipRouterNodeTest {
         context.registerFlowDefinition(Pipelite.defineFlow("stop-a")
             .fromSource("stop-a-start")
             .process("plan", (io, c) -> {
-                ((Exchange) io).setRoutingSlip(RoutingSlip.create("stop-b-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("stop-b-start"));
                 c.stopExecution();
             })
             .build());
@@ -236,7 +236,7 @@ public class RoutingSlipRouterNodeTest {
         final AtomicReference<Throwable> failure = new AtomicReference<>();
         context.registerFlowDefinition(Pipelite.defineFlow("missing-a")
             .fromSource("missing-a-start")
-            .process("plan", (io, c) -> ((Exchange) io).setRoutingSlip(RoutingSlip.create("nobody-declares-this")))
+            .process("plan", (io, c) -> ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("nobody-declares-this")))
             .withExceptionHandler((exception, ioContext) -> failure.set(exception))
             .build());
         context.start();

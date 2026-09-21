@@ -17,7 +17,7 @@ package io.pipelite.spi.endpoint;
 
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.context.AbstractService;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.FlowNode;
 
 import java.util.Objects;
@@ -37,7 +37,7 @@ public abstract class AbstractConsumerService extends AbstractService implements
     }
 
     @Override
-    public void consume(Exchange exchange) {
+    public void consume(ExchangeImpl exchange) {
         consumer.consume(exchange);
     }
 
@@ -52,7 +52,7 @@ public abstract class AbstractConsumerService extends AbstractService implements
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
         consumer.process(exchange);
     }
 

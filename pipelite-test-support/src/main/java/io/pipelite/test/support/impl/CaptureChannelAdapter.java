@@ -21,7 +21,7 @@ import io.pipelite.spi.endpoint.DefaultProducer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.test.PipeliteTestFixture;
 
 import java.lang.ref.WeakReference;
@@ -70,11 +70,11 @@ public class CaptureChannelAdapter implements ChannelAdapter {
      */
     public static final String CAPTURE_ENDPOINT_URL = "test://capture";
 
-    private static final ConcurrentHashMap<String, WeakReference<CompletableFuture<Exchange>>> PENDING =
+    private static final ConcurrentHashMap<String, WeakReference<CompletableFuture<ExchangeImpl>>> PENDING =
         new ConcurrentHashMap<>();
 
-    public static CompletableFuture<Exchange> register(String testId) {
-        final CompletableFuture<Exchange> future = new CompletableFuture<>();
+    public static CompletableFuture<ExchangeImpl> register(String testId) {
+        final CompletableFuture<ExchangeImpl> future = new CompletableFuture<>();
         PENDING.put(testId, new WeakReference<>(future));
         return future;
     }
@@ -89,7 +89,7 @@ public class CaptureChannelAdapter implements ChannelAdapter {
      * {@link io.pipelite.test.PipeliteTestFixture} only — not part of the
      * public API and must not be called from production flow code.
      */
-    public static void attachTestId(Exchange exchange, String testId) {
+    public static void attachTestId(ExchangeImpl exchange, String testId) {
         exchange.setProperty(TEST_ID_PROPERTY, testId);
     }
 
@@ -117,12 +117,12 @@ public class CaptureChannelAdapter implements ChannelAdapter {
         }
 
         @Override
-        public void doProcess(Exchange exchange) {
+        public void doProcess(ExchangeImpl exchange) {
             final String testId = exchange.getProperty(TEST_ID_PROPERTY, String.class);
             if (testId != null) {
-                final WeakReference<CompletableFuture<Exchange>> ref = PENDING.get(testId);
+                final WeakReference<CompletableFuture<ExchangeImpl>> ref = PENDING.get(testId);
                 if (ref != null) {
-                    final CompletableFuture<Exchange> future = ref.get();
+                    final CompletableFuture<ExchangeImpl> future = ref.get();
                     if (future != null) {
                         future.complete(exchange);
                     }

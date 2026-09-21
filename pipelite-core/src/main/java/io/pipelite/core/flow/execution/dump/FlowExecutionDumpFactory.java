@@ -19,7 +19,7 @@ import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.common.support.serialization.ObjectSerializer;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.IdentityGenerator;
 
 public class FlowExecutionDumpFactory {
@@ -34,7 +34,7 @@ public class FlowExecutionDumpFactory {
         this.objectSerializer = objectSerializer;
     }
 
-    public FlowExecutionDump create(Throwable failureException, Exchange exchange){
+    public FlowExecutionDump create(Throwable failureException, ExchangeImpl exchange){
 
         final String dumpId = identityGenerator.nextIdAsText();
 

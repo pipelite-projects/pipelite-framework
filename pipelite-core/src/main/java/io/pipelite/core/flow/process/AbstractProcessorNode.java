@@ -19,7 +19,7 @@ import io.pipelite.dsl.process.ProcessContribution;
 import io.pipelite.dsl.process.Processor;
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.AbstractFlowNode;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.pipelite.spi.flow.exchange.FlowNode;
@@ -46,7 +46,7 @@ public abstract class AbstractProcessorNode extends AbstractFlowNode implements 
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
 
         final ProcessContribution contribution = new ProcessContributionImpl();
 
@@ -71,7 +71,7 @@ public abstract class AbstractProcessorNode extends AbstractFlowNode implements 
         }
 
         if(next != null && !contribution.isExecutionStopped()){
-            final Exchange nextExchange = exchangeFactory.nextExchange(exchange);
+            final ExchangeImpl nextExchange = exchangeFactory.nextExchange(exchange);
             next.process(nextExchange);
         }
     }

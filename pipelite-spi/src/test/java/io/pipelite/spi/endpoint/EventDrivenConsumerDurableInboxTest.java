@@ -16,7 +16,7 @@
 package io.pipelite.spi.endpoint;
 
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.flow.exchange.IdentityGenerator;
 import io.pipelite.spi.flow.exchange.Message;
@@ -53,7 +53,7 @@ public class EventDrivenConsumerDurableInboxTest {
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
     private static final FlowNode NO_OP_NEXT = new FlowNode() {
-        @Override public void process(Exchange exchange) { }
+        @Override public void process(ExchangeImpl exchange) { }
         @Override public void setFlowName(String flowName) { }
         @Override public void setSourceEndpointResource(String sourceEndpointResource) { }
         @Override public void setProcessorName(String processorName) { }
@@ -63,10 +63,10 @@ public class EventDrivenConsumerDurableInboxTest {
         @Override public void addExchangePostProcessor(ExchangePostProcessor exchangePostProcessor) { }
     };
 
-    private static Exchange exchange() {
+    private static ExchangeImpl exchange() {
         final Message message = new SimpleMessage("id");
         message.setPayload("payload");
-        return new Exchange(message);
+        return new ExchangeImpl(message);
     }
 
     @Test
@@ -91,7 +91,7 @@ public class EventDrivenConsumerDurableInboxTest {
         // Simulates LinkProducer.process(): hands the SAME Exchange instance straight to another
         // consumer, no exchangeFactory.copyExchange(...) involved.
         origin.setNext(new FlowNode() {
-            @Override public void process(Exchange exchange) { destination.consume(exchange); }
+            @Override public void process(ExchangeImpl exchange) { destination.consume(exchange); }
             @Override public void setFlowName(String flowName) { }
             @Override public void setSourceEndpointResource(String sourceEndpointResource) { }
             @Override public void setProcessorName(String processorName) { }
@@ -102,7 +102,7 @@ public class EventDrivenConsumerDurableInboxTest {
         });
         origin.setDurableInbox(originInbox);
 
-        final Exchange exchange = exchange();
+        final ExchangeImpl exchange = exchange();
         origin.process(exchange); // enqueue: write-through hook sets origin's own entry id property
         origin.receive();         // dequeue + dispatchToNext: forwards to destination (which
                                   // overwrites the shared property with ITS OWN entry id), then acks

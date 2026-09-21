@@ -15,7 +15,7 @@
  */
 package io.pipelite.spi.endpoint;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.flow.exchange.Message;
 import io.pipelite.spi.flow.exchange.SimpleMessage;
@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class EventDrivenConsumerTest {
 
     private static final FlowNode NO_OP_NEXT = new FlowNode() {
-        @Override public void process(Exchange exchange) { }
+        @Override public void process(ExchangeImpl exchange) { }
         @Override public void setFlowName(String flowName) { }
         @Override public void setSourceEndpointResource(String sourceEndpointResource) { }
         @Override public void setProcessorName(String processorName) { }
@@ -45,10 +45,10 @@ public class EventDrivenConsumerTest {
         @Override public void addExchangePostProcessor(ExchangePostProcessor exchangePostProcessor) { }
     };
 
-    private static Exchange exchange(int id) {
+    private static ExchangeImpl exchange(int id) {
         final Message message = new SimpleMessage("Id#" + id);
         message.setPayload("Payload#" + id);
-        return new Exchange(message);
+        return new ExchangeImpl(message);
     }
 
     @Test
@@ -107,7 +107,7 @@ public class EventDrivenConsumerTest {
 
         // Must return immediately despite the queue being under pressure - if it blocked, this
         // test would time out instead of failing cleanly, which is itself the point being tested.
-        final Exchange poisonPill = new Exchange(new SimpleMessage("poison"));
+        final ExchangeImpl poisonPill = new ExchangeImpl(new SimpleMessage("poison"));
         poisonPill.setInputPayload(EventDrivenConsumer.POISON_PILL);
         consumer.process(poisonPill);
     }

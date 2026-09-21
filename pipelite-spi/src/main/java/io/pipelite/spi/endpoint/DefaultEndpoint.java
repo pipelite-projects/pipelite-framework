@@ -17,7 +17,7 @@ package io.pipelite.spi.endpoint;
 
 import io.pipelite.dsl.Headers;
 import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 
@@ -77,13 +77,13 @@ public class DefaultEndpoint implements Endpoint, ExchangeFactoryAware {
     }
 
     @Override
-    public Exchange createExchange() {
+    public ExchangeImpl createExchange() {
         assert exchangeFactory != null : "ExchangeFactory is required and cannot be null.";
         return exchangeFactory.createExchange();
     }
 
     @Override
-    public Exchange createExchange(Headers headers) {
+    public ExchangeImpl createExchange(Headers headers) {
         assert exchangeFactory != null : "ExchangeFactory is required and cannot be null.";
         return exchangeFactory.createExchange(headers);
     }

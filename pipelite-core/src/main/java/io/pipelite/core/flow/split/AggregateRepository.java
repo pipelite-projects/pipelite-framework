@@ -15,15 +15,15 @@
  */
 package io.pipelite.core.flow.split;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 import java.util.Optional;
 
 public interface AggregateRepository {
 
-    Optional<Exchange> tryLoad(String id);
+    Optional<ExchangeImpl> tryLoad(String id);
 
-    void save(String id, Exchange exchange);
+    void save(String id, ExchangeImpl exchange);
 
     void remove(String id);
 }

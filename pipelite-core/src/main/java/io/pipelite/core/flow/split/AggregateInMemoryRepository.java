@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.flow.split;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 import java.util.Map;
 import java.util.Optional;
@@ -23,15 +23,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class AggregateInMemoryRepository implements AggregateRepository {
 
-    private final Map<String, Exchange> exchanges = new ConcurrentHashMap<>();
+    private final Map<String, ExchangeImpl> exchanges = new ConcurrentHashMap<>();
 
     @Override
-    public Optional<Exchange> tryLoad(String id) {
+    public Optional<ExchangeImpl> tryLoad(String id) {
         return Optional.ofNullable(exchanges.get(id));
     }
 
     @Override
-    public void save(String id, Exchange exchange) {
+    public void save(String id, ExchangeImpl exchange) {
         exchanges.put(id, exchange);
     }
 

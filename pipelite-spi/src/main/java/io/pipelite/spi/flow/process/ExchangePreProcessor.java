@@ -15,14 +15,14 @@
  */
 package io.pipelite.spi.flow.process;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 public interface ExchangePreProcessor {
 
     int LOWEST_PRECEDENCE = Integer.MIN_VALUE;
     int HIGHEST_PRECEDENCE = Integer.MAX_VALUE;
 
-    void preProcess(FlowExecutionContext ctx, Exchange exchange);
+    void preProcess(FlowExecutionContext ctx, ExchangeImpl exchange);
     default int getOrder(){
         return 0;
     }
