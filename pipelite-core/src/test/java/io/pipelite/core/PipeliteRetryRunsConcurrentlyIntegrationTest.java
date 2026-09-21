@@ -77,7 +77,6 @@ public class PipeliteRetryRunsConcurrentlyIntegrationTest {
                 }
                 successCount.incrementAndGet();
             })
-            .toSink("retry-parallelism-out")
             .withRetry(retry -> retry.maxAttempts(5).onErrorChannel(err -> err.toDLQ()))
             .build();
 

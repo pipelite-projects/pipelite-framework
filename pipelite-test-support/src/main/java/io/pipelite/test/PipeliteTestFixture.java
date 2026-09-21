@@ -91,7 +91,8 @@ import java.util.stream.Collectors;
  * handled by {@link CaptureChannelAdapter}, so the real channel adapter is
  * never actually invoked and the test author never needs to know about it.
  * {@code queue://} hops between chained flows are left untouched, since only
- * the final flow's real sink should be captured.
+ * the final flow's real sink should be captured. A flow that ends without a
+ * sink is captured at the end of its last step (issue #112).
  *
  * <pre>{@code
  * PipeliteTestFixture.given(
@@ -279,7 +280,11 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
      * redirected to an internal {@code test://} capture endpoint — unless
      * that sink is a {@code queue://} hop to another registered flow, which
      * must be left untouched so multi-flow chaining keeps working. A flow
-     * with no sink (e.g. a recipient-list sub-flow) is copied with no sink.
+     * with no sink of its own is given the capture endpoint too, so the end
+     * of its last step is what the test observes (issue #112). A flow whose
+     * exit is a {@code toRoute(...)}/{@code toRecipientList(...)} never
+     * reaches it: the exchange goes on to other flows, and where those end is
+     * where it is captured.
      *
      * <p><strong>Note on shared {@code FlowNode} instances:</strong> the copy
      * reuses the same {@link ProcessorDefinition} (and thus the same
@@ -301,7 +306,8 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
         }
 
         final EndpointDefinition endpointDefinition = original.endpointDefinition();
-        if (endpointDefinition != null && !ChannelProtocols.QUEUE.equals(ChannelURL.parse(endpointDefinition.getUrl()).getProtocol())) {
+        if (endpointDefinition == null
+            || !ChannelProtocols.QUEUE.equals(ChannelURL.parse(endpointDefinition.getUrl()).getProtocol())) {
             copy.setEndpointDefinition(new SinkDefinitionImpl(CaptureChannelAdapter.CAPTURE_ENDPOINT_URL));
         } else {
             copy.setEndpointDefinition(endpointDefinition);

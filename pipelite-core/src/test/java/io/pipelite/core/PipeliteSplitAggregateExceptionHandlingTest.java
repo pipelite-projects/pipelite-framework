@@ -68,7 +68,6 @@ public class PipeliteSplitAggregateExceptionHandlingTest {
                     io.setOutputPayload(value);
                 })
                 .end())
-            .toSink("split-no-retry-out")
             .build();
 
         context.registerFlowDefinition(flow);
@@ -104,7 +103,6 @@ public class PipeliteSplitAggregateExceptionHandlingTest {
                     c.stopExecution();
                 })
                 .end())
-            .toSink("split-retry-out")
             .withRetry(retry -> retry.onErrorChannel(err -> err.toDLQ()))
             .build();
 

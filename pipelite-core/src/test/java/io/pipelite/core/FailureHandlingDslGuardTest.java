@@ -32,7 +32,7 @@ public class FailureHandlingDslGuardTest {
     private static BuildOperations newBuilder() {
         return Pipelite.defineFlow("guard-flow")
             .fromSource("queue://guard-in")
-            .toSink("guard-out");
+            ;
     }
 
     @Test

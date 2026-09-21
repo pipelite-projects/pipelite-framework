@@ -20,6 +20,7 @@ import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.context.ChannelAdapterManager;
 import io.pipelite.core.context.EndpointFactory;
 import io.pipelite.core.context.UnsupportedSourceConcurrencyException;
+import io.pipelite.core.context.internal.DestinationURLs;
 import io.pipelite.core.context.internal.SourceURLs;
 import io.pipelite.core.definition.TypedSourceDefinition;
 import io.pipelite.dsl.definition.EndpointDefinition;
@@ -28,7 +29,6 @@ import io.pipelite.dsl.definition.SourceDefinition;
 import io.pipelite.expression.support.ReflectionUtils;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelURL;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.SourceConcurrencyConfigurer;
@@ -72,20 +72,18 @@ public class DefaultEndpointFactory implements EndpointFactory {
         }
 
         final String resolvedUrl = endpointURLPropertyResolver.resolve(endpointDefinition.getUrl());
-        // A source is a URL (issue #111): a value with no protocol, which the DSL could not see
-        // because it came from a placeholder, is rejected here.
+        // Every endpoint is a URL (issues #111, #112): a value with no protocol, which the DSL could
+        // not see because it came from a placeholder, is rejected here.
         if (endpointDefinition instanceof SourceDefinition) {
             SourceURLs.requireProtocol(resolvedUrl);
+        } else {
+            DestinationURLs.requireSinkProtocol(resolvedUrl);
         }
         final ChannelURL channelURL = ChannelURL.parse(resolvedUrl);
-        if (channelURL.hasProtocol()) {
-            final ChannelAdapter channel = channelAdapterManager.resolveChannel(channelURL.getProtocol());
-            rejectSourceConcurrencyParams(channel, channelURL.getProtocol(), channelURL.getEndpointURL());
-            final String endpointURL = applySourceConfigurer(endpointDefinition, channel, channelURL.getEndpointURL());
-            return channel.createEndpoint(endpointURL);
-        }
-        // Only a sink can get here: a bare toSink("x") is still a producer that does nothing.
-        return new DefaultEndpoint(EndpointURL.parse(channelURL.getEndpointURL()));
+        final ChannelAdapter channel = channelAdapterManager.resolveChannel(channelURL.getProtocol());
+        rejectSourceConcurrencyParams(channel, channelURL.getProtocol(), channelURL.getEndpointURL());
+        final String endpointURL = applySourceConfigurer(endpointDefinition, channel, channelURL.getEndpointURL());
+        return channel.createEndpoint(endpointURL);
     }
 
     /**

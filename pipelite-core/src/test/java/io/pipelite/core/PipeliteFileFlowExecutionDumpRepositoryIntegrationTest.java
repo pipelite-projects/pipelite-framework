@@ -63,7 +63,6 @@ public class PipeliteFileFlowExecutionDumpRepositoryIntegrationTest {
                     throw new RuntimeException("Programmatic exception");
                 }
             }))
-            .toSink("end")
             .withRetry(retry -> retry.maxAttempts(5).onErrorChannel(err -> err.toDLQ()))
             .build();
 
@@ -107,7 +106,6 @@ public class PipeliteFileFlowExecutionDumpRepositoryIntegrationTest {
                         throw new RuntimeException("Programmatic exception");
                     }
                 }))
-                .toSink("default-repository-end")
                 .withRetry(retry -> retry.maxAttempts(5).onErrorChannel(err -> err.toDLQ()))
                 .build();
 

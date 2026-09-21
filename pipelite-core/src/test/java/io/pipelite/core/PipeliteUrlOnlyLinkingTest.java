@@ -55,6 +55,57 @@ public class PipeliteUrlOnlyLinkingTest {
         }
     }
 
+    /**
+     * Issue #112: a bare sink used to be a producer that delivered nowhere, the same as no sink.
+     */
+    @Test
+    public void givenABareSink_whenToSinkIsCalled_thenRejectedAtDefinitionSayingWhatToWriteOrToLeaveItOut() {
+        try {
+            Pipelite.defineFlow("bare-sink-flow")
+                .fromSource("queue://bare-sink-in")
+                .toSink("kitchen-start")
+                .build();
+            Assert.fail("expected the bare sink to be rejected");
+        } catch (IllegalArgumentException expected) {
+            Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("toSink(\"kitchen-start\")"));
+            Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("Write the URL of a channel adapter"));
+            Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("'queue://kitchen-start'"));
+            Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("leave toSink(...) out"));
+        }
+    }
+
+    @Test
+    public void givenAPlaceholderThatResolvesToABareSink_whenTheContextStarts_thenItFailsNamingTheSink() {
+        final PipeliteContext withPlaceholders = Pipelite.createContext(rawUrl -> rawUrl.replace("${sink}", "orders-out"));
+        try {
+            withPlaceholders.registerFlowDefinition(Pipelite.defineFlow("placeholder-sink-flow")
+                .fromSource("queue://placeholder-sink-in")
+                .toSink("${sink}")
+                .build());
+            withPlaceholders.start();
+            Assert.fail("expected the context not to start");
+        } catch (IllegalArgumentException expected) {
+            Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("toSink(\"orders-out\"): 'orders-out' is not a URL"));
+        } finally {
+            withPlaceholders.stop();
+        }
+    }
+
+    @Test
+    public void givenAFlowWithNoSink_whenAnExchangeIsSupplied_thenItEndsAfterItsLastStep() {
+        final java.util.List<String> seen = new java.util.concurrent.CopyOnWriteArrayList<>();
+        pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("no-sink-flow")
+            .fromSource("queue://no-sink-in")
+            .process("record", (exchange, contribution) -> seen.add(exchange.getInputPayloadAs(String.class)))
+            .build());
+        pipeliteContext.start();
+
+        pipeliteContext.supplyExchange("queue://no-sink-in", pipeliteContext.getExchangeFactory().createExchange("done-1"));
+
+        org.awaitility.Awaitility.await().atMost(10, java.util.concurrent.TimeUnit.SECONDS).until(() -> seen.size() == 1);
+        Assert.assertEquals(java.util.List.of("done-1"), seen);
+    }
+
     @Test
     public void givenABareRouteDestination_whenThenIsCalled_thenRejectedAtDefinition() {
         try {

@@ -189,7 +189,6 @@ public class PipeliteTestFixtureBaseTest {
         io.pipelite.dsl.definition.FlowDefinition flow = io.pipelite.core.Pipelite.defineFlow("pm-in-fm")
             .fromSource("queue://pm-in")
             .process("step", (io, c) -> {})
-            .toSink("pm-out")
             .build();
 
         given(flowDefinition(flow), inputPayload("x"))

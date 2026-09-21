@@ -36,7 +36,6 @@ public class PipeliteSplitAggregateFixtureTest {
             .split("split-step", segment -> segment
                 .process("double-it", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(Integer.class) * 2))
                 .end())
-            .toSink("split-happy-out")
             .build();
 
         given(
@@ -59,7 +58,6 @@ public class PipeliteSplitAggregateFixtureTest {
             .split("split-step", segment -> segment
                 .process("noop", (io, c) -> io.setOutputPayload(io.getInputPayload()))
                 .end())
-            .toSink("split-empty-out")
             .build();
 
         given(
@@ -78,7 +76,6 @@ public class PipeliteSplitAggregateFixtureTest {
         FlowDefinition flow = Pipelite.defineFlow("split-zero-step-flow")
             .fromSource("queue://split-zero-step-in")
             .split("split-step", segment -> segment.end())
-            .toSink("split-zero-step-out")
             .build();
 
         given(
@@ -100,7 +97,6 @@ public class PipeliteSplitAggregateFixtureTest {
                 .process("step-1", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(Integer.class) * 2))
                 .process("step-2", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(Integer.class) + 1))
                 .end())
-            .toSink("split-multi-step-out")
             .build();
 
         given(
@@ -121,7 +117,6 @@ public class PipeliteSplitAggregateFixtureTest {
             .split("split-step", segment -> segment
                 .process("tag-it", (io, c) -> io.setOutputPayload("tagged-" + io.getInputPayloadAs(String.class)))
                 .end())
-            .toSink("split-step-inspection-out")
             .build();
 
         given(
@@ -148,7 +143,6 @@ public class PipeliteSplitAggregateFixtureTest {
             .split("split-step", segment -> segment
                 .process("noop", (io, c) -> io.setOutputPayload(io.getInputPayload()))
                 .end())
-            .toSink("split-header-continuity-out")
             .build();
 
         given(

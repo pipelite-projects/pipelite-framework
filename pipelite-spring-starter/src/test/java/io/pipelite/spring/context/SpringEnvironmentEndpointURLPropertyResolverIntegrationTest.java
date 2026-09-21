@@ -74,7 +74,6 @@ public class SpringEnvironmentEndpointURLPropertyResolverIntegrationTest {
         public FlowDefinition placeholderFlowDefinition(){
             return Pipelite.defineFlow("placeholder-flow")
                 .fromSource("queue://${test.source.name}")
-                .toSink("sink")
                 .build();
         }
     }

@@ -66,7 +66,6 @@ public class PipeliteRetryExhaustionCustomExceptionHandlerIntegrationTest {
                     attemptCount.incrementAndGet();
                     throw new RuntimeException("simulated persistent failure");
                 })
-                .toSink("retry-exhaustion-custom-handler-out")
                 .withRetry(retry -> retry
                     .maxAttempts(2)
                     .onExceptionHandler((exception, ioContext) -> {
@@ -116,7 +115,6 @@ public class PipeliteRetryExhaustionCustomExceptionHandlerIntegrationTest {
                     firstRunAttempts.incrementAndGet();
                     throw new RuntimeException("simulated persistent failure - never recovers this run");
                 })
-                .toSink("retry-exhaustion-restart-out")
                 .withRetry(retry -> retry
                     .maxAttempts(2)
                     .onExceptionHandler((exception, ioContext) -> {
@@ -152,7 +150,6 @@ public class PipeliteRetryExhaustionCustomExceptionHandlerIntegrationTest {
                 .process("always-fail", (io, c) -> {
                     throw new RuntimeException("still failing after the restart");
                 })
-                .toSink("retry-exhaustion-restart-out")
                 .withRetry(retry -> retry
                     .maxAttempts(2)
                     .onExceptionHandler((exception, ioContext) -> capturedException.set(exception)))

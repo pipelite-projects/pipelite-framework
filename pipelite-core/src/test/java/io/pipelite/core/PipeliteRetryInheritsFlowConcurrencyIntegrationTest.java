@@ -79,7 +79,6 @@ public class PipeliteRetryInheritsFlowConcurrencyIntegrationTest {
                 }
                 retryCompleted.countDown();
             })
-            .toSink("retry-concurrency-out")
             .withRetry(retry -> retry.maxAttempts(5).onErrorChannel(err -> err.toDLQ()))
             .build();
 

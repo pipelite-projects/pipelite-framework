@@ -177,6 +177,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
 
     @Override
     public SinkOperations toSink(String url) {
+        DestinationURLs.requireSink(url);
         final SinkDefinition sinkDefinition = new SinkDefinitionImpl(url);
         builder.with(target -> target.setEndpointDefinition(sinkDefinition));
         return this;

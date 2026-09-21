@@ -58,7 +58,6 @@ public class PipeliteNoErrorHandlingFallbackIntegrationTest {
                 invocationCount.incrementAndGet();
                 throw new RuntimeException("simulated failure - no retry/error channel configured");
             })
-            .toSink("no-error-handling-out")
             .build();
 
         pipeliteContext.registerFlowDefinition(testFlow);
@@ -94,7 +93,6 @@ public class PipeliteNoErrorHandlingFallbackIntegrationTest {
                 }
                 successCount.incrementAndGet();
             })
-            .toSink("no-error-handling-survives-out")
             .build();
 
         pipeliteContext.registerFlowDefinition(testFlow);
