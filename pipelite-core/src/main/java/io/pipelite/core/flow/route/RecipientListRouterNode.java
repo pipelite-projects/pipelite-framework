@@ -60,8 +60,27 @@ class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContex
         this.conditionEvaluator = conditionEvaluator;
     }
 
+    /**
+     * A failure while forwarding - a recipient that cannot be delivered, a condition that cannot
+     * be evaluated - is handed to the flow's exception handler like a failed processor step (issue
+     * #105), so {@code withRetry}, {@code withErrorChannel} and the default handler protect this
+     * step too. Delivering to several recipients is not atomic: if the second delivery fails after
+     * the first went through, a retry of this step sends to the first one again (at-least-once, as
+     * everywhere else in the framework).
+     */
     @Override
     public void process(ExchangeImpl exchange) {
+        try {
+            forward(exchange);
+        } catch (RuntimeException exception) {
+            if (sysLogger.isErrorEnabled()) {
+                sysLogger.error("An underlying error occurred forwarding message", exception);
+            }
+            handleFailure(exception, exchange);
+        }
+    }
+
+    private void forward(ExchangeImpl exchange) {
 
         if(sysLogger.isDebugEnabled()){
             sysLogger.debug("Forwarding exchange to RecipientList {}", ToStringUtils.arrayToString(recipientList.toArray(), 5));
@@ -78,7 +97,12 @@ class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContex
 
         filteredRecipients.forEach(endpointURL -> {
             final ExchangeImpl copy = exchangeFactory.copyExchange(exchange);
-            pipeliteContext.supplyExchange(endpointURL, copy);
+            try {
+                pipeliteContext.supplyExchange(endpointURL, copy);
+            } catch (RuntimeException exception) {
+                throw new IllegalStateException(String.format(
+                    "Unable to forward exchange to recipient '%s' due to an underlying error", endpointURL), exception);
+            }
         });
     }
 

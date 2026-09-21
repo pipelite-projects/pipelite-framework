@@ -17,6 +17,7 @@ package io.pipelite.spi.flow;
 
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.dsl.process.ExceptionHandler;
+import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
@@ -143,5 +144,27 @@ public abstract class AbstractFlowNode implements FlowNode {
     @Override
     public void setExceptionHandler(ExceptionHandler exceptionHandler) {
         this.exceptionHandler = exceptionHandler;
+    }
+
+    /**
+     * How a node whose work can fail on a message reports the failure (issue #105): it hands it to
+     * the flow's exception handler, which is what drives {@code withRetry}, {@code withErrorChannel},
+     * {@code withExceptionHandler} and the default handler, marking this node as the failed
+     * processor so a retry resumes right here. If the flow has no handler the exception is
+     * rethrown, unchanged. The node logs the failure itself, in its own words, before calling this,
+     * and returns afterwards: it must not go on to its next node.
+     * <p>
+     * Used by every node that catches a {@code RuntimeException} around its own work, so the
+     * contract lives in one place instead of a copy per node. Not for {@code DefaultConsumer},
+     * which never rethrows and marks no failed processor.
+     *
+     * @throws RuntimeException {@code exception} itself, when there is no exception handler
+     */
+    protected final void handleFailure(RuntimeException exception, ExchangeImpl exchange) {
+        if (exceptionHandler == null) {
+            throw exception;
+        }
+        exchange.setProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, getProcessorName());
+        exceptionHandler.handleException(exception, exchange);
     }
 }
