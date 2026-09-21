@@ -24,6 +24,10 @@ import io.pipelite.core.config.FlowConfigurationScanner;
 import io.pipelite.core.config.NoOpEndpointURLPropertyResolver;
 import io.pipelite.core.context.*;
 import io.pipelite.core.context.internal.DestinationURLs;
+import io.pipelite.core.context.internal.validation.ContextValidatorChain;
+import io.pipelite.core.context.internal.validation.FlowReferenceValidator;
+import io.pipelite.core.context.internal.validation.ContextValidator;
+import io.pipelite.core.context.internal.validation.ValidationContext;
 import io.pipelite.core.flow.DeadLetterChannelExceptionHandler;
 import io.pipelite.core.flow.internal.FlowFactory;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
@@ -70,6 +74,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutorService;
@@ -104,6 +109,21 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
     private final Collection<FlowDefinition> flowDefinitions;
+
+    // The startup validation phase (issue #88) and the read-only view of this context it runs over.
+    private final ContextValidatorChain contextValidatorChain;
+
+    private final ValidationContext validationContext = new ValidationContext() {
+        @Override
+        public Collection<FlowDefinition> flowDefinitions() {
+            return Collections.unmodifiableCollection(flowDefinitions);
+        }
+
+        @Override
+        public String resolveURL(String rawURL) {
+            return endpointFactory.resolveURL(rawURL);
+        }
+    };
 
     private final DependencyRegistry dependencyRegistry;
     private final FlowConfigurationScanner flowConfigurationScanner;
@@ -147,6 +167,9 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     public DefaultPipeliteContext() {
 
         flowDefinitions = new ArrayList<>();
+
+        contextValidatorChain = new ContextValidatorChain();
+        contextValidatorChain.add(new FlowReferenceValidator());
 
         dependencyRegistry = new DefaultDependencyRegistry();
         flowConfigurationScanner = new FlowConfigurationScanner();
@@ -192,6 +215,16 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
         // setDeadLetterQueueRepository(...) can swap this for a different implementation.
         deadLetterQueueRepository = new FileDeadLetterQueueRepository(PipeliteHome.resolve(DEAD_LETTER_QUEUE_HOME_SUBFOLDER));
         deadLetterQueueEntryFactory = new DeadLetteredExchangeFactory(new DistributedIdentityGeneratorImpl(), new Base64ObjectSerializer());
+    }
+
+    /**
+     * Adds a validator to the chain the context runs when it starts (issue #88), after the ones the
+     * chain already holds. For the framework's own modules, not for applications: the criteria the
+     * context is validated against are not something a user configures, so this is deliberately not
+     * on {@code ConfigurablePipeliteContext}. Must be called before {@link #start()}.
+     */
+    public void addContextValidator(ContextValidator validator) {
+        contextValidatorChain.add(validator);
     }
 
     @Override
@@ -311,12 +344,18 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     @Override
     public void start() {
 
-        // create the shared fromSource worker pool first: FlowNodeConfigurer injects it into
-        // consumers during registerFlows(), and EventDrivenConsumerService needs it at doStart()
-        getSourceWorkerPool();
-
         // find channelAdapters and register automatically
         channelAdapterManager.scan();
+
+        // cross-flow validation (issue #88): after the adapters are known and before anything with a
+        // side effect - the worker pool, the consumers, the durable inbox recovery that re-dispatches
+        // exchanges - so a context that does not fit together fails without having started anything
+        contextValidatorChain.validate(validationContext);
+
+        // create the shared fromSource worker pool before registering the flows: FlowNodeConfigurer
+        // injects it into consumers during registerFlows(), and EventDrivenConsumerService needs it
+        // at doStart()
+        getSourceWorkerPool();
 
         // register Flow
         registerFlows();

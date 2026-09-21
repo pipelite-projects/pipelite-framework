@@ -16,6 +16,8 @@
 package io.pipelite.core.flow;
 
 import io.pipelite.common.support.Preconditions;
+import io.pipelite.core.context.internal.DeclaredDestination;
+import io.pipelite.core.context.internal.DeclaresDestinations;
 import io.pipelite.core.definition.builder.retry.RetryBuilder;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
@@ -29,8 +31,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Collection;
+import java.util.List;
 
-public class RetryChannelExceptionHandler implements ExceptionHandler {
+public class RetryChannelExceptionHandler implements ExceptionHandler, DeclaresDestinations {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
@@ -89,6 +93,19 @@ public class RetryChannelExceptionHandler implements ExceptionHandler {
     public ExceptionHandler getExhaustionExceptionHandler() {
         return exhaustionExceptionHandler;
     }
+
+    /**
+     * The dead-letter target, when exhausted attempts are routed to one (issue #88): what the startup
+     * validation reads. A retry that ends in the built-in queue or a custom handler declares none.
+     */
+    @Override
+    public Collection<DeclaredDestination> declaredDestinations() {
+        if (exhaustionAction == FlowExecutionDump.ExhaustionAction.DEAD_LETTER_CHANNEL) {
+            return List.of(new DeclaredDestination(deadLetterTarget, "withRetry(...) onErrorChannel(toChannel(...))"));
+        }
+        return List.of();
+    }
+
 
     @Override
     public void handleException(Throwable failureException, Exchange exchange) {
