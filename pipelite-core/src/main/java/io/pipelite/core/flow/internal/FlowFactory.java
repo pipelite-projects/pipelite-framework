@@ -82,7 +82,7 @@ public class FlowFactory {
         consumer.tag(consumerTag);
         consumer.setExceptionHandler(exceptionHandler);
         injectDependencies(consumer);
-        wireDurableInbox(consumer, sourceEndpointURL);
+        wireDurableInbox(consumer, flowName, sourceEndpointURL);
         setPrePostProcessors(consumer);
 
         Iterator<ProcessorDefinition> processorsIterator = flowDefinition.iterateProcessorDefinitions();
@@ -171,16 +171,17 @@ public class FlowFactory {
      * boundary a consumer owns — so this is a separate, consumer-only step rather than folded
      * into {@link FlowNodeConfigurer#injectDependencies}, which every node in the chain goes
      * through. Resolved once here, at flow-build time, per this class's own Javadoc on why {@code
-     * DurableInbox#enqueue} itself takes no resource-identifying parameter.
+     * DurableInbox#enqueue} itself takes no flow-identifying parameter. Keyed by the flow name, not by
+     * the resource of the source (issue #108).
      */
-    private void wireDurableInbox(Consumer consumer, EndpointURL sourceEndpointURL) {
+    private void wireDurableInbox(Consumer consumer, String flowName, EndpointURL sourceEndpointURL) {
         if (!(consumer instanceof DurableInboxAware)) {
             return;
         }
         final boolean enabled = sourceEndpointURL.getProperties()
             .getAsBooleanOrDefault(DurableInboxProperties.DURABLE_INBOX, true);
         final DurableInbox durableInbox = enabled
-            ? context.getDurableInboxProvider().forResource(sourceEndpointURL.getResource())
+            ? context.getDurableInboxProvider().forFlow(flowName)
             : NoOpDurableInbox.INSTANCE;
         ((DurableInboxAware) consumer).setDurableInbox(durableInbox);
     }

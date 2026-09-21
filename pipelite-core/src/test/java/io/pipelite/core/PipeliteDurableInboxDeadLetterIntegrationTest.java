@@ -68,7 +68,7 @@ public class PipeliteDurableInboxDeadLetterIntegrationTest {
             // two live instances over the same file must not write concurrently).
             final Path inboxDirectory = temporaryFolder.getRoot().toPath().resolve("state").resolve("inbox");
             final DurableInbox seedInbox = new SegmentedLogDurableInboxProvider(inboxDirectory, new DistributedIdentityGeneratorImpl())
-                .forResource(SOURCE);
+                .forFlow(FLOW_NAME);
             // Not a valid Java-serialized Exchange at all - stands in for a payload class whose
             // shape changed since this entry was written.
             seedInbox.enqueue("not a valid java-serialized exchange".getBytes(StandardCharsets.UTF_8), Map.of());
@@ -106,7 +106,7 @@ public class PipeliteDurableInboxDeadLetterIntegrationTest {
                 Assert.assertEquals(1, processed.size());
 
                 Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
-                    context.getDurableInboxProvider().forResource(SOURCE).pendingEntries().isEmpty());
+                    context.getDurableInboxProvider().forFlow(FLOW_NAME).pendingEntries().isEmpty());
             } finally {
                 context.stop();
             }

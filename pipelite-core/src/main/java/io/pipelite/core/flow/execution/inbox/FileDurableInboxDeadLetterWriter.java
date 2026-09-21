@@ -32,25 +32,25 @@ import java.util.Properties;
 
 /**
  * Default {@link DurableInboxDeadLetterWriter}: one single, un-segmented, ever-appended file per
- * resource — {@code <sha256(resourceKey)>_dlq}, no numeric suffix, never rotated — under the same
+ * flow — {@code <sha256(flowName)>_dlq}, no numeric suffix, never rotated — under the same
  * shared directory the live inbox itself uses ({@code DefaultPipeliteContext}'s default is {@code
  * PipeliteHome.resolve("state/inbox")}, identical to {@code SegmentedLogDurableInboxProvider}'s
  * own base directory), written via {@link LockedFileStore}.
  * <p>
- * One growing file per resource rather than one file per entry, and rather than a separate
+ * One growing file per flow rather than one file per entry, and rather than a separate
  * directory tree: a dead-lettered entry is expected to be rare (a payload class changed shape
  * between the run that wrote it and the run trying to read it back), so neither the one-file-
  * per-message volume concern that ruled out that shape for the live inbox (see the durable-inbox
  * design doc, §4), nor any need for segmentation/rotation, ever applies here — a single append
- * target per resource is simplest and keeps every dead letter for a given queue in one place.
+ * target per flow is simplest and keeps every dead letter for a given queue in one place.
  * {@link LockedFileStore} has no native append primitive, so an entry is appended via {@link
  * LockedFileStore#readAndWriteLocked}: read the file's current text (empty if new), concatenate
  * the new record's block, write the whole thing back — one lock held for the whole read-modify-
- * write, safe against concurrent dead-letter writes for the same resource. Cheap enough given how
+ * write, safe against concurrent dead-letter writes for the same flow. Cheap enough given how
  * rare a dead letter should be; not the write-amplification concern it would be on the live inbox's
  * hot path.
  * <p>
- * Each record is a self-contained {@link Properties} block ({@code resourceKey}, {@code entryId},
+ * Each record is a self-contained {@link Properties} block ({@code flowName}, {@code entryId},
  * {@code failureTime}, the failing exception's class/message, every metadata entry - indexed
  * rather than used directly as a property key, since an entry's metadata key is arbitrary text
  * that might not be a valid property key - and the entry's own opaque payload bytes, Base64-
@@ -63,7 +63,7 @@ public class FileDurableInboxDeadLetterWriter implements DurableInboxDeadLetterW
     private static final String FILE_SUFFIX = "_dlq";
     private static final String RECORD_DIVIDER = "\n#---\n";
 
-    private static final String RESOURCE_KEY_KEY = "resourceKey";
+    private static final String FLOW_NAME_KEY = "flowName";
     private static final String ENTRY_ID_KEY = "entryId";
     private static final String FAILURE_TIME_KEY = "failureTime";
     private static final String CAUSE_CLASS_NAME_KEY = "causeClassName";
@@ -81,23 +81,23 @@ public class FileDurableInboxDeadLetterWriter implements DurableInboxDeadLetterW
     }
 
     @Override
-    public void write(String resourceKey, InboxEntry entry, Exception cause) {
-        Preconditions.hasText(resourceKey, "resourceKey is required and cannot be null/empty");
+    public void write(String flowName, InboxEntry entry, Exception cause) {
+        Preconditions.hasText(flowName, "flowName is required and cannot be null/empty");
         Preconditions.notNull(entry, "entry is required and cannot be null");
         Preconditions.notNull(cause, "cause is required and cannot be null");
-        final String record = format(resourceKey, entry, cause);
-        store.readAndWriteLocked(fileName(resourceKey), current ->
+        final String record = format(flowName, entry, cause);
+        store.readAndWriteLocked(fileName(flowName), current ->
             current.map(existing -> existing + RECORD_DIVIDER + record).orElse(record));
     }
 
-    private static String fileName(String resourceKey) {
-        return sha256Hex(resourceKey) + FILE_SUFFIX;
+    private static String fileName(String flowName) {
+        return sha256Hex(flowName) + FILE_SUFFIX;
     }
 
-    private static String format(String resourceKey, InboxEntry entry, Exception cause) {
+    private static String format(String flowName, InboxEntry entry, Exception cause) {
 
         final Properties properties = new Properties();
-        properties.setProperty(RESOURCE_KEY_KEY, resourceKey);
+        properties.setProperty(FLOW_NAME_KEY, flowName);
         properties.setProperty(ENTRY_ID_KEY, entry.getId());
         properties.setProperty(FAILURE_TIME_KEY, LocalDateTime.now().toString());
         properties.setProperty(CAUSE_CLASS_NAME_KEY, cause.getClass().getName());

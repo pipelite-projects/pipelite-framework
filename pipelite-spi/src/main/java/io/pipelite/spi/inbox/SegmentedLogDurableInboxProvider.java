@@ -25,20 +25,20 @@ import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Default {@link DurableInboxProvider}: one {@link SegmentedLogDurableInbox} per distinct
- * resource key, created on first request and cached for the lifetime of this provider — mirrors
- * {@code FileTailStateStore}'s own resource-to-file naming exactly (issue #6/#70): every
- * resource's segment files share one flat base directory, named with the SHA-256 hex digest of
- * the resource key as a file-name prefix (never a subdirectory per resource, which would add
- * nesting without changing contention, blast radius, or lifecycle — all already scoped per file/
- * prefix, not per directory), so no filesystem-unsafe character in the original resource string
- * ever reaches a path segment.
+ * Default {@link DurableInboxProvider}: one {@link SegmentedLogDurableInbox} per distinct flow
+ * name, created on first request and cached for the lifetime of this provider — mirrors {@code
+ * FileTailStateStore}'s own file naming (issue #6/#70): every flow's segment files share one flat
+ * base directory, named with the SHA-256 hex digest of the flow name as a file-name prefix (never
+ * a subdirectory per flow, which would add nesting without changing contention, blast radius, or
+ * lifecycle — all already scoped per file/prefix, not per directory), so no filesystem-unsafe
+ * character in the original flow name ever reaches a path segment. Keyed by the flow, not by the
+ * resource of its source, so flows that share a resource do not share an inbox (issue #108).
  */
 public final class SegmentedLogDurableInboxProvider implements DurableInboxProvider {
 
     private final Path baseDirectory;
     private final IdentityGenerator identityGenerator;
-    private final ConcurrentHashMap<String, DurableInbox> inboxByResource = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, DurableInbox> inboxByFlow = new ConcurrentHashMap<>();
 
     public SegmentedLogDurableInboxProvider(Path baseDirectory, IdentityGenerator identityGenerator) {
         this.baseDirectory = Objects.requireNonNull(baseDirectory, "baseDirectory is required and cannot be null");
@@ -46,9 +46,9 @@ public final class SegmentedLogDurableInboxProvider implements DurableInboxProvi
     }
 
     @Override
-    public DurableInbox forResource(String resourceKey) {
-        Objects.requireNonNull(resourceKey, "resourceKey is required and cannot be null");
-        return inboxByResource.computeIfAbsent(resourceKey, key ->
+    public DurableInbox forFlow(String flowName) {
+        Objects.requireNonNull(flowName, "flowName is required and cannot be null");
+        return inboxByFlow.computeIfAbsent(flowName, key ->
             new SegmentedLogDurableInbox(baseDirectory, sha256Hex(key), identityGenerator));
     }
 

@@ -72,13 +72,13 @@ public class FileDurableInboxDeadLetterWriterTest {
         final FileDurableInboxDeadLetterWriter writer = new FileDurableInboxDeadLetterWriter(directory());
         final RuntimeException cause = new RuntimeException("simulated deserialization failure");
 
-        writer.write("kitchen-start", entry, cause);
+        writer.write("kitchen-flow", entry, cause);
 
-        final List<Properties> records = readDlqFile("kitchen-start");
+        final List<Properties> records = readDlqFile("kitchen-flow");
         Assert.assertEquals(1, records.size());
         final Properties properties = records.get(0);
 
-        Assert.assertEquals("kitchen-start", properties.getProperty("resourceKey"));
+        Assert.assertEquals("kitchen-flow", properties.getProperty("flowName"));
         Assert.assertEquals(entry.getId(), properties.getProperty("entryId"));
         Assert.assertNotNull("failureTime must be recorded", properties.getProperty("failureTime"));
         Assert.assertEquals(RuntimeException.class.getName(), properties.getProperty("causeClassName"));
@@ -128,14 +128,14 @@ public class FileDurableInboxDeadLetterWriterTest {
     }
 
     /**
-     * Reads the single {@code <sha256(resourceKey)>_dlq} file and splits it back into its
+     * Reads the single {@code <sha256(flowName)>_dlq} file and splits it back into its
      * individual appended records - mirrors {@code FileDurableInboxDeadLetterWriter}'s own
      * divider, since nothing in production ever needs to parse this file back (write-only by
      * design).
      */
-    private List<Properties> readDlqFile(String resourceKey) throws IOException {
-        final Path file = directory().resolve(sha256Hex(resourceKey) + "_dlq");
-        Assert.assertTrue("expected a dead-letter file for " + resourceKey, Files.exists(file));
+    private List<Properties> readDlqFile(String flowName) throws IOException {
+        final Path file = directory().resolve(sha256Hex(flowName) + "_dlq");
+        Assert.assertTrue("expected a dead-letter file for " + flowName, Files.exists(file));
         final String content = Files.readString(file);
         final List<Properties> records = new java.util.ArrayList<>();
         for (String block : content.split("\n#---\n")) {

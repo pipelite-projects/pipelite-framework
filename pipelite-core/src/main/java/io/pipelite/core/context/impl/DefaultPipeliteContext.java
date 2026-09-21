@@ -565,15 +565,17 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     }
 
     private void recoverPendingInboxEntries(Flow flow) {
-        final String resourceKey = flow.getEndpointURI();
-        final DurableInbox durableInbox = durableInboxProvider.forResource(resourceKey);
+        // Keyed by the flow, not by the resource of its source (issue #108): flows that share a resource
+        // must not recover each other's entries.
+        final String flowName = flow.getName();
+        final DurableInbox durableInbox = durableInboxProvider.forFlow(flowName);
         final List<InboxEntry> pending = durableInbox.pendingEntries();
         if (pending.isEmpty()) {
             return;
         }
         if (sysLogger.isInfoEnabled()) {
             sysLogger.info("Recovering {} unacknowledged durable-inbox entr{} for flow '{}'",
-                pending.size(), pending.size() == 1 ? "y" : "ies", flow.getName());
+                pending.size(), pending.size() == 1 ? "y" : "ies", flowName);
         }
         for (InboxEntry entry : pending) {
             // Isolated per entry (issue #70 follow-up): a payload that fails to deserialize -
@@ -586,7 +588,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
             try {
                 exchange = inboxPayloadToExchangeConverter.convert(entry.getPayload(), ExchangeImpl.class);
             } catch (RuntimeException conversionFailure) {
-                deadLetterAndAcknowledge(resourceKey, durableInbox, entry, conversionFailure, flow.getName());
+                deadLetterAndAcknowledge(durableInbox, entry, conversionFailure, flowName);
                 continue;
             }
             // Tags the resupplied Exchange with its ORIGINAL entry id before it re-enters
@@ -599,10 +601,10 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
         }
     }
 
-    private void deadLetterAndAcknowledge(String resourceKey, DurableInbox durableInbox, InboxEntry entry,
+    private void deadLetterAndAcknowledge(DurableInbox durableInbox, InboxEntry entry,
                                            RuntimeException conversionFailure, String flowName) {
         try {
-            durableInboxDeadLetterWriter.write(resourceKey, entry, conversionFailure);
+            durableInboxDeadLetterWriter.write(flowName, entry, conversionFailure);
             // Only acknowledged once safely dead-lettered: otherwise the entry would simply
             // disappear (durableInbox.acknowledge(...) alone, with no dead-letter write, is
             // indistinguishable from silent data loss) - the two must happen together, in this
