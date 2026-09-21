@@ -11,10 +11,10 @@ The *Content-Based Router* routes the message to one of the flows listed in the 
 ----
 .toRoute(route -> route.contentBased()               // <1>
     .when(new PayloadTypeCondition(OrderEvent.class), // <2>
-          "link://order-processing-flow")
+          "queue://order-processing-flow")
     .when(new ExpressionCondition("${header.type} == 'PAYMENT'"),
-          "link://payment-flow")
-    .otherwise("link://default-flow")                        // <3>
+          "queue://payment-flow")
+    .otherwise("queue://default-flow")                        // <3>
     .build()
 )
 ----
@@ -22,7 +22,7 @@ The *Content-Based Router* routes the message to one of the flows listed in the 
 <2> Each `.when(condition, flowName)` adds an entry to the routing table.
 <3> `.otherwise` defines the fallback flow if no condition is satisfied.
 
-NOTE: A destination is a URL: `link://<source endpoint name>` reaches an internal flow (the name its `fromSource(...)` declares), any other channel adapter protocol reaches an external system. A bare name is rejected when the flow is defined.
+NOTE: A destination is a URL: `queue://<queue name>` reaches an internal flow (the queue its `fromSource("queue://...")` reads), any other channel adapter protocol reaches an external system. A bare name is rejected when the flow is defined.
 
 === Available conditions
 

@@ -63,14 +63,14 @@ public class PipeliteProducerFailureErrorChannelIntegrationTest {
         final AtomicBoolean deadLettered = new AtomicBoolean(false);
 
         final FlowDefinition deadLetterFlow = Pipelite.defineFlow("producer-failure-dead-letter-flow")
-            .fromSource("producer-failure-dead-letter")
+            .fromSource("queue://producer-failure-dead-letter")
             .process("mark-dead-lettered", (io, c) -> deadLettered.set(true))
             .build();
 
         final FlowDefinition mainFlow = Pipelite.defineFlow("producer-failure-flow")
-            .fromSource("producer-failure-in")
+            .fromSource("queue://producer-failure-in")
             .toSink("file://" + unwritableTarget)
-            .withErrorChannel(err -> err.toChannel("link://producer-failure-dead-letter"))
+            .withErrorChannel(err -> err.toChannel("queue://producer-failure-dead-letter"))
             .build();
 
         pipeliteContext.registerFlowDefinition(deadLetterFlow);
@@ -78,7 +78,7 @@ public class PipeliteProducerFailureErrorChannelIntegrationTest {
         pipeliteContext.start();
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
-        pipeliteContext.supplyExchange("link://producer-failure-in", exchangeFactory.createExchange("payload"));
+        pipeliteContext.supplyExchange("queue://producer-failure-in", exchangeFactory.createExchange("payload"));
 
         // Before the #89 fix, this would time out: the producer's IllegalStateException
         // propagated straight past the configured error channel with no dead-letter routing at all.

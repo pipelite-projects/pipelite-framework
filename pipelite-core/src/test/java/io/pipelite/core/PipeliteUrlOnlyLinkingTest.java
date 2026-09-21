@@ -59,10 +59,10 @@ public class PipeliteUrlOnlyLinkingTest {
     public void givenABareRouteDestination_whenThenIsCalled_thenRejectedAtDefinition() {
         try {
             Pipelite.defineFlow("bare-then-flow")
-                .fromSource("bare-then-in")
+                .fromSource("queue://bare-then-in")
                 .toRoute(routes -> routes.dynamic()
                     .when("Headers['x'] == 'y'").then("premium-flow")
-                    .otherwise("link://default-flow")
+                    .otherwise("queue://default-flow")
                     .end())
                 .build();
             Assert.fail("expected the bare route destination to be rejected");
@@ -75,9 +75,9 @@ public class PipeliteUrlOnlyLinkingTest {
     public void givenABareDefaultRoute_whenOtherwiseIsCalled_thenRejectedAtDefinition() {
         try {
             Pipelite.defineFlow("bare-otherwise-flow")
-                .fromSource("bare-otherwise-in")
+                .fromSource("queue://bare-otherwise-in")
                 .toRoute(routes -> routes.dynamic()
-                    .when("Headers['x'] == 'y'").then("link://premium-flow")
+                    .when("Headers['x'] == 'y'").then("queue://premium-flow")
                     .otherwise("default-flow")
                     .end())
                 .build();
@@ -91,11 +91,11 @@ public class PipeliteUrlOnlyLinkingTest {
     public void givenABareRecipient_whenToRecipientsIsCalled_thenRejectedAtDefinition() {
         try {
             Pipelite.defineFlow("bare-recipient-flow")
-                .fromSource("bare-recipient-in")
+                .fromSource("queue://bare-recipient-in")
                 .toRecipientList(recipients -> recipients
-                    .toRecipients("link://destination-01-start", "destination-02-start")
+                    .toRecipients("queue://destination-01-start", "destination-02-start")
                     .when("Headers['x'] eq 'y'")
-                        .toRecipient("link://destination-03-start")
+                        .toRecipient("queue://destination-03-start")
                     .end())
                 .build();
             Assert.fail("expected the bare recipient to be rejected");
@@ -108,7 +108,7 @@ public class PipeliteUrlOnlyLinkingTest {
     public void givenABareWireTapTarget_whenWireTapIsCalled_thenRejectedAtDefinition() {
         try {
             Pipelite.defineFlow("bare-wire-tap-flow")
-                .fromSource("bare-wire-tap-in")
+                .fromSource("queue://bare-wire-tap-in")
                 .wireTap("audit", "audit-flow");
             Assert.fail("expected the bare wire tap target to be rejected");
         } catch (IllegalArgumentException expected) {
@@ -120,10 +120,10 @@ public class PipeliteUrlOnlyLinkingTest {
     public void givenARouteDestinationBuiltFromAnExpression_thenItIsNotCheckedAtDefinition() {
         // Only known when an exchange is routed: it is checked then, by supplyExchange.
         Pipelite.defineFlow("dynamic-route-flow")
-            .fromSource("dynamic-route-in")
+            .fromSource("queue://dynamic-route-in")
             .toRoute(routes -> routes.dynamic()
                 .when("Headers['x'] == 'y'").then("#{Headers['destination']}")
-                .otherwise("link://default-flow")
+                .otherwise("queue://default-flow")
                 .end())
             .build();
     }
@@ -137,21 +137,21 @@ public class PipeliteUrlOnlyLinkingTest {
         } catch (IllegalArgumentException expected) {
             final String message = expected.getMessage();
             Assert.assertTrue(message, message.contains("'kitchen-start' is not a URL"));
-            Assert.assertTrue(message, message.contains("link://kitchen-start"));
+            Assert.assertTrue(message, message.contains("queue://kitchen-start"));
         }
     }
 
     /**
-     * Issue #100, brought in by #102: {@code link://} is the only way to an internal flow, and an
+     * Issue #100, brought in by #102: {@code queue://} is the only way to an internal flow, and an
      * orphan one used to be discarded without a trace (a bare orphan, which failed, was the other way in).
      */
     @Test
-    public void givenALinkURLNoFlowDeclares_whenSupplyExchangeIsCalled_thenItFailsInsteadOfDiscarding() {
+    public void givenAQueueURLNoFlowReads_whenSupplyExchangeIsCalled_thenItFailsInsteadOfDiscarding() {
         pipeliteContext.start();
         final ExchangeImpl exchange = pipeliteContext.getExchangeFactory().createExchange("payload");
         try {
-            pipeliteContext.supplyExchange("link://nobody-declares-this", exchange);
-            Assert.fail("expected the orphan link:// target to fail");
+            pipeliteContext.supplyExchange("queue://nobody-declares-this", exchange);
+            Assert.fail("expected the orphan queue:// target to fail");
         } catch (IllegalArgumentException expected) {
             Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("nobody-declares-this"));
         }
@@ -161,7 +161,7 @@ public class PipeliteUrlOnlyLinkingTest {
         final String message = exception.getMessage();
         Assert.assertTrue(message, message.contains(construct));
         Assert.assertTrue(message, message.contains("'" + bareName + "' is not a URL"));
-        Assert.assertTrue(message, message.contains("link://" + bareName));
+        Assert.assertTrue(message, message.contains("queue://" + bareName));
     }
 
 }

@@ -36,7 +36,7 @@ public class PipeliteTestFixtureFlowConfigurationTest {
         @DefineFlow
         FlowDefinition uppercaseFlow() {
             return Pipelite.defineFlow("uppercase-flow")
-                .fromSource("words-in")
+                .fromSource("queue://words-in")
                 .process("uppercase", (io, c) ->
                     io.setOutputPayload(io.getInputPayloadAs(String.class).toUpperCase()))
                 .toSink("words-out")
@@ -49,7 +49,7 @@ public class PipeliteTestFixtureFlowConfigurationTest {
         given(
                 flowConfiguration(UppercaseFlowConfiguration.class),
                 inputPayload("hello"))
-            .when(supplyTo("words-in"))
+            .when(supplyTo("queue://words-in"))
             .then(isExecutionCompleted(), payloadEquals("HELLO"));
     }
 
@@ -58,7 +58,7 @@ public class PipeliteTestFixtureFlowConfigurationTest {
         given(
                 flowConfiguration(UppercaseFlowConfiguration.class),
                 inputPayload("world"))
-            .when(supplyTo("words-in"))
+            .when(supplyTo("queue://words-in"))
             .then(
                 output(isExecutionCompleted()),
                 step("uppercase", payloadEquals("WORLD")));
@@ -80,7 +80,7 @@ public class PipeliteTestFixtureFlowConfigurationTest {
         @DefineFlow
         FlowDefinition greetingFlow(GreetingService greetingService) {
             return Pipelite.defineFlow("greeting-flow")
-                .fromSource("names-in")
+                .fromSource("queue://names-in")
                 .process("greet", (io, c) ->
                     io.setOutputPayload(greetingService.greet(io.getInputPayloadAs(String.class))))
                 .toSink("greetings-out")
@@ -93,7 +93,7 @@ public class PipeliteTestFixtureFlowConfigurationTest {
         given(
                 flowConfiguration(GreetingFlowConfiguration.class, new GreetingService()),
                 inputPayload("Alice"))
-            .when(supplyTo("names-in"))
+            .when(supplyTo("queue://names-in"))
             .then(isExecutionCompleted(), payloadEquals("Hello, Alice!"));
     }
 
@@ -105,7 +105,7 @@ public class PipeliteTestFixtureFlowConfigurationTest {
     }
 
     // -------------------------------------------------------------------------
-    // Two @FlowConfiguration classes — flows linked via link://
+    // Two @FlowConfiguration classes — flows linked via queue://
     // -------------------------------------------------------------------------
 
     @FlowConfiguration
@@ -114,10 +114,10 @@ public class PipeliteTestFixtureFlowConfigurationTest {
         @DefineFlow
         FlowDefinition normalizationFlow() {
             return Pipelite.defineFlow("normalization-flow")
-                .fromSource("raw-in")
+                .fromSource("queue://raw-in")
                 .process("normalize", (io, c) ->
                     io.setOutputPayload(io.getInputPayloadAs(String.class).trim().toLowerCase()))
-                .toSink("link://enriched-in")
+                .toSink("queue://enriched-in")
                 .build();
         }
     }
@@ -128,7 +128,7 @@ public class PipeliteTestFixtureFlowConfigurationTest {
         @DefineFlow
         FlowDefinition enrichmentFlow(GreetingService greetingService) {
             return Pipelite.defineFlow("enrichment-flow")
-                .fromSource("enriched-in")
+                .fromSource("queue://enriched-in")
                 .process("enrich", (io, c) ->
                     io.setOutputPayload(greetingService.greet(io.getInputPayloadAs(String.class))))
                 .toSink("enriched-out")
@@ -142,7 +142,7 @@ public class PipeliteTestFixtureFlowConfigurationTest {
                 flowConfiguration(NormalizationFlowConfiguration.class),
                 flowConfiguration(EnrichmentFlowConfiguration.class, new GreetingService()),
                 inputPayload("  ALICE  "))
-            .when(supplyTo("raw-in"))
+            .when(supplyTo("queue://raw-in"))
             .then(
                 output(isExecutionCompleted(), payloadEquals("Hello, alice!")),
                 step("normalize", payloadEquals("alice")),
@@ -156,7 +156,7 @@ public class PipeliteTestFixtureFlowConfigurationTest {
     static class NotAFlowConfiguration {
         @DefineFlow
         FlowDefinition someFlow() {
-            return Pipelite.defineFlow("ignored-flow").fromSource("x").toSink("y").build();
+            return Pipelite.defineFlow("ignored-flow").fromSource("queue://x").toSink("y").build();
         }
     }
 
@@ -165,6 +165,6 @@ public class PipeliteTestFixtureFlowConfigurationTest {
         given(
                 flowConfiguration(NotAFlowConfiguration.class),
                 inputPayload("x"))
-            .when(supplyTo("x"));
+            .when(supplyTo("queue://x"));
     }
 }

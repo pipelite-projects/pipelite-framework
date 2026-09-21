@@ -42,22 +42,22 @@ public class PipeliteRecipientListIntegrationTest {
         final AtomicInteger forwardedCount = new AtomicInteger(0);
 
         final FlowDefinition origin = Pipelite.defineFlow("origin-flow")
-            .fromSource("origin-start")
+            .fromSource("queue://origin-start")
             .toRecipientList(recipientListBuilder ->
                 recipientListBuilder
-                    .toRecipients("link://destination-01-start", "link://destination-02-start")
+                    .toRecipients("queue://destination-01-start", "queue://destination-02-start")
                     .when("Headers['X-Include-Log'] eq 'true'")
                         .toRecipient("slf4j://logger")
                     .end())
             .build();
 
         final FlowDefinition destination01 = Pipelite.defineFlow("destination-01-flow")
-            .fromSource("destination-01-start")
+            .fromSource("queue://destination-01-start")
             .process("process-message", (ioContext, contribution) -> forwardedCount.incrementAndGet())
             .build();
 
         final FlowDefinition destination02 = Pipelite.defineFlow("destination-02-flow")
-            .fromSource("destination-02-start")
+            .fromSource("queue://destination-02-start")
             .process("process-message", (ioContext, contribution) -> forwardedCount.incrementAndGet())
             .build();
 
@@ -71,7 +71,7 @@ public class PipeliteRecipientListIntegrationTest {
         final ExchangeImpl exchange = exchangeFactory.createExchange("Hello Pipelite!");
         exchange.putHeader("X-Include-Log", "true");
 
-        context.supplyExchange("link://origin-start", exchange);
+        context.supplyExchange("queue://origin-start", exchange);
 
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> forwardedCount.get() == 2);
 

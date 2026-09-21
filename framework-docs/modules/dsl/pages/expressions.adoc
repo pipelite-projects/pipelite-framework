@@ -55,8 +55,8 @@ If the evaluation returns `false`, message processing stops.
 [source,java]
 ----
 .toRoute(route -> route.contentBased()
-    .when(new ExpressionCondition("${header.type} == 'PAYMENT'"), "link://payment-flow")
-    .otherwise("link://default-flow")
+    .when(new ExpressionCondition("${header.type} == 'PAYMENT'"), "queue://payment-flow")
+    .otherwise("queue://default-flow")
     .build()
 )
 ----

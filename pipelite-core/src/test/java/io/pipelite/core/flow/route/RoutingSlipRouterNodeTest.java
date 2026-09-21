@@ -72,25 +72,25 @@ public class RoutingSlipRouterNodeTest {
     }
 
     private void supply(String source, ExchangeImpl exchange) {
-        context.supplyExchange(ChannelProtocols.linkURL(source), exchange);
+        context.supplyExchange(ChannelProtocols.queueURL(source), exchange);
     }
 
     @Test
     public void givenASlipOfTwoRoutes_thenTheExchangeVisitsThemInOrder() {
 
         context.registerFlowDefinition(Pipelite.defineFlow("a-flow")
-            .fromSource("a-start")
+            .fromSource("queue://a-start")
             .process("plan", (io, c) -> {
                 visit("a");
-                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("link://b-start", "link://c-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("queue://b-start", "queue://c-start"));
             })
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("b-flow")
-            .fromSource("b-start")
+            .fromSource("queue://b-start")
             .process("step", (io, c) -> visit("b"))
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("c-flow")
-            .fromSource("c-start")
+            .fromSource("queue://c-start")
             .process("step", (io, c) -> visit("c"))
             .build());
         context.start();
@@ -106,26 +106,26 @@ public class RoutingSlipRouterNodeTest {
 
         final List<String> sinks = new CopyOnWriteArrayList<>();
         context.registerFlowDefinition(Pipelite.defineFlow("sink-a")
-            .fromSource("sink-a-start")
+            .fromSource("queue://sink-a-start")
             .process("plan", (io, c) -> {
                 visit("a");
-                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("link://sink-b-start", "link://sink-c-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("queue://sink-b-start", "queue://sink-c-start"));
             })
-            .toSink("link://sink-a-out")
+            .toSink("queue://sink-a-out")
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("sink-b")
-            .fromSource("sink-b-start")
+            .fromSource("queue://sink-b-start")
             .process("step", (io, c) -> visit("b"))
-            .toSink("link://sink-b-out")
+            .toSink("queue://sink-b-out")
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("sink-c")
-            .fromSource("sink-c-start")
+            .fromSource("queue://sink-c-start")
             .process("step", (io, c) -> visit("c"))
-            .toSink("link://sink-c-out")
+            .toSink("queue://sink-c-out")
             .build());
         for (String name : List.of("a", "b", "c")) {
             context.registerFlowDefinition(Pipelite.defineFlow("sink-" + name + "-target")
-                .fromSource("sink-" + name + "-out")
+                .fromSource("queue://sink-" + name + "-out")
                 .process("record", (io, c) -> sinks.add(name))
                 .build());
         }
@@ -144,23 +144,23 @@ public class RoutingSlipRouterNodeTest {
 
         final List<String> routed = new CopyOnWriteArrayList<>();
         context.registerFlowDefinition(Pipelite.defineFlow("route-a")
-            .fromSource("route-a-start")
+            .fromSource("queue://route-a-start")
             .process("plan", (io, c) -> {
                 visit("a");
-                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("link://route-b-start", "link://route-c-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("queue://route-b-start", "queue://route-c-start"));
             })
             .build());
         for (String name : List.of("b", "c")) {
             context.registerFlowDefinition(Pipelite.defineFlow("route-" + name)
-                .fromSource("route-" + name + "-start")
+                .fromSource("queue://route-" + name + "-start")
                 .process("step", (io, c) -> visit(name))
                 .toRoute(routes -> routes.dynamic()
-                    .when("#inputPayload == 'payload'").then("link://route-" + name + "-target")
-                    .otherwise("link://route-" + name + "-target")
+                    .when("#inputPayload == 'payload'").then("queue://route-" + name + "-target")
+                    .otherwise("queue://route-" + name + "-target")
                     .end())
                 .build());
             context.registerFlowDefinition(Pipelite.defineFlow("route-" + name + "-target-flow")
-                .fromSource("route-" + name + "-target")
+                .fromSource("queue://route-" + name + "-target")
                 .process("record", (io, c) -> routed.add(name))
                 .build());
         }
@@ -179,28 +179,28 @@ public class RoutingSlipRouterNodeTest {
 
         final List<String> replies = new CopyOnWriteArrayList<>();
         context.registerFlowDefinition(Pipelite.defineFlow("reply-a")
-            .fromSource("reply-a-start")
+            .fromSource("queue://reply-a-start")
             .process("plan", (io, c) -> {
                 visit("a");
-                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("link://reply-b-start", "link://reply-c-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("queue://reply-b-start", "queue://reply-c-start"));
             })
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("reply-b")
-            .fromSource("reply-b-start")
+            .fromSource("queue://reply-b-start")
             .process("step", (io, c) -> visit("b"))
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("reply-c")
-            .fromSource("reply-c-start")
+            .fromSource("queue://reply-c-start")
             .process("step", (io, c) -> visit("c"))
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("reply-origin")
-            .fromSource("reply-origin-start")
+            .fromSource("queue://reply-origin-start")
             .process("record", (io, c) -> replies.add("origin"))
             .build());
         context.start();
 
         final ExchangeImpl exchange = context.getExchangeFactory().createExchange("payload");
-        exchange.setReturnAddress("link://reply-origin-start");
+        exchange.setReturnAddress("queue://reply-origin-start");
         supply("reply-a-start", exchange);
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> replies.size() == 1);
@@ -213,14 +213,14 @@ public class RoutingSlipRouterNodeTest {
     public void givenAStepThatStopsTheExecution_thenTheSlipIsNotFollowed() throws Exception {
 
         context.registerFlowDefinition(Pipelite.defineFlow("stop-a")
-            .fromSource("stop-a-start")
+            .fromSource("queue://stop-a-start")
             .process("plan", (io, c) -> {
-                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("link://stop-b-start"));
+                ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("queue://stop-b-start"));
                 c.stopExecution();
             })
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("stop-b")
-            .fromSource("stop-b-start")
+            .fromSource("queue://stop-b-start")
             .process("step", (io, c) -> visit("b"))
             .build());
         context.start();
@@ -236,8 +236,8 @@ public class RoutingSlipRouterNodeTest {
 
         final AtomicReference<Throwable> failure = new AtomicReference<>();
         context.registerFlowDefinition(Pipelite.defineFlow("missing-a")
-            .fromSource("missing-a-start")
-            .process("plan", (io, c) -> ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("link://nobody-declares-this")))
+            .fromSource("queue://missing-a-start")
+            .process("plan", (io, c) -> ((ExchangeImpl) io).setRoutingSlip(RoutingSlip.create("queue://nobody-declares-this")))
             .withExceptionHandler((exception, ioContext) -> failure.set(exception))
             .build());
         context.start();

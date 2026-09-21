@@ -52,7 +52,7 @@ The HTTP and Kafka adapters must be added explicitly:
 </dependency>
 ----
 
-The `time`, `slf4j`, and `link` adapters are included in `default-channel-adapters`, already present as a transitive dependency of `pipelite-core`.
+The `time`, `slf4j`, and `queue` adapters are included in `default-channel-adapters`, already present as a transitive dependency of `pipelite-core`.
 
 == Test support
 

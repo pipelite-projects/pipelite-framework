@@ -36,7 +36,7 @@ public class EndpointURLPropertyPlaceholderTest {
         final PipeliteContext context = Pipelite.createContext();
 
         final FlowDefinition flow = Pipelite.defineFlow("placeholder-flow")
-            .fromSource("origin-${properties.inputFolder}")
+            .fromSource("queue://origin-${properties.inputFolder}")
             .toSink("slf4j://main-logger")
             .build();
 
@@ -46,7 +46,7 @@ public class EndpointURLPropertyPlaceholderTest {
 
     /**
      * Regression test for {@code FlowFactory.createFlow}: the {@code Flow} used for internal
-     * routing ({@code DefaultFlowRegistry}, {@code LinkChannelAdapter}) must be keyed on the
+     * routing ({@code DefaultFlowRegistry}, {@code QueueChannelAdapter}) must be keyed on the
      * <em>resolved</em> source resource, not the raw pre-substitution URL — otherwise a
      * {@code supplyExchange(...)} call with the real (resolved) destination name would never
      * match, and any {@code ChannelAdapter.onFlowRegistered} hook re-parsing the raw URL would
@@ -59,7 +59,7 @@ public class EndpointURLPropertyPlaceholderTest {
         final PipeliteContext context = Pipelite.createContext(resolver);
 
         final FlowDefinition flow = Pipelite.defineFlow("placeholder-flow")
-            .fromSource("${key}")
+            .fromSource("queue://${key}")
             .toSink("slf4j://main-logger")
             .build();
 
@@ -69,7 +69,7 @@ public class EndpointURLPropertyPlaceholderTest {
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
         // does not throw "Unrecognized destination": proves the flow is routable under the
         // resolved resource name, not under the literal, unresolved placeholder.
-        context.supplyExchange("link://resolved-source", exchangeFactory.createExchange("Hello Pipelite!"));
+        context.supplyExchange("queue://resolved-source", exchangeFactory.createExchange("Hello Pipelite!"));
     }
 
 }

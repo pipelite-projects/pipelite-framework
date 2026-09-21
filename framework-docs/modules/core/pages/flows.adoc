@@ -102,7 +102,7 @@ PipeliteContext.start()
   │    └─ FlowRegistry.register(flow)
   │
   └─ ServiceManager.startAll()
-       ├─ Start EventDrivenConsumerService (HTTP, Link, etc.)
+       ├─ Start EventDrivenConsumerService (HTTP, Queue, etc.)
        └─ Start ScheduledPollingConsumerService (Time, Kafka, etc.)
 
 PipeliteContext.stop()

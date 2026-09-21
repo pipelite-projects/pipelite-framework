@@ -67,7 +67,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
      * See {@link QueuePressureGate}: the queue above is unbounded in practice (confirmed
      * empirically, see its own comment), so nothing short of this gate ever signals "slow down"
      * back to whoever is calling {@link #process(ExchangeImpl)} — an HTTP handler thread, a {@code
-     * link://}-producing flow, etc. Sized off {@code queueSize}, which until now only affected
+     * queue://}-producing flow, etc. Sized off {@code queueSize}, which until now only affected
      * {@code PriorityBlockingQueue}'s initial array size and had no other effect.
      */
     private final QueuePressureGate pressureGate;
@@ -230,11 +230,11 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
         MDC.put(MDC_EXCHANGE_ID_KEY, exchange.getInput().getId());
         MDC.put(MDC_FLOW_NAME_KEY, getFlowName());
         // Captured BEFORE dispatch, not read back off `exchange` after (issue #70): a node
-        // further down this flow's own chain (a plain, uncopied `.toSink("link://...")` producer,
+        // further down this flow's own chain (a plain, uncopied `.toSink("queue://...")` producer,
         // unlike e.g. WireTapProcessorNode, which deliberately taps a copy) can hand this exact
         // Exchange instance straight to a DIFFERENT flow's consumer, whose own write-through hook
         // overwrites this same property with ITS OWN entry id before control ever returns here -
-        // verified as a real, reproduced bug (PipeliteFlowLinkIntegrationTest's origin-flow entry
+        // verified as a real, reproduced bug (PipeliteFlowQueueIntegrationTest's origin-flow entry
         // silently never acknowledged), not a theoretical one.
         final String entryId = exchange.getProperty(IOKeys.DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME, String.class);
         try {

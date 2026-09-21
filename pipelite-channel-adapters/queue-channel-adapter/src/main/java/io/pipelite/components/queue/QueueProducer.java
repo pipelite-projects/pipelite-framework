@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.components.link;
+package io.pipelite.components.queue;
 
 import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.DefaultProducer;
@@ -23,31 +23,29 @@ import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class LinkProducer extends DefaultProducer {
+public class QueueProducer extends DefaultProducer {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
-    public LinkProducer(Endpoint endpoint) {
+    public QueueProducer(Endpoint endpoint) {
         super(endpoint);
     }
 
     @Override
     public void doProcess(ExchangeImpl exchange) {
 
-        final LinkChannelAdapter component = endpoint.getChannelAdapter(LinkChannelAdapter.class);
+        final QueueChannelAdapter component = endpoint.getChannelAdapter(QueueChannelAdapter.class);
         final EndpointURL endpointURL = endpoint.getEndpointURL();
 
-        // Fails instead of dropping the exchange when no flow declares fromSource(resource): it used
-        // to be discarded in silence (issue #100), which only mattered less while a bare
-        // destination, which did fail, was another way to reach an internal flow (issue #102).
-        // The failure goes through the flow's exception handler like any failed producer (#92).
+        // Fails instead of dropping the exchange when no flow reads the queue: it used to be
+        // discarded in silence (issue #100). The failure goes through the flow's exception handler like any failed producer (#92).
         final Consumer consumer = component.tryResolveConsumer(endpointURL.getResource())
             .orElseThrow(() -> new IllegalArgumentException(String.format(
-                "Unrecognized destination 'link://%s', unable to supply exchange - " +
-                    "no registered flow declares fromSource('%s')", endpointURL.getResource(), endpointURL.getResource())));
+                "Unrecognized destination 'queue://%s', unable to supply exchange - " +
+                    "no registered flow declares fromSource('queue://%s')", endpointURL.getResource(), endpointURL.getResource())));
 
         if(sysLogger.isDebugEnabled()){
-            sysLogger.debug("Redirecting exchange to '{}'", endpointURL.getResource());
+            sysLogger.debug("Putting exchange on queue '{}'", endpointURL.getResource());
         }
         consumer.consume(exchange);
     }

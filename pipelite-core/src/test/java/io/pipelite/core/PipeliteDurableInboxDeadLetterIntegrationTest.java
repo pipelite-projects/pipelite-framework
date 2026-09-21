@@ -15,6 +15,7 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
@@ -78,7 +79,7 @@ public class PipeliteDurableInboxDeadLetterIntegrationTest {
             final List<String> processed = new CopyOnWriteArrayList<>();
             final DefaultPipeliteContext context = new DefaultPipeliteContext();
             final FlowDefinition flow = Pipelite.defineFlow(FLOW_NAME)
-                .fromSource(SOURCE)
+                .fromSource(ChannelProtocols.queueURL(SOURCE))
                 .process("record", (ioContext, contribution) -> {
                     final Object payload = ioContext.getInputPayloadAs(Object.class);
                     processed.add(payload == null ? "null" : payload.toString());

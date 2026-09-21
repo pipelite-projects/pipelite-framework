@@ -21,9 +21,10 @@ import io.pipelite.spi.channel.ChannelURL;
 
 /**
  * The one rule for where an exchange may be sent (issue #102): a destination is a URL. An internal
- * flow is addressed as {@code link://<source endpoint name>}, an external system through its
- * channel adapter's protocol. A bare name is never a destination - it would be ambiguous between a
- * source endpoint name and a flow name, two different identities.
+ * flow is addressed by the queue it reads, {@code queue://<queue name>}, an external system through
+ * its channel adapter's protocol. A bare name is never a destination - it would be ambiguous
+ * between a queue name and a flow name, two different identities (and, since issue #111, a source
+ * is a URL too: {@link SourceURLs}).
  * <p>
  * Applied at two points that must agree: when the DSL builds a flow ({@link #requireStatic}, which
  * lets through a value that is only known at runtime), and when {@code
@@ -50,8 +51,8 @@ public final class DestinationURLs {
         }
         if (!hasProtocol(destination)) {
             throw new IllegalArgumentException(String.format(
-                "%s: '%s' is not a URL - flows are addressed by URL, write '%s' to reach the flow whose source is '%s'",
-                declaredBy, destination, ChannelProtocols.linkURL(destination), destination));
+                "%s: '%s' is not a URL - flows are addressed by URL, write '%s' to reach the flow that reads the queue '%s'",
+                declaredBy, destination, ChannelProtocols.queueURL(destination), destination));
         }
         return destination;
     }
@@ -68,8 +69,8 @@ public final class DestinationURLs {
         final ChannelURL channelURL = ChannelURL.parse(destinationURL);
         if (!channelURL.hasProtocol()) {
             throw new IllegalArgumentException(String.format(
-                "Destination '%s' is not a URL, unable to supply exchange - write '%s' to reach the flow whose source is '%s'",
-                destinationURL, ChannelProtocols.linkURL(destinationURL), destinationURL));
+                "Destination '%s' is not a URL, unable to supply exchange - write '%s' to reach the flow that reads the queue '%s'",
+                destinationURL, ChannelProtocols.queueURL(destinationURL), destinationURL));
         }
         return channelURL;
     }

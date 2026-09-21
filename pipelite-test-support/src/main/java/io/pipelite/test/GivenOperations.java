@@ -32,7 +32,7 @@ public interface GivenOperations {
 
     /**
      * Registers a flow definition to be deployed in the test context.
-     * Multiple flows can be chained with {@code link://} between them.
+     * Multiple flows can be chained with {@code queue://} between them.
      */
     void flowDefinition(FlowDefinition flowDefinition);
 

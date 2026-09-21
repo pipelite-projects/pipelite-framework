@@ -187,13 +187,13 @@ public class PipeliteTestFixtureBaseTest {
         // require a TestProcessContribution that does not exist in flow mode.
         // The error must be a clear AssertionError, not a NullPointerException.
         io.pipelite.dsl.definition.FlowDefinition flow = io.pipelite.core.Pipelite.defineFlow("pm-in-fm")
-            .fromSource("pm-in")
+            .fromSource("queue://pm-in")
             .process("step", (io, c) -> {})
             .toSink("pm-out")
             .build();
 
         given(flowDefinition(flow), inputPayload("x"))
-            .when(supplyTo("pm-in"))
+            .when(supplyTo("queue://pm-in"))
             .then(isSuccess());
     }
 

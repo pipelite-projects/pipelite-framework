@@ -32,7 +32,7 @@ public class PipeliteSplitAggregateFixtureTest {
     @Test
     public void givenCollectionPayload_whenSplitAndProcessed_thenAggregatedPayloadPreservesOrder() {
         FlowDefinition flow = Pipelite.defineFlow("split-happy-path-flow")
-            .fromSource("split-happy-in")
+            .fromSource("queue://split-happy-in")
             .split("split-step", segment -> segment
                 .process("double-it", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(Integer.class) * 2))
                 .end())
@@ -42,7 +42,7 @@ public class PipeliteSplitAggregateFixtureTest {
         given(
                 flowDefinition(flow),
                 inputPayload(List.of(1, 2, 3, 4)))
-            .when(supplyTo("split-happy-in"))
+            .when(supplyTo("queue://split-happy-in"))
             .then(
                 isExecutionCompleted(),
                 payloadEquals(List.of(2, 4, 6, 8)));
@@ -55,7 +55,7 @@ public class PipeliteSplitAggregateFixtureTest {
     @Test
     public void givenEmptyCollectionPayload_whenSplit_thenAggregatedPayloadIsEmptyAndFlowCompletes() {
         FlowDefinition flow = Pipelite.defineFlow("split-empty-flow")
-            .fromSource("split-empty-in")
+            .fromSource("queue://split-empty-in")
             .split("split-step", segment -> segment
                 .process("noop", (io, c) -> io.setOutputPayload(io.getInputPayload()))
                 .end())
@@ -65,7 +65,7 @@ public class PipeliteSplitAggregateFixtureTest {
         given(
                 flowDefinition(flow),
                 inputPayload(List.of()))
-            .when(supplyTo("split-empty-in"))
+            .when(supplyTo("queue://split-empty-in"))
             .then(isExecutionCompleted(), payloadEquals(List.of()));
     }
 
@@ -76,7 +76,7 @@ public class PipeliteSplitAggregateFixtureTest {
     @Test
     public void givenZeroStepSegment_whenSplit_thenAggregatedPayloadIsUnchangedItems() {
         FlowDefinition flow = Pipelite.defineFlow("split-zero-step-flow")
-            .fromSource("split-zero-step-in")
+            .fromSource("queue://split-zero-step-in")
             .split("split-step", segment -> segment.end())
             .toSink("split-zero-step-out")
             .build();
@@ -84,7 +84,7 @@ public class PipeliteSplitAggregateFixtureTest {
         given(
                 flowDefinition(flow),
                 inputPayload(List.of("a", "b", "c")))
-            .when(supplyTo("split-zero-step-in"))
+            .when(supplyTo("queue://split-zero-step-in"))
             .then(isExecutionCompleted(), payloadEquals(List.of("a", "b", "c")));
     }
 
@@ -95,7 +95,7 @@ public class PipeliteSplitAggregateFixtureTest {
     @Test
     public void givenMultiStepSegment_whenSplit_thenEachChildTraversesAllStepsInOrder() {
         FlowDefinition flow = Pipelite.defineFlow("split-multi-step-flow")
-            .fromSource("split-multi-step-in")
+            .fromSource("queue://split-multi-step-in")
             .split("split-step", segment -> segment
                 .process("step-1", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(Integer.class) * 2))
                 .process("step-2", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(Integer.class) + 1))
@@ -106,7 +106,7 @@ public class PipeliteSplitAggregateFixtureTest {
         given(
                 flowDefinition(flow),
                 inputPayload(List.of(1, 2, 3)))
-            .when(supplyTo("split-multi-step-in"))
+            .when(supplyTo("queue://split-multi-step-in"))
             .then(isExecutionCompleted(), payloadEquals(List.of(3, 5, 7))); // (n*2)+1
     }
 
@@ -117,7 +117,7 @@ public class PipeliteSplitAggregateFixtureTest {
     @Test
     public void givenSplitFlow_whenInspectingInnerStep_thenStepSnapshotIsCapturedForLastProcessedChild() {
         FlowDefinition flow = Pipelite.defineFlow("split-step-inspection-flow")
-            .fromSource("split-step-inspection-in")
+            .fromSource("queue://split-step-inspection-in")
             .split("split-step", segment -> segment
                 .process("tag-it", (io, c) -> io.setOutputPayload("tagged-" + io.getInputPayloadAs(String.class)))
                 .end())
@@ -127,7 +127,7 @@ public class PipeliteSplitAggregateFixtureTest {
         given(
                 flowDefinition(flow),
                 inputPayload(List.of("x", "y", "z")))
-            .when(supplyTo("split-step-inspection-in"))
+            .when(supplyTo("queue://split-step-inspection-in"))
             .then(
                 output(isExecutionCompleted(), payloadEquals(List.of("tagged-x", "tagged-y", "tagged-z"))),
                 // Without propagating addExchangePostProcessor to inner segment nodes
@@ -144,7 +144,7 @@ public class PipeliteSplitAggregateFixtureTest {
     @Test
     public void givenHeaderSetBeforeSplit_whenAggregated_thenHeaderIsPreservedOnNextNode() {
         FlowDefinition flow = Pipelite.defineFlow("split-header-continuity-flow")
-            .fromSource("split-header-continuity-in")
+            .fromSource("queue://split-header-continuity-in")
             .split("split-step", segment -> segment
                 .process("noop", (io, c) -> io.setOutputPayload(io.getInputPayload()))
                 .end())
@@ -155,7 +155,7 @@ public class PipeliteSplitAggregateFixtureTest {
                 flowDefinition(flow),
                 header("X-Correlation-Id", "corr-42"),
                 inputPayload(List.of(1, 2)))
-            .when(supplyTo("split-header-continuity-in"))
+            .when(supplyTo("queue://split-header-continuity-in"))
             .then(
                 isExecutionCompleted(),
                 headerEquals("X-Correlation-Id", "corr-42"),

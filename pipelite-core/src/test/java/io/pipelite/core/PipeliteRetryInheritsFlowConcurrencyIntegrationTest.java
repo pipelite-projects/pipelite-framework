@@ -55,7 +55,7 @@ public class PipeliteRetryInheritsFlowConcurrencyIntegrationTest {
         final CountDownLatch retryCompleted = new CountDownLatch(1);
 
         final FlowDefinition testFlow = Pipelite.defineFlow("retry-concurrency-flow")
-            .fromSource("retry-concurrency-in?concurrency=2")
+            .fromSource("queue://retry-concurrency-in?concurrency=2")
             .process("handle", (io, c) -> {
                 final String payload = io.getInputPayloadAs(String.class);
                 if (payload.startsWith("blocker")) {
@@ -90,12 +90,12 @@ public class PipeliteRetryInheritsFlowConcurrencyIntegrationTest {
 
         // Phase 1: the retryable message's first attempt runs with both permits free, fails, and
         // creates a dump.
-        pipeliteContext.supplyExchange("link://retry-concurrency-in", exchangeFactory.createExchange("retryable"));
+        pipeliteContext.supplyExchange("queue://retry-concurrency-in", exchangeFactory.createExchange("retryable"));
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> retryAttempt.get() == 1);
 
         // Phase 2: saturate both of this flow's concurrency permits with long-running messages.
-        pipeliteContext.supplyExchange("link://retry-concurrency-in", exchangeFactory.createExchange("blocker-1"));
-        pipeliteContext.supplyExchange("link://retry-concurrency-in", exchangeFactory.createExchange("blocker-2"));
+        pipeliteContext.supplyExchange("queue://retry-concurrency-in", exchangeFactory.createExchange("blocker-1"));
+        pipeliteContext.supplyExchange("queue://retry-concurrency-in", exchangeFactory.createExchange("blocker-2"));
         Assert.assertTrue("both blockers should have started within 10s",
             blockersReady.await(10, TimeUnit.SECONDS));
 

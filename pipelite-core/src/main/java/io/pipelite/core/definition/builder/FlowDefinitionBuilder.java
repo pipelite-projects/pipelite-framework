@@ -17,6 +17,7 @@ package io.pipelite.core.definition.builder;
 
 import io.pipelite.core.definition.internal.*;
 import io.pipelite.core.context.internal.DestinationURLs;
+import io.pipelite.core.context.internal.SourceURLs;
 import io.pipelite.core.definition.builder.error.ErrorChannelBuilder;
 import io.pipelite.core.definition.builder.retry.RetryBuilder;
 import io.pipelite.core.definition.builder.internal.Builder;
@@ -88,6 +89,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
 
     @Override
     public SourceOperations fromSource(String url) {
+        SourceURLs.requireStatic(url);
         final SourceDefinition sourceDefinition = new SourceDefinitionImpl(url);
         builder.with(target -> target.setSourceDefinition(sourceDefinition));
         return this;
@@ -96,6 +98,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
     @Override
     public <C extends SourceConfigurer> SourceOperations fromSource(String url, Consumer<C> configurer) {
         Objects.requireNonNull(configurer, "configurer is required and cannot be null");
+        SourceURLs.requireStatic(url);
         // Erased here, deliberately: the concrete configurer instance this callback actually
         // expects isn't known until DefaultEndpointFactory resolves the real adapter for `url`,
         // at PipeliteContext#start() - see SourceConfigurer's own Javadoc. Safe in practice: a

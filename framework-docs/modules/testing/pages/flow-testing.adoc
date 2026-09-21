@@ -8,7 +8,7 @@ Flow mode tests one or more `FlowDefinition` objects running end-to-end, exactly
 [source,java]
 ----
 FlowDefinition flow = Pipelite.defineFlow("order-flow")
-    .fromSource("orders-in")
+    .fromSource("queue://orders-in")
     .process("validate", (io, c) -> { /* ... */ })
     .process("enrich",   (io, c) -> { /* ... */ })
     .toSink("kafka://orders-out")   // <1>
@@ -18,12 +18,12 @@ given(
         flowDefinition(flow),
         header("X-Tenant", "acme"),
         inputPayload(order))
-    .when(supplyTo("orders-in"))
+    .when(supplyTo("queue://orders-in"))
     .then(isExecutionCompleted(), payloadEquals(expectedOrder));
 ----
 <1> Real sinks (Kafka, HTTP, a linked flow, …) are transparently redirected to an internal capture endpoint for the duration of the test. The Kafka adapter is never actually instantiated.
 
-`flowDefinition(...)` registers the flow(s) under test; `supplyTo(entryPointEndpoint)` runs the whole pipeline and returns once the exchange has arrived at the sink (or the timeout elapses).
+`flowDefinition(...)` registers the flow(s) under test; `supplyTo(entryPointURL)`, the URL the entry flow declares in `fromSource(...)` (a bare name is rejected), runs the whole pipeline and returns once the exchange has arrived at the sink (or the timeout elapses).
 
 == Flows that don't reach the sink
 
@@ -32,7 +32,7 @@ A flow can legitimately stop or filter an exchange before it reaches its sink. A
 [source,java]
 ----
 given(flowDefinition(filteringFlow), inputPayload(rejectedOrder))
-    .when(supplyTo("orders-in"))
+    .when(supplyTo("queue://orders-in"))
     .then(isNotExecutionCompleted());
 ----
 
@@ -41,7 +41,7 @@ Since capture waits for the configured timeout (5 seconds by default) before con
 [source,java]
 ----
 given(flowDefinition(filteringFlow), timeout(1), inputPayload(rejectedOrder))
-    .when(supplyTo("orders-in"))
+    .when(supplyTo("queue://orders-in"))
     .then(isNotExecutionCompleted());
 ----
 
@@ -52,7 +52,7 @@ Beyond the final result, `then(...)` can assert on the exchange state captured r
 [source,java]
 ----
 given(flowDefinition(flow), inputPayload("raw-input"))
-    .when(supplyTo("in"))
+    .when(supplyTo("queue://in"))
     .then(
         output(isExecutionCompleted(), payloadEquals("final-value")),   // <1>
         step("normalize", payloadEquals("normalized")),                  // <2>
@@ -66,18 +66,18 @@ If a step was never reached — for example because an earlier step called `stop
 
 == Testing multiple linked flows together
 
-Flows can be chained with a `link://` sink/source pair and registered together, letting you test a cross-flow pipeline as a single unit:
+Flows can be chained with a `queue://` sink/source pair and registered together, letting you test a cross-flow pipeline as a single unit:
 
 [source,java]
 ----
 FlowDefinition flowA = Pipelite.defineFlow("flow-a")
-    .fromSource("entry")
+    .fromSource("queue://entry")
     .process("step-a", (io, c) -> io.setOutputPayload("from-a"))
-    .toSink("link://next-entry")
+    .toSink("queue://next-entry")
     .build();
 
 FlowDefinition flowB = Pipelite.defineFlow("flow-b")
-    .fromSource("next-entry")
+    .fromSource("queue://next-entry")
     .process("step-b", (io, c) -> io.setOutputPayload(
         io.getInputPayloadAs(String.class) + "-enriched"))
     .toSink("out")
@@ -87,7 +87,7 @@ given(
         flowDefinition(flowA),
         flowDefinition(flowB),
         inputPayload("start"))
-    .when(supplyTo("entry"))
+    .when(supplyTo("queue://entry"))
     .then(
         output(isExecutionCompleted(), payloadEquals("from-a-enriched")),
         step("flow-a", "step-a", payloadEquals("from-a")),
@@ -107,7 +107,7 @@ class OrderFlowConfiguration {
     @DefineFlow
     public FlowDefinition orderFlow(OrderService orderService) {
         return Pipelite.defineFlow("order-flow")
-            .fromSource("orders-in")
+            .fromSource("queue://orders-in")
             .process("process", (io, c) -> orderService.process(io.getInputPayloadAs(Order.class)))
             .toSink("orders-out")
             .build();
@@ -119,7 +119,7 @@ OrderService mockService = new MockOrderService();
 given(
         flowConfiguration(OrderFlowConfiguration.class, mockService),
         inputPayload(new Order("ORD-001")))
-    .when(supplyTo("orders-in"))
+    .when(supplyTo("queue://orders-in"))
     .then(isExecutionCompleted());
 ----
 

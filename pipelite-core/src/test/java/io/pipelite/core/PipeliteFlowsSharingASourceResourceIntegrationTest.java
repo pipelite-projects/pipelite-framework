@@ -15,6 +15,7 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
@@ -43,7 +44,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * an internal {@code orders} and two flows on one Kafka topic all share one - so what belongs to a
  * flow (its durable inbox, the resumption of its retries) is keyed by the flow, and two flows that
  * share a resource do not interfere. The two flows here share {@code shared-name}: one reads it
- * from a {@code time://} source, the other is the internal flow behind {@code link://shared-name}.
+ * from a {@code time://} source, the other is the internal flow behind {@code queue://shared-name}.
  * The {@code time://} flow is registered first on purpose, so it is the one a lookup by resource
  * would find.
  */
@@ -86,7 +87,7 @@ public class PipeliteFlowsSharingASourceResourceIntegrationTest {
             .process("noop", (io, c) -> { })
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("internal-flow")
-            .fromSource(SHARED)
+            .fromSource(ChannelProtocols.queueURL(SHARED))
             .process("count", (io, c) -> countRuns.incrementAndGet())
             .process("flaky", (io, c) -> {
                 if (flakyRuns.incrementAndGet() < 2) {
@@ -98,7 +99,7 @@ public class PipeliteFlowsSharingASourceResourceIntegrationTest {
             .build());
         context.start();
         try {
-            context.supplyExchange("link://" + SHARED, context.getExchangeFactory().createExchange("payload"));
+            context.supplyExchange("queue://" + SHARED, context.getExchangeFactory().createExchange("payload"));
 
             Awaitility.await().atMost(20, TimeUnit.SECONDS).until(done::get);
 
@@ -131,7 +132,7 @@ public class PipeliteFlowsSharingASourceResourceIntegrationTest {
             .process("noop", (io, c) -> { })
             .build());
         context.registerFlowDefinition(Pipelite.defineFlow("internal-flow")
-            .fromSource(SHARED)
+            .fromSource(ChannelProtocols.queueURL(SHARED))
             .process("record", (io, c) -> {
                 if (io.getInputPayload() instanceof String payload) {
                     processedByInternalFlow.add(payload);

@@ -49,7 +49,7 @@ public class PipeliteRetryThroughputIntegrationTest {
         final AtomicInteger successCount = new AtomicInteger(0);
 
         final FlowDefinition testFlow = Pipelite.defineFlow("retry-throughput-flow")
-            .fromSource("retry-throughput-in")
+            .fromSource("queue://retry-throughput-in")
             .process("fail-once-per-message", (io, c) -> {
                 final String payload = io.getInputPayloadAs(String.class);
                 if (failedOnce.add(payload)) {
@@ -66,7 +66,7 @@ public class PipeliteRetryThroughputIntegrationTest {
 
         final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
         for (int i = 0; i < messageCount; i++) {
-            pipeliteContext.supplyExchange("link://retry-throughput-in", exchangeFactory.createExchange("message-" + i));
+            pipeliteContext.supplyExchange("queue://retry-throughput-in", exchangeFactory.createExchange("message-" + i));
         }
 
         // At the old one-dump-per-tick rate this would need ~messageCount seconds (10s+) at

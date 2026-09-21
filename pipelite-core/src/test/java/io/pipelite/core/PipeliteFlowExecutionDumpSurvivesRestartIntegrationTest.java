@@ -63,7 +63,7 @@ public class PipeliteFlowExecutionDumpSurvivesRestartIntegrationTest {
             final AtomicInteger firstRunAttempts = new AtomicInteger(0);
 
             final FlowDefinition failingFlow = Pipelite.defineFlow(FLOW_NAME)
-                .fromSource(SOURCE)
+                .fromSource(ChannelProtocols.queueURL(SOURCE))
                 .process(PROCESSOR_NAME, (io, c) -> {
                     firstRunAttempts.incrementAndGet();
                     throw new RuntimeException("simulated persistent failure - this process never recovers");
@@ -76,7 +76,7 @@ public class PipeliteFlowExecutionDumpSurvivesRestartIntegrationTest {
             firstRun.start();
 
             final ExchangeFactory exchangeFactory = firstRun.getExchangeFactory();
-            firstRun.supplyExchange(ChannelProtocols.linkURL(SOURCE), exchangeFactory.createExchange("order-42"));
+            firstRun.supplyExchange(ChannelProtocols.queueURL(SOURCE), exchangeFactory.createExchange("order-42"));
 
             final Path dumpsDirectory = temporaryFolder.getRoot().toPath().resolve("state").resolve("retry");
             Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> countDumpFiles(dumpsDirectory) >= 1);
@@ -106,7 +106,7 @@ public class PipeliteFlowExecutionDumpSurvivesRestartIntegrationTest {
             // declares .withRetry(...) - confirmed by first writing this test without it
             // here and watching the second run hang forever with no RetryService in its logs.
             final FlowDefinition recoveredFlow = Pipelite.defineFlow(FLOW_NAME)
-                .fromSource(SOURCE)
+                .fromSource(ChannelProtocols.queueURL(SOURCE))
                 .process(PROCESSOR_NAME, (io, c) -> secondRunSuccesses.incrementAndGet())
                 .toSink("resume-test-end")
                 .withRetry(retry -> retry.maxAttempts(50).onErrorChannel(err -> err.toDLQ()))

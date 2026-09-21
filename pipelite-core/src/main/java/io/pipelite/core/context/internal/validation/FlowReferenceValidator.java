@@ -35,14 +35,14 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Reference integrity (issue #88): every {@code link://x} a flow sends to must be the source
- * endpoint name of a flow in the same context. Anything else is silently the wrong flow or, before
- * #100, was simply lost.
+ * Reference integrity (issue #88): every {@code queue://x} a flow sends to must be the queue that
+ * a flow in the same context reads, {@code fromSource("queue://x")}. Anything else is a queue
+ * nothing reads or, before #100, was simply lost.
  * <p>
- * What is checked: the {@code link://} destinations of {@code toSink(...)}, of the routes, of the
+ * What is checked: the {@code queue://} destinations of {@code toSink(...)}, of the routes, of the
  * recipient list, of {@code wireTap(...)}, and of {@code toChannel(...)} whether alone or as the
- * exhaustion action of a retry. The rule is the one {@code LinkChannelAdapter} applies at runtime:
- * a target resolves only to a flow whose source has no protocol.
+ * exhaustion action of a retry. The rule is the one {@code QueueChannelAdapter} applies at runtime:
+ * a target resolves only to a flow whose source is a queue.
  * <p>
  * What is not: a destination with any other protocol (an external system), one that contains an
  * expression (only known when an exchange is routed), and a bare name, which is not a destination
@@ -53,38 +53,38 @@ public final class FlowReferenceValidator implements ContextValidator {
     @Override
     public void validate(ValidationContext context, ValidationReport report) {
 
-        final Set<String> internalSources = internalSourceNames(context);
+        final Set<String> queues = readQueueNames(context);
 
         for (FlowDefinition flow : context.flowDefinitions()) {
             for (DeclaredDestination destination : destinationsOf(flow, context)) {
-                checkDestination(flow.getFlowName(), destination, internalSources, report);
+                checkDestination(flow.getFlowName(), destination, queues, report);
             }
         }
     }
 
     private static void checkDestination(String flowName, DeclaredDestination destination,
-                                         Set<String> internalSources, ValidationReport report) {
+                                         Set<String> queues, ValidationReport report) {
 
         final String url = destination.url();
         if (url == null || ExpressionUtils.hasExpressionText(url)) {
             return;
         }
 
-        final Optional<String> targetSource = linkedSourceName(url);
-        if (targetSource.isPresent() && !internalSources.contains(targetSource.get())) {
+        final Optional<String> targetQueue = queueName(url);
+        if (targetQueue.isPresent() && !queues.contains(targetQueue.get())) {
             report.error(flowName, String.format(
                 "%s: target '%s' has no registered flow declaring fromSource(\"%s\")",
-                destination.declaredBy(), url, targetSource.get()));
+                destination.declaredBy(), url, ChannelProtocols.queueURL(targetQueue.get())));
         }
     }
 
     /**
-     * The source endpoint name a {@code link://} URL addresses, empty for anything else.
+     * The name of the queue a {@code queue://} URL addresses, empty for anything else.
      */
-    private static Optional<String> linkedSourceName(String url) {
+    private static Optional<String> queueName(String url) {
         try {
             final ChannelURL channelURL = ChannelURL.parse(url);
-            if (channelURL.hasProtocol() && ChannelProtocols.LINK.equals(channelURL.getProtocol())) {
+            if (channelURL.hasProtocol() && ChannelProtocols.QUEUE.equals(channelURL.getProtocol())) {
                 return Optional.of(EndpointURL.parse(channelURL.getEndpointURL()).getResource());
             }
         } catch (RuntimeException malformed) {
@@ -94,13 +94,13 @@ public final class FlowReferenceValidator implements ContextValidator {
     }
 
     /**
-     * The source endpoint names a {@code link://} can reach: the flows whose source has no
-     * protocol, resolved the way the endpoint factory resolves them.
+     * The queues a {@code queue://} destination can reach: the ones the flows read, resolved the
+     * way the endpoint factory resolves them.
      */
-    private static Set<String> internalSourceNames(ValidationContext context) {
+    private static Set<String> readQueueNames(ValidationContext context) {
         final Set<String> names = new HashSet<>();
         for (FlowDefinition flow : context.flowDefinitions()) {
-            InternalSources.nameOf(flow, context).ifPresent(names::add);
+            QueueSources.nameOf(flow, context).ifPresent(names::add);
         }
         return names;
     }
@@ -114,7 +114,7 @@ public final class FlowReferenceValidator implements ContextValidator {
             try {
                 destinations.add(new DeclaredDestination(context.resolveURL(sink.getUrl()), "toSink(...)"));
             } catch (RuntimeException unresolvable) {
-                // Not this validator's finding, see internalSourceNames.
+                // Not this validator's finding, see readQueueNames.
             }
         }
 

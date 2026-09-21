@@ -21,6 +21,7 @@ import io.pipelite.components.file.FileChannelAdapter;
 import io.pipelite.components.file.FileSourceConfigurer;
 import io.pipelite.components.http.HttpChannelAdapter;
 import io.pipelite.components.http.HttpSourceConfigurer;
+import io.pipelite.components.queue.QueueChannelAdapter;
 import io.pipelite.components.time.TimeChannelAdapter;
 import io.pipelite.components.time.TimeSourceConfigurer;
 import io.pipelite.core.Pipelite;
@@ -40,7 +41,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * Proves the {@code fromSource(url, configurer)} mechanism end to end, across every adapter that
- * has one so far (Kafka, File, Time, plus the no-protocol/internal Link case): a real DSL call,
+ * has one so far (Kafka, File, Time, plus the queue case): a real DSL call,
  * through {@code DefaultEndpointFactory}, down to the exact same {@code EndpointProperties} every
  * pre-existing query-string-based reader already consumes - see {@code SourceConfigurer}'s own
  * Javadoc for why this is a lowering, not a parallel mechanism. Real adapters are registered
@@ -59,6 +60,7 @@ public class DefaultEndpointFactorySourceConfigurerTest {
         channelAdapterManager.registerChannelAdapter("file", new FileChannelAdapter());
         channelAdapterManager.registerChannelAdapter("time", new TimeChannelAdapter());
         channelAdapterManager.registerChannelAdapter("http", new HttpChannelAdapter());
+        channelAdapterManager.registerChannelAdapter("queue", new QueueChannelAdapter());
         endpointFactory = new DefaultEndpointFactory(channelAdapterManager, new NoOpEndpointURLPropertyResolver());
     }
 
@@ -82,10 +84,10 @@ public class DefaultEndpointFactorySourceConfigurerTest {
     }
 
     @Test
-    public void shouldLowerSourceConcurrencyConfigurerForANoProtocolInternalSource() {
+    public void shouldLowerSourceConcurrencyConfigurerForAQueueSource() {
 
         final FlowDefinition flowDefinition = Pipelite.defineFlow("destination-flow")
-            .fromSource("destination", (SourceConcurrencyConfigurer c) -> c
+            .fromSource("queue://destination", (SourceConcurrencyConfigurer c) -> c
                 .concurrency(5)
                 .durableInbox(false))
             .build();

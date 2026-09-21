@@ -52,7 +52,7 @@ import java.util.function.Consumer;
  *         flowDefinition(flow),
  *         header("X-Order-Id", "ORD-001"),
  *         inputPayload(order))
- *     .when(supplyTo("orders-in"))
+ *     .when(supplyTo("queue://orders-in"))
  *     .then(isExecutionCompleted())
  *     .inspectStep("enrich", hasHeader("X-Enriched-By"));
  * }</pre>

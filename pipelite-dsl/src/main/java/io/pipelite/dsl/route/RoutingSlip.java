@@ -25,14 +25,14 @@ import java.util.LinkedList;
 
 /**
  * The itinerary of an exchange (Routing Slip EIP): an ordered list of <em>internal flows</em>, each
- * addressed by URL as {@code link://<source endpoint name>} - the name its own {@code
- * fromSource("<source endpoint name>")} was declared with (issue #102: a flow is always addressed
- * by URL, never by a bare name). When a flow finishes and the exchange carries a slip with routes
+ * addressed by URL as {@code queue://<queue name>} - the queue its own {@code
+ * fromSource("queue://<queue name>")} reads (issue #102: a flow is always addressed by URL, never
+ * by a bare name). When a flow finishes and the exchange carries a slip with routes
  * left, the exchange hops to the next one instead of taking the flow's own exit ({@code toSink},
  * {@code toRoute}, return address); the slip is followed again at the end of that flow, and so on
  * until it is exhausted, at which point the last flow exits normally.
  * <p>
- * Only {@code link://} URLs are accepted, never another channel adapter URL such as
+ * Only {@code queue://} URLs are accepted, never another channel adapter URL such as
  * {@code kafka://...}: a channel adapter is a terminal producer, nothing would carry the slip any
  * further after delivering there. To end an itinerary on an external system, let the last flow
  * declare a {@code toSink(...)} for it.
@@ -49,7 +49,7 @@ public class RoutingSlip implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private static final String LINK_URL_PREFIX = ChannelProtocols.LINK + "://";
+    private static final String LINK_URL_PREFIX = ChannelProtocols.QUEUE + "://";
 
     private final LinkedList<String> routes;
 
@@ -68,8 +68,8 @@ public class RoutingSlip implements Serializable {
         Preconditions.state(route != null && !route.trim().isEmpty(), "A route cannot be null or blank");
         Preconditions.state(route.startsWith(LINK_URL_PREFIX) && route.length() > LINK_URL_PREFIX.length(), String.format(
             "Route '%s' is not a %s URL - a routing slip only accepts the URL of an internal flow, " +
-                "%s<source endpoint name>. To end the itinerary on an external system, end it with a flow " +
-                "that declares toSink('%s') instead", route, ChannelProtocols.LINK, LINK_URL_PREFIX, route));
+                "%s<queue name>. To end the itinerary on an external system, end it with a flow " +
+                "that declares toSink('%s') instead", route, ChannelProtocols.QUEUE, LINK_URL_PREFIX, route));
     }
 
     /**

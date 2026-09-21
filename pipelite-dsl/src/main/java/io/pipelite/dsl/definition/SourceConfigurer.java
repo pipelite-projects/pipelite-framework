@@ -32,9 +32,9 @@ import java.util.Map;
  * is a {@code pipelite-dsl} type that must be able to reference this class in its own signature.
  * {@link #durableInbox(boolean)} is universal (issue #70's durable inbox applies to any source
  * regardless of adapter), so it lives on this shared base rather than being repeated per adapter.
- * {@code concurrency}/{@code executorType} deliberately do NOT live here: only the no-protocol/
- * internal source case may configure them (see {@code SourceConcurrencyConfigurer} in {@code
- * pipelite-spi}, next to {@code DefaultEndpoint}) — every protocol-backed adapter's own configurer
+ * {@code concurrency}/{@code executorType} deliberately do NOT live here: only a queue source
+ * ({@code queue://}) may configure them (see {@code SourceConcurrencyConfigurer} in {@code
+ * pipelite-spi}, next to {@code DefaultEndpoint}) — every other adapter's own configurer
  * simply has no such methods, a compile-time-enforced version of the restriction {@code
  * DefaultEndpointFactory#rejectSourceConcurrencyParams} still separately enforces at runtime for
  * anyone bypassing the configurer and typing the query string by hand.
@@ -42,8 +42,7 @@ import java.util.Map;
  * Not a lambda/functional-interface itself — {@code fromSource(url, (KafkaSourceConfigurer c) -&gt;
  * c.groupId(...).autoOffsetReset(...))} passes a {@code java.util.function.Consumer<C>} whose
  * single parameter {@code c} is an instance of this class (or a subclass), constructed by the
- * framework (via {@code ChannelAdapter#newSourceConfigurer()}, or directly for the no-protocol
- * case) and handed to the callback — mirrors {@code ChannelConfigurer}'s own "framework
+ * framework (via {@code ChannelAdapter#newSourceConfigurer()}) and handed to the callback — mirrors {@code ChannelConfigurer}'s own "framework
  * constructs, caller mutates" shape, just letting the caller use the concrete adapter type
  * directly as the lambda's declared parameter type instead of needing an outer cast.
  */

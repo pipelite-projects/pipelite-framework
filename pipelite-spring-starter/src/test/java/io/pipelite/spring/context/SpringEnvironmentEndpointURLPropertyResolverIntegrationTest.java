@@ -47,7 +47,7 @@ public class SpringEnvironmentEndpointURLPropertyResolverIntegrationTest {
 
             // does not throw "Unrecognized destination": proves the flow is registered and routable
             // under the *resolved* resource name, not under the literal '${test.source.name}' placeholder.
-            pipeliteContext.supplyExchange("link://source-resolved", exchangeFactory.createExchange("Hello Pipelite!"));
+            pipeliteContext.supplyExchange("queue://source-resolved", exchangeFactory.createExchange("Hello Pipelite!"));
         }
     }
 
@@ -73,7 +73,7 @@ public class SpringEnvironmentEndpointURLPropertyResolverIntegrationTest {
         @Bean
         public FlowDefinition placeholderFlowDefinition(){
             return Pipelite.defineFlow("placeholder-flow")
-                .fromSource("${test.source.name}")
+                .fromSource("queue://${test.source.name}")
                 .toSink("sink")
                 .build();
         }

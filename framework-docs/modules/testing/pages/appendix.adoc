@@ -18,7 +18,7 @@ Passed to `given(Precondition...)` and applied in order, before the component un
 |Sets the input payload of the initial exchange.
 
 |`flowDefinition(FlowDefinition flow)`
-|Registers a flow to be deployed in the test context (flow mode only). Multiple flows can be registered together and chained via `link://`.
+|Registers a flow to be deployed in the test context (flow mode only). Multiple flows can be registered together and chained via `queue://`.
 
 |`flowConfiguration(Class<?> configClass)`
 |Scans a `@FlowConfiguration` class (must have a no-arg constructor) and registers every flow it declares (flow mode only).

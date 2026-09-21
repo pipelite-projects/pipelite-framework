@@ -37,8 +37,8 @@ public interface ExecutionTarget {
      * supplies an exchange to {@code entryPointEndpoint}, waits for the exchange
      * to reach the {@code test://} sink, then stops the context.
      *
-     * @param entryPointEndpoint the endpoint name that matches the
-     *                           {@code fromSource(...)} of the entry flow
+     * @param entryPointEndpoint the URL that matches the {@code fromSource(...)} of the entry
+     *                           flow, e.g. {@code queue://words-in}
      */
     ThenOperations supplyTo(String entryPointEndpoint);
 }

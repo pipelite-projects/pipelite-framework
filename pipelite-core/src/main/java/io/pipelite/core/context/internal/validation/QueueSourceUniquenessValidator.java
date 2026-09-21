@@ -22,17 +22,18 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Internal source uniqueness (issue #101): an internal source name is an address - {@code
- * link://orders} has to reach exactly one flow - so two flows must not declare the same one.
- * Otherwise the flow registry (the first registered wins) and the link adapter (the last wins)
- * disagree about which flow it is, and the other one is unreachable through the link.
+ * Queue uniqueness (issues #101, #111): a queue is read by exactly one flow, with as many
+ * consumers as its {@code concurrency} says, so two flows must not declare the same one. Two flows
+ * would be two different logics on one queue, not two consumers of one; and the flow registry (the
+ * first registered wins) and the queue adapter (the last wins) would disagree about which flow
+ * {@code queue://orders} reaches, leaving the other unreachable through it.
  * <p>
- * Only internal sources, the ones without a protocol. A source resource shared with anything else
- * is not a conflict: {@code http://orders}, an internal {@code orders} and two flows reading the
- * same Kafka topic are all legitimate, because what belongs to a flow (its inbox, the resumption
- * of its retries) is keyed by the flow, not by the resource (issue #108).
+ * Only queues. A source resource shared with anything else is not a conflict: {@code
+ * http://orders}, {@code queue://orders} and two flows reading the same Kafka topic are all
+ * legitimate, because what belongs to a flow (its inbox, the resumption of its retries) is keyed
+ * by the flow, not by the resource (issue #108).
  */
-public final class InternalSourceUniquenessValidator implements ContextValidator {
+public final class QueueSourceUniquenessValidator implements ContextValidator {
 
     @Override
     public void validate(ValidationContext context, ValidationReport report) {
@@ -40,15 +41,15 @@ public final class InternalSourceUniquenessValidator implements ContextValidator
         final Map<String, String> declaredBy = new HashMap<>();
 
         for (FlowDefinition flow : context.flowDefinitions()) {
-            final Optional<String> name = InternalSources.nameOf(flow, context);
+            final Optional<String> name = QueueSources.nameOf(flow, context);
             if (name.isEmpty()) {
                 continue;
             }
             final String first = declaredBy.putIfAbsent(name.get(), flow.getFlowName());
             if (first != null) {
                 report.error(flow.getFlowName(), String.format(
-                    "fromSource(\"%s\"): source name '%s' is already declared by flow '%s'; link://%s must reach exactly one flow",
-                    name.get(), name.get(), first, name.get()));
+                    "fromSource(\"queue://%s\"): queue '%s' is already read by flow '%s'; scale it with concurrency instead of declaring a second flow",
+                    name.get(), name.get(), first));
             }
         }
     }

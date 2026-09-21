@@ -169,7 +169,7 @@ public class ExchangeImpl implements Exchange, Serializable {
     }
 
     /**
-     * {@code returnAddress} is a URL (issue #102): {@code link://<source endpoint name>} for an
+     * {@code returnAddress} is a URL (issue #102): {@code queue://<queue name>} for an
      * internal flow. Kept only if none is set yet, so the first caller in a chain wins.
      */
     // @Override - Exchange#setReturnAddress is disabled for now, see io.pipelite.dsl.Exchange

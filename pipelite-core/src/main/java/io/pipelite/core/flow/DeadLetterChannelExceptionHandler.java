@@ -37,7 +37,7 @@ import java.util.List;
  * it runs first instead — see {@code RetryChannelExceptionHandler}/{@code RetryStrategyFilter},
  * which carry the same target through a {@code FlowExecutionDump} and route to it only once
  * attempts are exhausted.) {@code deadLetterTarget} is a URL, delivered through {@code
- * PipeliteContext.supplyExchange(...)}: {@code link://<source endpoint name>} for an internal
+ * PipeliteContext.supplyExchange(...)}: {@code queue://<queue name>} for an internal
  * flow, or any registered channel adapter's protocol for an external system. Since issue #102 it
  * is never a flow name: the flow name is an identity, not an address.
  */
@@ -76,7 +76,7 @@ public class DeadLetterChannelExceptionHandler implements ExceptionHandler, Pipe
         exchangeImpl.putHeader(IOKeys.FAILURE_STACK_TRACE_HEADER_NAME, formatStackTrace(failureException));
 
         // The target is always a URL (issue #102): the same ChannelURL -> ChannelAdapter ->
-        // Endpoint -> Producer resolution reaches an internal flow (link://) and an external
+        // Endpoint -> Producer resolution reaches an internal flow (queue://) and an external
         // system alike, and RetryStrategyFilter delivers a retried exchange exactly the same way.
         pipeliteContext.supplyExchange(deadLetterTarget, exchangeImpl);
 

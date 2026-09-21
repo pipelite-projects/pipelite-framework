@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class PipeliteRouterFailureHandlingIntegrationTest {
 
-    private static final String NOBODY = "link://nobody-declares-this";
+    private static final String NOBODY = "queue://nobody-declares-this";
 
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
@@ -67,7 +67,7 @@ public class PipeliteRouterFailureHandlingIntegrationTest {
     private void supplyRoutedTo(String source, String destination) {
         final HeadersImpl headers = new HeadersImpl();
         headers.putHeader("destination", destination);
-        pipeliteContext.supplyExchange("link://" + source, pipeliteContext.getExchangeFactory().createExchange(headers, "payload"));
+        pipeliteContext.supplyExchange("queue://" + source, pipeliteContext.getExchangeFactory().createExchange(headers, "payload"));
     }
 
     @Test
@@ -76,7 +76,7 @@ public class PipeliteRouterFailureHandlingIntegrationTest {
         final AtomicReference<Throwable> failure = new AtomicReference<>();
         final AtomicReference<String> failedProcessor = new AtomicReference<>();
         pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("router-flow")
-            .fromSource("router-in")
+            .fromSource("queue://router-in")
             .toRoute(routes -> routes.dynamic()
                 .when("Headers['x'] == 'y'").then("#{Headers['destination']}")
                 .otherwise("#{Headers['destination']}")
@@ -101,7 +101,7 @@ public class PipeliteRouterFailureHandlingIntegrationTest {
         final AtomicInteger stepRuns = new AtomicInteger(0);
         final AtomicReference<Throwable> exhausted = new AtomicReference<>();
         pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("retrying-router-flow")
-            .fromSource("retrying-router-in")
+            .fromSource("queue://retrying-router-in")
             .process("count", (io, c) -> stepRuns.incrementAndGet())
             .toRoute(routes -> routes.dynamic()
                 .when("Headers['x'] == 'y'").then("#{Headers['destination']}")

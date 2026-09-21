@@ -20,8 +20,8 @@ public interface ErrorChannelOperations {
     /**
      * Declares where a dead-lettered exchange is routed to (issue #91) - renamed and broadened
      * from {@code definedFlow(String)}. The target is a URL, like every destination in the DSL (issue
-     * #102): {@code link://<source endpoint name>} for an internal flow - the name its own {@code
-     * fromSource("<source endpoint name>")} declares, never the flow's {@code defineFlow(...)} name -
+     * #102): {@code queue://<queue name>} for an internal flow - the queue its own {@code
+     * fromSource("queue://<queue name>")} reads, never the flow's {@code defineFlow(...)} name -
      * or a registered channel adapter's protocol ({@code kafka://...}) for an external system,
      * delivered directly to that adapter's {@code Producer} with no {@code Flow} required to
      * receive it. A bare name is rejected when the flow is defined.
