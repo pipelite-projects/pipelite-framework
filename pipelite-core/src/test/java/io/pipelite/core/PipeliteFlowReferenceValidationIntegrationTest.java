@@ -90,6 +90,61 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
     }
 
     /**
+     * Issue #101: {@code link://dup-src} must reach exactly one flow. Without the check the flow
+     * registry (first registered wins) and the link adapter (last wins) disagreed about which one.
+     */
+    @Test
+    public void givenTwoInternalFlowsWithTheSameSourceName_whenTheContextStarts_thenItFailsNamingBothAndStartsNothing() {
+
+        final List<String> seen = new CopyOnWriteArrayList<>();
+        pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("dup-first")
+            .fromSource("dup-src")
+            .process("cap", (io, c) -> seen.add("first"))
+            .build());
+        pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("dup-second")
+            .fromSource("dup-src")
+            .process("cap", (io, c) -> seen.add("second"))
+            .build());
+
+        try {
+            pipeliteContext.start();
+            Assert.fail("expected the context not to start");
+        } catch (ContextValidationException expected) {
+            Assert.assertEquals(List.of(
+                "Flow 'dup-second', fromSource(\"dup-src\"): source name 'dup-src' is already declared by flow 'dup-first'; link://dup-src must reach exactly one flow"),
+                expected.getProblems());
+        }
+
+        Assert.assertTrue(pipeliteContext.tryFindFlow("dup-src").isEmpty());
+        Assert.assertTrue(seen.isEmpty());
+    }
+
+    /**
+     * A source resource shared with anything but another internal source is not a conflict: here an
+     * internal flow and a {@code time://} flow share a name, as {@code http://orders} and an internal
+     * {@code orders} would (issue #108 keeps what belongs to a flow apart).
+     */
+    @Test
+    public void givenAnInternalSourceSharingItsNameWithAnotherProtocol_whenTheContextStarts_thenItStarts() {
+
+        final List<String> cooked = new CopyOnWriteArrayList<>();
+        pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("time-flow")
+            .fromSource("time://shared-name?period=3600000&timeUnit=MILLISECONDS")
+            .process("noop", (io, c) -> { })
+            .build());
+        pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("internal-flow")
+            .fromSource("shared-name")
+            .process("cook", (io, c) -> cooked.add(io.getInputPayloadAs(String.class)))
+            .build());
+
+        pipeliteContext.start();
+        pipeliteContext.supplyExchange("link://shared-name", pipeliteContext.getExchangeFactory().createExchange("order-1"));
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> cooked.size() == 1);
+        Assert.assertEquals(List.of("order-1"), cooked);
+    }
+
+    /**
      * A validator added from outside runs after the built-in ones, sees the flows through the same
      * read-only view, and what it reports is listed in the same exception.
      */

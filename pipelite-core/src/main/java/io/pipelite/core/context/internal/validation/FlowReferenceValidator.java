@@ -17,13 +17,11 @@ package io.pipelite.core.context.internal.validation;
 
 import io.pipelite.core.context.internal.DeclaredDestination;
 import io.pipelite.core.context.internal.DeclaresDestinations;
-import io.pipelite.core.definition.TypedSourceDefinition;
 import io.pipelite.core.support.expression.ExpressionUtils;
 import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.ProcessorDefinition;
 import io.pipelite.dsl.definition.SinkDefinition;
-import io.pipelite.dsl.definition.SourceDefinition;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.channel.ChannelURL;
 import io.pipelite.spi.endpoint.EndpointURL;
@@ -102,18 +100,7 @@ public final class FlowReferenceValidator implements ContextValidator {
     private static Set<String> internalSourceNames(ValidationContext context) {
         final Set<String> names = new HashSet<>();
         for (FlowDefinition flow : context.flowDefinitions()) {
-            final SourceDefinition source = flow.sourceDefinition();
-            if (source == null || source instanceof TypedSourceDefinition) {
-                continue;
-            }
-            try {
-                final ChannelURL channelURL = ChannelURL.parse(context.resolveURL(source.getUrl()));
-                if (!channelURL.hasProtocol()) {
-                    names.add(EndpointURL.parse(channelURL.getEndpointURL()).getResource());
-                }
-            } catch (RuntimeException unresolvable) {
-                // Not this validator's finding: registering the flow fails on its own, clearly.
-            }
+            InternalSources.nameOf(flow, context).ifPresent(names::add);
         }
         return names;
     }
