@@ -26,6 +26,7 @@ import io.pipelite.core.context.*;
 import io.pipelite.core.context.internal.DestinationURLs;
 import io.pipelite.core.context.internal.validation.ContextValidatorChain;
 import io.pipelite.core.context.internal.validation.FlowReferenceValidator;
+import io.pipelite.core.context.internal.validation.InternalSourceUniquenessValidator;
 import io.pipelite.core.context.internal.validation.ContextValidator;
 import io.pipelite.core.context.internal.validation.ValidationContext;
 import io.pipelite.core.flow.DeadLetterChannelExceptionHandler;
@@ -170,6 +171,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
         contextValidatorChain = new ContextValidatorChain();
         contextValidatorChain.add(new FlowReferenceValidator());
+        contextValidatorChain.add(new InternalSourceUniquenessValidator());
 
         dependencyRegistry = new DefaultDependencyRegistry();
         flowConfigurationScanner = new FlowConfigurationScanner();
