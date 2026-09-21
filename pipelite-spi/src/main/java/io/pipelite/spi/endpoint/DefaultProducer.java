@@ -15,7 +15,6 @@
  */
 package io.pipelite.spi.endpoint;
 
-import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import org.slf4j.Logger;
@@ -56,12 +55,7 @@ public non-sealed class DefaultProducer extends AbstractProducer implements Prod
             if (sysLogger.isErrorEnabled()) {
                 sysLogger.error("An underlying error occurred producing message", exception);
             }
-            if (exceptionHandler != null) {
-                exchange.setProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, getProcessorName());
-                exceptionHandler.handleException(exception, exchange);
-            } else {
-                throw exception;
-            }
+            handleFailure(exception, exchange);
         }
     }
 

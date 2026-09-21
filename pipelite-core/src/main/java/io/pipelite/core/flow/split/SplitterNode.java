@@ -26,7 +26,6 @@ import io.pipelite.spi.flow.AbstractFlowNode;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.FlowNode;
-import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.exchange.HeadersImpl;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import io.pipelite.spi.flow.process.ExchangePreProcessor;
@@ -144,22 +143,16 @@ class SplitterNode extends AbstractFlowNode implements PipeliteContextAware {
             postProcessExchange(aggregated);
 
         } catch (RuntimeException exception) {
-            // Same shape as AbstractProcessorNode.process's try/catch, written explicitly
-            // (not inherited) because the work being wrapped here is the whole split loop,
-            // not a single Processor call. No exceptionHandler is propagated to inner segment
-            // nodes (would break the collector for a failing last step) - a single dispatch
-            // covers the entire split, never a per-item one.
-            if (exceptionHandler != null) {
-                // D13: intentionally the whole pre-split collection, not the single failing
-                // item — a resume/dead-letter targeting this property lands back on the split
-                // step itself, atomically re-running/dead-lettering the entire batch. See
-                // 2026-Q3-pipelite-dead-letter-channel-review.md §3.7 for the reasoning.
-                exchange.setProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, getProcessorName());
-                exceptionHandler.handleException(exception, exchange);
-                return;
-            } else {
-                throw exception;
-            }
+            // Written explicitly (not inherited from AbstractProcessorNode) because the work being
+            // wrapped here is the whole split loop, not a single Processor call. No exceptionHandler
+            // is propagated to inner segment nodes (would break the collector for a failing last
+            // step) - a single dispatch covers the entire split, never a per-item one.
+            // D13: intentionally the whole pre-split collection, not the single failing item - a
+            // resume/dead-letter targeting the failed processor lands back on the split step
+            // itself, atomically re-running/dead-lettering the entire batch. See
+            // 2026-Q3-pipelite-dead-letter-channel-review.md §3.7 for the reasoning.
+            handleFailure(exception, exchange);
+            return;
         } finally {
             // Never leave an orphaned entry behind, on the happy path or the exception path.
             aggregateRepository.remove(splitId);
