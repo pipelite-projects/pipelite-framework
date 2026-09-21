@@ -56,4 +56,9 @@ The receiving side is the exception on purpose: `fromSource(...)` takes the name
 * Useful for splitting complex pipelines into modular, reusable flows.
 * The receiving flow's source can declare `?concurrency=N` to process linked Exchanges concurrently — see xref:dsl:flow-definition.adoc[Flow Definition].
 
-WARNING: Ensure the target flow is registered in the context before startup; otherwise the `LinkProducer` will fail to resolve the target `Consumer`.
+
+== Startup validation
+
+`PipeliteContext.start()` checks that every `link://` target is the source endpoint name of a flow registered in the same context: the destinations of `toSink(...)`, of the routes and the recipient list, of `wireTap(...)`, and the target of `toChannel(...)`, alone or as the exhaustion action of a retry. If one is not - a typo, a rename on one side only - `start()` throws a `ContextValidationException` that lists every problem, naming the flow and the DSL construct, before anything is started.
+
+A destination that contains an expression (`#{...}`) is only known when an exchange is routed, so it is not checked at startup; if it names no flow then, the delivery fails with an `IllegalArgumentException`. Destinations with any other protocol are not checked either.

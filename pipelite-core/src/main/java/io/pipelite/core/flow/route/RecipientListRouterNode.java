@@ -19,6 +19,8 @@ import io.pipelite.common.support.Preconditions;
 import io.pipelite.common.support.ToStringUtils;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
+import io.pipelite.core.context.internal.DeclaredDestination;
+import io.pipelite.core.context.internal.DeclaresDestinations;
 import io.pipelite.dsl.route.Condition;
 import io.pipelite.dsl.route.ConditionEvaluator;
 import io.pipelite.dsl.route.ExpressionCondition;
@@ -39,7 +41,7 @@ import java.util.stream.Collectors;
  * Package-private since #82: construct via {@link RouteNodeFactory#recipientList(RecipientList,
  * ConditionEvaluator)}.
  */
-class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowExitNode {
+class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowExitNode, DeclaresDestinations {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
@@ -78,6 +80,13 @@ class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContex
             final ExchangeImpl copy = exchangeFactory.copyExchange(exchange);
             pipeliteContext.supplyExchange(endpointURL, copy);
         });
+    }
+
+    @Override
+    public Collection<DeclaredDestination> declaredDestinations() {
+        return recipientList.stream()
+            .map(recipient -> new DeclaredDestination(recipient, "toRecipientList(...)"))
+            .collect(Collectors.toList());
     }
 
     @Override

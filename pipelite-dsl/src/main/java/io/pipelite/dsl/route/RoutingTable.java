@@ -38,6 +38,13 @@ public class RoutingTable<V extends Condition> extends CopyOnWriteArrayList<Rout
         this.defaultRoutes = RecipientList.of(defaultRoutes);
     }
 
+    /**
+     * The routes taken when no entry matches, if any were set.
+     */
+    public Optional<RecipientList> getDefaultRoutes() {
+        return Optional.ofNullable(defaultRoutes);
+    }
+
     public Optional<RecipientList> resolveRoute(Exchange exchange){
 
         for(RouteEntry<V> routeEntry : this){

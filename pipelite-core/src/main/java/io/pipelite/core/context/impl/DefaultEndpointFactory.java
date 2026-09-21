@@ -55,6 +55,14 @@ public class DefaultEndpointFactory implements EndpointFactory {
         this.endpointURLPropertyResolver = endpointURLPropertyResolver;
     }
 
+    /**
+     * A URL with its {@code ${...}} placeholders resolved, the way {@link #createEndpoint} resolves it
+     * before it builds the endpoint.
+     */
+    public String resolveURL(String rawURL) {
+        return endpointURLPropertyResolver.resolve(rawURL);
+    }
+
     @Override
     public Endpoint createEndpoint(EndpointDefinition endpointDefinition) {
 

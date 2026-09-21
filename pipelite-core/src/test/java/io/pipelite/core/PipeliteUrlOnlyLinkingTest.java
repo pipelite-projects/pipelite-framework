@@ -17,7 +17,6 @@ package io.pipelite.core;
 
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -25,8 +24,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Issue #102: flows are linked only through URLs. The DSL methods that take a destination reject a
@@ -158,22 +155,6 @@ public class PipeliteUrlOnlyLinkingTest {
         } catch (IllegalArgumentException expected) {
             Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("nobody-declares-this"));
         }
-    }
-
-    @Test
-    public void givenALinkSinkNoFlowDeclares_thenTheFailureIsReportedToTheFlowsExceptionHandler() {
-        final AtomicReference<Throwable> failure = new AtomicReference<>();
-        pipeliteContext.registerFlowDefinition(Pipelite.defineFlow("orphan-sink-flow")
-            .fromSource("orphan-sink-in")
-            .toSink("link://nobody-declares-this-either")
-            .withExceptionHandler((exception, exchange) -> failure.set(exception))
-            .build());
-        pipeliteContext.start();
-
-        pipeliteContext.supplyExchange("link://orphan-sink-in", pipeliteContext.getExchangeFactory().createExchange("payload"));
-
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> failure.get() != null);
-        Assert.assertTrue(failure.get().getMessage(), failure.get().getMessage().contains("nobody-declares-this-either"));
     }
 
     private static void assertRejectionSays(IllegalArgumentException exception, String construct, String bareName) {

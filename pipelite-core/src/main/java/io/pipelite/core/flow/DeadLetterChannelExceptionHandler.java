@@ -18,6 +18,8 @@ package io.pipelite.core.flow;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
+import io.pipelite.core.context.internal.DeclaredDestination;
+import io.pipelite.core.context.internal.DeclaresDestinations;
 import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.context.IOKeys;
@@ -25,6 +27,8 @@ import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Collection;
+import java.util.List;
 
 /**
  * Used when a flow declares {@code .withErrorChannel(err -> err.toChannel(target))} without also
@@ -37,7 +41,7 @@ import java.io.StringWriter;
  * flow, or any registered channel adapter's protocol for an external system. Since issue #102 it
  * is never a flow name: the flow name is an identity, not an address.
  */
-public class DeadLetterChannelExceptionHandler implements ExceptionHandler, PipeliteContextAware {
+public class DeadLetterChannelExceptionHandler implements ExceptionHandler, PipeliteContextAware, DeclaresDestinations {
 
     private final String deadLetterTarget;
 
@@ -46,6 +50,11 @@ public class DeadLetterChannelExceptionHandler implements ExceptionHandler, Pipe
     public DeadLetterChannelExceptionHandler(String deadLetterTarget) {
         Preconditions.hasText(deadLetterTarget, "deadLetterTarget is required and cannot be null/empty");
         this.deadLetterTarget = deadLetterTarget;
+    }
+
+    @Override
+    public Collection<DeclaredDestination> declaredDestinations() {
+        return List.of(new DeclaredDestination(deadLetterTarget, "toChannel(...)"));
     }
 
     @Override

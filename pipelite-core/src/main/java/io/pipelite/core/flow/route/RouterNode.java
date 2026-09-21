@@ -18,13 +18,19 @@ package io.pipelite.core.flow.route;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
+import io.pipelite.core.context.internal.DeclaredDestination;
+import io.pipelite.core.context.internal.DeclaresDestinations;
 import io.pipelite.core.flow.ExpressionVariables;
 import io.pipelite.core.flow.expression.TextExpressionEvaluator;
 import io.pipelite.dsl.route.RecipientList;
+import io.pipelite.dsl.route.RouteEntry;
 import io.pipelite.dsl.route.RoutingTable;
 import io.pipelite.spi.flow.AbstractFlowNode;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -34,7 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Package-private since #82: construct via {@link RouteNodeFactory#router(RoutingTable,
  * TextExpressionEvaluator)}.
  */
-class RouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowExitNode {
+class RouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowExitNode, DeclaresDestinations {
 
     private final RoutingTable<?> routingTable;
     private final TextExpressionEvaluator textExpressionEvaluator;
@@ -76,6 +82,17 @@ class RouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowE
             throw new IllegalStateException("Unable to route exchange, unresolved route name. Have you set the default route?");
         }
 
+    }
+
+    @Override
+    public Collection<DeclaredDestination> declaredDestinations() {
+        final List<DeclaredDestination> destinations = new ArrayList<>();
+        for (RouteEntry<?> entry : routingTable) {
+            entry.getDestination().forEach(destination -> destinations.add(new DeclaredDestination(destination, "toRoute(...)")));
+        }
+        routingTable.getDefaultRoutes().ifPresent(defaults ->
+            defaults.forEach(destination -> destinations.add(new DeclaredDestination(destination, "toRoute(...)"))));
+        return destinations;
     }
 
     @Override
