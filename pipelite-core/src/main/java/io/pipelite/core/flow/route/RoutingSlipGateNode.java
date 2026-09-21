@@ -104,12 +104,7 @@ class RoutingSlipGateNode extends AbstractFlowNode implements PipeliteContextAwa
             if (logger.isErrorEnabled()) {
                 logger.error("An underlying error occurred forwarding message", failure);
             }
-            if (exceptionHandler != null) {
-                exchange.setProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, getProcessorName());
-                exceptionHandler.handleException(failure, exchange);
-                return;
-            }
-            throw failure;
+            handleFailure(failure, exchange);
         }
     }
 

@@ -21,12 +21,16 @@ import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.flow.expression.TextExpressionEvaluator;
 import io.pipelite.dsl.route.*;
 import io.pipelite.expression.ExpressionParser;
+import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 public class RouterNodeTest {
 
@@ -73,6 +77,63 @@ public class RouterNodeTest {
         subject.process(exchange);
 
         Mockito.verify(pipeliteContext).supplyExchange(Mockito.same("Exit-Airport"), Mockito.any());
+    }
+
+    /**
+     * Issue #105: a failure while routing is handed to the flow's exception handler, like a failed
+     * processor step, instead of escaping the node.
+     */
+    @Test
+    public void givenADestinationThatCannotBeDelivered_thenTheFailureIsHandedToTheExceptionHandler(){
+
+        final IllegalArgumentException cause = new IllegalArgumentException("nobody there");
+        Mockito.doThrow(cause).when(pipeliteContext).supplyExchange(Mockito.anyString(), Mockito.any());
+        final AtomicReference<Throwable> handled = new AtomicReference<>();
+        subject.setProcessorName("to-route");
+        subject.setExceptionHandler((exception, exchange) -> handled.set(exception));
+
+        final ExchangeImpl exchange = exchangeFactory.createExchange();
+        exchange.putHeader("Destination", "LosAngeles");
+        subject.process(exchange);
+
+        Assert.assertTrue(handled.get() instanceof IllegalStateException);
+        Assert.assertTrue(handled.get().getMessage(), handled.get().getMessage().contains("Exit-LosAngeles"));
+        Assert.assertSame(cause, handled.get().getCause());
+        Assert.assertEquals("to-route", exchange.getProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, String.class));
+    }
+
+    @Test
+    public void givenNoRouteAndNoDefaultRoute_thenTheFailureIsHandedToTheExceptionHandler(){
+
+        final RoutingTable<ExpressionCondition> withoutDefault = new RoutingTable<>(new ExpressionConditionEvaluator(new ExpressionParser()));
+        withoutDefault.add(new RouteEntry<>(RecipientList.of("Exit-LasVegas"), new ExpressionCondition("Headers['Destination'] == 'LasVegas'")));
+        final RouterNode router = new RouterNode(withoutDefault, new TextExpressionEvaluator(new ExpressionParser()));
+        router.setPipeliteContext(pipeliteContext);
+        router.setProcessorName("to-route");
+        final AtomicReference<Throwable> handled = new AtomicReference<>();
+        router.setExceptionHandler((exception, exchange) -> handled.set(exception));
+
+        final ExchangeImpl exchange = exchangeFactory.createExchange();
+        exchange.putHeader("Destination", "Okinawa");
+        router.process(exchange);
+
+        Assert.assertTrue(handled.get().getMessage(), handled.get().getMessage().contains("unresolved route name"));
+        Mockito.verifyNoInteractions(pipeliteContext);
+    }
+
+    @Test
+    public void givenAFailureAndNoExceptionHandler_thenItIsRethrownUnchanged(){
+
+        Mockito.doThrow(new IllegalArgumentException("nobody there")).when(pipeliteContext).supplyExchange(Mockito.anyString(), Mockito.any());
+
+        final ExchangeImpl exchange = exchangeFactory.createExchange();
+        exchange.putHeader("Destination", "LosAngeles");
+        try {
+            subject.process(exchange);
+            Assert.fail("expected the failure to be rethrown");
+        } catch (IllegalStateException expected) {
+            Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("Exit-LosAngeles"));
+        }
     }
 
 }

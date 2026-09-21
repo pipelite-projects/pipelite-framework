@@ -27,6 +27,8 @@ import io.pipelite.dsl.route.RouteEntry;
 import io.pipelite.dsl.route.RoutingTable;
 import io.pipelite.spi.flow.AbstractFlowNode;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -42,6 +44,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 class RouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowExitNode, DeclaresDestinations {
 
+    private final Logger sysLogger = LoggerFactory.getLogger(getClass());
+
     private final RoutingTable<?> routingTable;
     private final TextExpressionEvaluator textExpressionEvaluator;
 
@@ -52,8 +56,27 @@ class RouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowE
         this.textExpressionEvaluator = Preconditions.notNull(textExpressionEvaluator, "textExpressionEvaluator is required and cannot be null");
     }
 
+    /**
+     * A failure while routing - a destination that cannot be delivered, no route and no default
+     * route, an expression that cannot be evaluated - is handed to the flow's exception handler
+     * like a failed processor step (issue #105), so {@code withRetry}, {@code withErrorChannel} and
+     * the default handler protect this step too. Routing to several destinations is not atomic: if
+     * the second delivery fails after the first went through, a retry of this step sends to the
+     * first one again (at-least-once, as everywhere else in the framework).
+     */
     @Override
     public void process(ExchangeImpl exchange) {
+        try {
+            route(exchange);
+        } catch (RuntimeException exception) {
+            if (sysLogger.isErrorEnabled()) {
+                sysLogger.error("An underlying error occurred routing message", exception);
+            }
+            handleFailure(exception, exchange);
+        }
+    }
+
+    private void route(ExchangeImpl exchange) {
 
         final Optional<RecipientList> routeHolder = routingTable.resolveRoute(exchange);
 
