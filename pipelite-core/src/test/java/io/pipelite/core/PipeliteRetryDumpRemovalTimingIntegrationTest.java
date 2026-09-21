@@ -115,7 +115,6 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
                 // dump before this line ever ran.
                 pendingCountDuringRetry.set(repository.pendingCount());
             })
-            .toSink("dump-removal-timing-out")
             .withRetry(retry -> retry.maxAttempts(5).onErrorChannel(err -> err.toDLQ()))
             .build();
 
@@ -152,7 +151,6 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
                 attemptCount.incrementAndGet();
                 throw new RuntimeException("simulated persistent failure");
             })
-            .toSink("dump-removal-exhaustion-out")
             .withRetry(retry -> retry.maxAttempts(2).onErrorChannel(err -> err.toDLQ()))
             .build();
 

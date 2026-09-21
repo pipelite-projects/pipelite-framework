@@ -70,7 +70,6 @@ public class EnablePipeliteIntegrationTest {
         public FlowDefinition testFlowDefinition(){
             return Pipelite.defineFlow("test-flow")
                 .fromSource("queue://source")
-                .toSink("sink")
                 .build();
         }
 

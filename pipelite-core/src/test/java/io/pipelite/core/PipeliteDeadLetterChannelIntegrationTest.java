@@ -86,7 +86,6 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         final FlowDefinition deadLetterQueue = Pipelite.defineFlow("dlc-only-poison-queue")
             .fromSource("queue://dlc-only-poison-queue")
             .process("capture", (io, c) -> deadLettered.set((ExchangeImpl) io))
-            .toSink("dlc-only-poison-out")
             .build();
 
         final FlowDefinition mainFlow = Pipelite.defineFlow("dlc-only-main-flow")
@@ -95,7 +94,6 @@ public class PipeliteDeadLetterChannelIntegrationTest {
                 attemptCount.incrementAndGet();
                 throw new RuntimeException("simulated poison message");
             })
-            .toSink("dlc-only-out")
             .withErrorChannel(err -> err.toChannel("queue://dlc-only-poison-queue"))
             .build();
 
@@ -124,7 +122,6 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         final FlowDefinition deadLetterQueue = Pipelite.defineFlow("dlc-composed-poison-queue")
             .fromSource("queue://dlc-composed-poison-queue")
             .process("capture", (io, c) -> deadLettered.set((ExchangeImpl) io))
-            .toSink("dlc-composed-poison-out")
             .build();
 
         final FlowDefinition mainFlow = Pipelite.defineFlow("dlc-composed-main-flow")
@@ -133,7 +130,6 @@ public class PipeliteDeadLetterChannelIntegrationTest {
                 attemptCount.incrementAndGet();
                 throw new RuntimeException("simulated persistent failure");
             })
-            .toSink("dlc-composed-out")
             .withRetry(retry -> retry
                 .maxAttempts(3)
                 .onErrorChannel(err -> err.toChannel("queue://dlc-composed-poison-queue")))
@@ -161,7 +157,6 @@ public class PipeliteDeadLetterChannelIntegrationTest {
                 .fromSource("queue://duplicate-name-in")
                 .process("same-name", (io, c) -> {})
                 .process("same-name", (io, c) -> {})
-                .toSink("duplicate-name-out")
                 .build();
             fail("Expected DuplicateProcessorNameException");
         } catch (DuplicateProcessorNameException expected) {
@@ -187,13 +182,11 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         final FlowDefinition deadLetterReceiver = Pipelite.defineFlow("link-qualified-dlc-receiver")
             .fromSource("queue://link-qualified-dlc-poison-queue")
             .process("capture", (io, c) -> deadLettered.set((ExchangeImpl) io))
-            .toSink("link-qualified-dlc-poison-out")
             .build();
 
         final FlowDefinition mainFlow = Pipelite.defineFlow("link-qualified-dlc-flow")
             .fromSource("queue://link-qualified-dlc-in")
             .process("always-fail", (io, c) -> { throw new RuntimeException("boom"); })
-            .toSink("link-qualified-dlc-out")
             .withErrorChannel(err -> err.toChannel("queue://link-qualified-dlc-poison-queue"))
             .build();
 
@@ -219,7 +212,6 @@ public class PipeliteDeadLetterChannelIntegrationTest {
             Pipelite.defineFlow("bare-name-dlc-main-flow")
                 .fromSource("queue://bare-name-dlc-in")
                 .process("always-fail", (io, c) -> { throw new RuntimeException("boom"); })
-                .toSink("bare-name-dlc-out")
                 .withErrorChannel(err -> err.toChannel("bare-name-dlc-poison-queue"))
                 .build();
             fail("Expected a bare name to be rejected");
@@ -239,13 +231,11 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         final FlowDefinition deadLetterQueue = Pipelite.defineFlow("distinct-flow-name-dlc-queue")
             .fromSource("queue://totally-unrelated-source-resource")
             .process("capture", (io, c) -> deadLettered.set((ExchangeImpl) io))
-            .toSink("distinct-flow-name-dlc-out")
             .build();
 
         final FlowDefinition mainFlow = Pipelite.defineFlow("distinct-flow-name-dlc-main-flow")
             .fromSource("queue://distinct-flow-name-dlc-in")
             .process("always-fail", (io, c) -> { throw new RuntimeException("boom"); })
-            .toSink("distinct-flow-name-dlc-out-2")
             .withErrorChannel(err -> err.toChannel("queue://totally-unrelated-source-resource"))
             .build();
 
@@ -282,7 +272,6 @@ public class PipeliteDeadLetterChannelIntegrationTest {
                 attemptCount.incrementAndGet();
                 throw new RuntimeException("simulated persistent failure");
             })
-            .toSink("retry-link-dlc-out")
             .withRetry(retry -> retry
                 .maxAttempts(2)
                 .onErrorChannel(err -> err.toChannel("queue://retry-link-dlc-poison-queue")))

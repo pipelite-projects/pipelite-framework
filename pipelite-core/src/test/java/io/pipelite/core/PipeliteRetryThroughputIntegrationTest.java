@@ -57,7 +57,6 @@ public class PipeliteRetryThroughputIntegrationTest {
                 }
                 successCount.incrementAndGet();
             })
-            .toSink("retry-throughput-out")
             .withRetry(retry -> retry.maxAttempts(5).onErrorChannel(err -> err.toDLQ()))
             .build();
 

@@ -45,7 +45,7 @@ queue://<queue-name>
 
 == Every endpoint is a URL
 
-A flow is always addressed by URL, and `queue://<queue name>` is the URL of an internal one. The same rule holds everywhere a destination is written - `toSink(...)`, the destinations of `toRoute(...)` and `toRecipientList(...)`, `wireTap(...)`, `toChannel(...)` - and for `PipeliteContext.supplyExchange(...)`. A source is a URL too: `fromSource(...)` always takes a protocol. A bare name is neither a destination nor a source, and it is rejected when the flow is defined - or, for a value that is only known at runtime, when the endpoint is created or the exchange is delivered.
+A flow is always addressed by URL, and `queue://<queue name>` is the URL of an internal one. The same rule holds everywhere a destination is written - `toSink(...)`, the destinations of `toRoute(...)` and `toRecipientList(...)`, `wireTap(...)`, `toChannel(...)` - and for `PipeliteContext.supplyExchange(...)`. A source and a sink are URLs too: `fromSource(...)` and `toSink(...)` always take a protocol (and a flow that has nothing to deliver simply leaves `toSink` out). A bare name is neither a destination, nor a source, nor a sink, and it is rejected when the flow is defined - or, for a value that is only known at runtime, when the endpoint is created or the exchange is delivered.
 
 [source,java]
 ----

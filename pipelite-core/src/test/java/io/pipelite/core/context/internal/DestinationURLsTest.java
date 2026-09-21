@@ -45,6 +45,40 @@ public class DestinationURLsTest {
     }
 
     @Test
+    public void givenABareName_whenWrittenAsASink_thenItIsRejectedSayingWhatToWriteOrToLeaveItOut() {
+        try {
+            DestinationURLs.requireSink("orders-out");
+            Assert.fail("expected the bare name to be rejected");
+        } catch (IllegalArgumentException expected) {
+            Assert.assertEquals(
+                "toSink(\"orders-out\"): 'orders-out' is not a URL - a sink always has a protocol. Write the URL of a channel adapter " +
+                    "(kafka://, http://, slf4j://, ...), 'queue://orders-out' to hand the exchange to the flow that reads the queue " +
+                    "'orders-out', or leave toSink(...) out to end the flow",
+                expected.getMessage());
+        }
+    }
+
+    @Test
+    public void givenAURLOrAPlaceholder_whenWrittenAsASink_thenItIsLeftAlone() {
+        Assert.assertEquals("slf4j://out", DestinationURLs.requireSink("slf4j://out"));
+        Assert.assertEquals("queue://next", DestinationURLs.requireSink("queue://next"));
+        // resolved, and checked, when the endpoint is created
+        Assert.assertEquals("${out.url}", DestinationURLs.requireSink("${out.url}"));
+        Assert.assertNull(DestinationURLs.requireSink(null));
+    }
+
+    @Test
+    public void givenAResolvedSink_thenOnlyOneWithoutAProtocolIsRejected() {
+        DestinationURLs.requireSinkProtocol("slf4j://out");
+        try {
+            DestinationURLs.requireSinkProtocol("out");
+            Assert.fail("expected the bare name to be rejected");
+        } catch (IllegalArgumentException expected) {
+            Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("'queue://out'"));
+        }
+    }
+
+    @Test
     public void givenAnExpression_whenWrittenInTheDSL_thenItIsLeftForRuntime() {
         // Only known when an exchange is routed: supplyExchange checks the evaluated value then.
         final String dynamic = "#{Headers['destination']}";

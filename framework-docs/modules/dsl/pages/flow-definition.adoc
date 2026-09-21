@@ -100,7 +100,12 @@ After `toSink`, only `withRetryChannel`, `withErrorChannel`, and `build` are ava
 ----
 .toSink("slf4j://output")
 .toSink("kafka://output-topic")
+.toSink("queue://next-flow")
 ----
+
+A sink is always a URL: the protocol of a channel adapter, or `queue://<name>` to hand the Exchange to the flow that reads that queue (see xref:channel-adapters:queue.adoc[`queue://`]). A bare name such as `.toSink("output")` is rejected when the flow is defined.
+
+A flow does not need a sink. Leave `toSink` out and the flow simply ends after its last step; a flow that ends with `toRoute` or `toRecipientList` hands the Exchange on through them.
 
 == toRoute
 

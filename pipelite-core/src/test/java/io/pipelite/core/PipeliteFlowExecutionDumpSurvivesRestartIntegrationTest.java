@@ -68,7 +68,6 @@ public class PipeliteFlowExecutionDumpSurvivesRestartIntegrationTest {
                     firstRunAttempts.incrementAndGet();
                     throw new RuntimeException("simulated persistent failure - this process never recovers");
                 })
-                .toSink("resume-test-end")
                 .withRetry(retry -> retry.maxAttempts(50).onErrorChannel(err -> err.toDLQ()))
                 .build();
 
@@ -108,7 +107,6 @@ public class PipeliteFlowExecutionDumpSurvivesRestartIntegrationTest {
             final FlowDefinition recoveredFlow = Pipelite.defineFlow(FLOW_NAME)
                 .fromSource(ChannelProtocols.queueURL(SOURCE))
                 .process(PROCESSOR_NAME, (io, c) -> secondRunSuccesses.incrementAndGet())
-                .toSink("resume-test-end")
                 .withRetry(retry -> retry.maxAttempts(50).onErrorChannel(err -> err.toDLQ()))
                 .build();
 

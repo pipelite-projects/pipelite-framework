@@ -62,7 +62,6 @@ public class PipeliteTestFixtureFlowTest {
     public void givenABareNameAsEntryPoint_whenSupplyTo_thenItIsRejectedSuggestingTheQueue() {
         FlowDefinition flow = Pipelite.defineFlow("bare-entry-flow")
             .fromSource("queue://in")
-            .toSink("out")
             .build();
 
         try {
@@ -84,7 +83,6 @@ public class PipeliteTestFixtureFlowTest {
     public void givenFlowWithNoProcessor_whenSupplyTo_thenFlowCompletes() {
         FlowDefinition flow = Pipelite.defineFlow("no-op-flow")
             .fromSource("queue://in")
-            .toSink("out")
             .build();
 
         given(
@@ -98,7 +96,6 @@ public class PipeliteTestFixtureFlowTest {
     public void givenFlowWithNoProcessor_whenSupplyTo_thenInputPayloadPassesThrough() {
         FlowDefinition flow = Pipelite.defineFlow("passthrough-flow")
             .fromSource("queue://in")
-            .toSink("out")
             .build();
 
         given(
@@ -118,7 +115,6 @@ public class PipeliteTestFixtureFlowTest {
             .fromSource("queue://in")
             .process("uppercase", (io, c) -> io.setOutputPayload(
                 io.getInputPayloadAs(String.class).toUpperCase()))
-            .toSink("out")
             .build();
 
         given(
@@ -136,7 +132,6 @@ public class PipeliteTestFixtureFlowTest {
                 io.getInputPayloadAs(Integer.class) * 2))
             .process("step2", (io, c) -> io.setOutputPayload(
                 io.getInputPayloadAs(Integer.class) + 10))
-            .toSink("out")
             .build();
 
         given(
@@ -154,7 +149,6 @@ public class PipeliteTestFixtureFlowTest {
         FlowDefinition flow = Pipelite.defineFlow("map-flow")
             .fromSource("queue://in")
             .process("enrich-price", (io, c) -> io.setOutputPayload(transformed))
-            .toSink("out")
             .build();
 
         ThenOperations then = given(
@@ -175,7 +169,6 @@ public class PipeliteTestFixtureFlowTest {
         FlowDefinition flow = Pipelite.defineFlow("header-flow")
             .fromSource("queue://in")
             .process("noop", (io, c) -> io.setOutputPayload(io.getInputPayload()))
-            .toSink("out")
             .build();
 
         given(
@@ -195,7 +188,6 @@ public class PipeliteTestFixtureFlowTest {
         FlowDefinition flow = Pipelite.defineFlow("add-header-flow")
             .fromSource("queue://in")
             .process("tag", (io, c) -> io.putHeader("X-Processed-By", "test-engine"))
-            .toSink("out")
             .build();
 
         given(
@@ -209,7 +201,6 @@ public class PipeliteTestFixtureFlowTest {
     public void givenIntegerHeader_whenGetHeaderAs_thenReturnsTypedValue() {
         FlowDefinition flow = Pipelite.defineFlow("typed-header-flow")
             .fromSource("queue://in")
-            .toSink("out")
             .build();
 
         given(
@@ -224,7 +215,6 @@ public class PipeliteTestFixtureFlowTest {
     public void givenAbsentHeader_whenGetHeaderAs_thenReturnsNull() {
         FlowDefinition flow = Pipelite.defineFlow("no-header-flow")
             .fromSource("queue://in")
-            .toSink("out")
             .build();
 
         given(
@@ -243,7 +233,6 @@ public class PipeliteTestFixtureFlowTest {
         FlowDefinition flow = Pipelite.defineFlow("filter-flow")
             .fromSource("queue://in")
             .process("gate", (io, c) -> c.stopExecution())
-            .toSink("out")
             .build();
 
         given(
@@ -259,7 +248,6 @@ public class PipeliteTestFixtureFlowTest {
         FlowDefinition flow = Pipelite.defineFlow("filtered-no-inspect-flow")
             .fromSource("queue://in")
             .process("gate", (io, c) -> c.stopExecution())
-            .toSink("out")
             .build();
 
         ThenOperations then = given(
@@ -276,7 +264,6 @@ public class PipeliteTestFixtureFlowTest {
         FlowDefinition flow = Pipelite.defineFlow("filter-flow-wrong-assertion")
             .fromSource("queue://in-wrong-1")
             .process("gate", (io, c) -> c.stopExecution())
-            .toSink("out")
             .build();
 
         given(
@@ -291,7 +278,6 @@ public class PipeliteTestFixtureFlowTest {
     public void givenCompletedFlow_whenIsNotExecutionCompletedAsserted_thenAssertionError() {
         FlowDefinition flow = Pipelite.defineFlow("completed-flow-wrong-assertion")
             .fromSource("queue://in-wrong-2")
-            .toSink("out")
             .build();
 
         given(
@@ -318,7 +304,6 @@ public class PipeliteTestFixtureFlowTest {
             .fromSource("queue://destination-entry")
             .process("finalize", (io, c) -> io.setOutputPayload(
                 io.getInputPayloadAs(String.class) + "-finalized"))
-            .toSink("out")
             .build();
 
         given(
@@ -371,7 +356,6 @@ public class PipeliteTestFixtureFlowTest {
             .fromSource("queue://in")
             .transformPayload("double-it",
                 holder -> holder.getPayloadAs(Integer.class) * 2)
-            .toSink("out")
             .build();
 
         given(
@@ -391,7 +375,6 @@ public class PipeliteTestFixtureFlowTest {
             .fromSource("queue://in")
             .process("step1", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(Integer.class) * 2))
             .process("step2", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(Integer.class) + 10))
-            .toSink("out")
             .build();
 
         given(
@@ -413,7 +396,6 @@ public class PipeliteTestFixtureFlowTest {
         FlowDefinition flow = Pipelite.defineFlow("reused-flow")
             .fromSource("queue://reused-in")
             .process("double", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(Integer.class) * 2))
-            .toSink("reused-out")
             .build();
 
         given(flowDefinition(flow), inputPayload(5))
@@ -434,7 +416,6 @@ public class PipeliteTestFixtureFlowTest {
         FlowDefinition flow = Pipelite.defineFlow("exception-flow")
             .fromSource("queue://exc-in")
             .process("fail", (io, c) -> { throw new RuntimeException("simulated processor failure"); })
-            .toSink("exc-out")
             .build();
 
         given(
@@ -449,7 +430,6 @@ public class PipeliteTestFixtureFlowTest {
             .fromSource("queue://in")
             .process("gate", (io, c) -> c.stopExecution())
             .process("never-reached", (io, c) -> { /* unreachable */ })
-            .toSink("out")
             .build();
 
         given(
@@ -475,7 +455,6 @@ public class PipeliteTestFixtureFlowTest {
             .fromSource("queue://header-isolation-in")
             .process("first-step", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(String.class)))
             .process("second-step", (io, c) -> io.putHeader("X-Added-Later", "second-step-value"))
-            .toSink("header-isolation-out")
             .build();
 
         given(
@@ -506,7 +485,6 @@ public class PipeliteTestFixtureFlowTest {
         FlowDefinition flowB = Pipelite.defineFlow("flow-b")
             .fromSource("queue://b-in")
             .process("transform", (io, c) -> io.setOutputPayload("B"))
-            .toSink("b-out")
             .build();
 
         given(
@@ -533,7 +511,6 @@ public class PipeliteTestFixtureFlowTest {
         FlowDefinition flowB = Pipelite.defineFlow("flow-amb-b")
             .fromSource("queue://amb-b-in")
             .process("transform", (io, c) -> io.setOutputPayload("B"))
-            .toSink("amb-b-out")
             .build();
 
         given(
@@ -552,7 +529,6 @@ public class PipeliteTestFixtureFlowTest {
     public void givenNoFlowMatchesEntryPoint_whenSupplyTo_thenThrowsIllegalArgumentException() {
         FlowDefinition flow = Pipelite.defineFlow("known-flow")
             .fromSource("queue://known-in")
-            .toSink("known-out")
             .build();
 
         given(flowDefinition(flow), inputPayload("x"))
@@ -560,19 +536,77 @@ public class PipeliteTestFixtureFlowTest {
     }
 
     // -------------------------------------------------------------------------
-    // Flow with no sink (e.g. a recipient-list sub-flow)
+    // Flow with no sink: it ends after its last step, and that is what is captured (issue #112)
     // -------------------------------------------------------------------------
 
     @Test
-    public void givenFlowWithNoSink_whenSupplyTo_thenNeverCompletesAndIsNotExecutionCompleted() {
+    public void givenFlowWithNoSink_whenSupplyTo_thenTheEndOfItsLastStepIsCaptured() {
         FlowDefinition flow = Pipelite.defineFlow("no-sink-flow")
             .fromSource("queue://no-sink-in")
             .process("step", (io, c) -> io.setOutputPayload("processed"))
             .build();
 
-        given(flowDefinition(flow), timeout(1), inputPayload("x"))
+        given(flowDefinition(flow), inputPayload("x"))
             .when(supplyTo("queue://no-sink-in"))
+            .then(isExecutionCompleted(), payloadEquals("processed"));
+    }
+
+    @Test
+    public void givenFlowWithNoSinkWhoseStepStopsTheExecution_whenSupplyTo_thenNothingIsCaptured() {
+        FlowDefinition flow = Pipelite.defineFlow("filtered-no-sink-flow")
+            .fromSource("queue://filtered-in")
+            .filter("only-yes", "Headers['pass'] == 'yes'")
+            .process("step", (io, c) -> io.setOutputPayload("processed"))
+            .build();
+
+        given(flowDefinition(flow), timeout(1), header("pass", "no"), inputPayload("x"))
+            .when(supplyTo("queue://filtered-in"))
             .then(isNotExecutionCompleted());
+    }
+
+    @Test
+    public void givenChainedFlowsWhoseLastHasNoSink_whenSupplyTo_thenTheEndOfTheLastFlowIsCaptured() {
+        FlowDefinition first = Pipelite.defineFlow("first-flow")
+            .fromSource("queue://first-in")
+            .process("step-a", (io, c) -> io.setOutputPayload("from-first"))
+            .toSink("queue://second-in")
+            .build();
+        FlowDefinition second = Pipelite.defineFlow("second-flow")
+            .fromSource("queue://second-in")
+            .process("step-b", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(String.class) + "+second"))
+            .build();
+
+        given(flowDefinition(first), flowDefinition(second), inputPayload("x"))
+            .when(supplyTo("queue://first-in"))
+            .then(isExecutionCompleted(), payloadEquals("from-first+second"));
+    }
+
+    /**
+     * A flow whose own exit is a {@code toRoute(...)} has no end to capture: the exchange goes on
+     * to another flow, and that one is where it ends.
+     */
+    @Test
+    public void givenAFlowEndingInARouteToFlowsWithNoSink_whenSupplyTo_thenTheEndOfTheChosenFlowIsCaptured() {
+        FlowDefinition router = Pipelite.defineFlow("router-flow")
+            .fromSource("queue://router-in")
+            .process("mark", (io, c) -> io.setOutputPayload("routed"))
+            .toRoute(routes -> routes.dynamic()
+                .when("Headers['route'] == 'b'").then("queue://route-b-in")
+                .otherwise("queue://route-a-in")
+                .end())
+            .build();
+        FlowDefinition routeA = Pipelite.defineFlow("route-a-flow")
+            .fromSource("queue://route-a-in")
+            .process("a", (io, c) -> io.setOutputPayload("from-a"))
+            .build();
+        FlowDefinition routeB = Pipelite.defineFlow("route-b-flow")
+            .fromSource("queue://route-b-in")
+            .process("b", (io, c) -> io.setOutputPayload("from-b"))
+            .build();
+
+        given(flowDefinition(router), flowDefinition(routeA), flowDefinition(routeB), header("route", "b"), inputPayload("x"))
+            .when(supplyTo("queue://router-in"))
+            .then(isExecutionCompleted(), payloadEquals("from-b"));
     }
 
     // -------------------------------------------------------------------------
@@ -583,12 +617,10 @@ public class PipeliteTestFixtureFlowTest {
     public void givenTwoFlowDefinitionsWithSameName_whenSupplyTo_thenThrowsDuplicateFlowDefinitionException() {
         FlowDefinition flowOne = Pipelite.defineFlow("duplicate-name-flow")
             .fromSource("queue://dup-in-1")
-            .toSink("dup-out-1")
             .build();
 
         FlowDefinition flowTwo = Pipelite.defineFlow("duplicate-name-flow")
             .fromSource("queue://dup-in-2")
-            .toSink("dup-out-2")
             .build();
 
         given(
@@ -607,13 +639,11 @@ public class PipeliteTestFixtureFlowTest {
         FlowDefinition flowOne = Pipelite.defineFlow("concurrent-flow-1")
             .fromSource("queue://concurrent-in-1")
             .process("tag", (io, c) -> io.setOutputPayload("one-" + io.getInputPayloadAs(String.class)))
-            .toSink("concurrent-out-1")
             .build();
 
         FlowDefinition flowTwo = Pipelite.defineFlow("concurrent-flow-2")
             .fromSource("queue://concurrent-in-2")
             .process("tag", (io, c) -> io.setOutputPayload("two-" + io.getInputPayloadAs(String.class)))
-            .toSink("concurrent-out-2")
             .build();
 
         ExecutorService executor = Executors.newFixedThreadPool(2);

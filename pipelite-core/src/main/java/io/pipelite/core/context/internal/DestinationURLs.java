@@ -34,6 +34,8 @@ import io.pipelite.spi.channel.ChannelURL;
  */
 public final class DestinationURLs {
 
+    private static final String PLACEHOLDER_START = "${";
+
     private DestinationURLs() {
     }
 
@@ -73,6 +75,38 @@ public final class DestinationURLs {
                 destinationURL, ChannelProtocols.queueURL(destinationURL), destinationURL));
         }
         return channelURL;
+    }
+
+    /**
+     * For the URL of a {@code toSink(...)} written in the DSL (issue #112). A sink always has a
+     * protocol: without one it used to be a producer that delivered nowhere, the same as no sink at
+     * all. A value with a {@code ${...}} placeholder is resolved, and checked, when the endpoint is
+     * created ({@link #requireSinkProtocol}).
+     *
+     * @return the sink, unchanged
+     * @throws IllegalArgumentException if the value is not a URL
+     */
+    public static String requireSink(String sink) {
+        if (sink == null || sink.contains(PLACEHOLDER_START)) {
+            return sink;
+        }
+        requireSinkProtocol(sink);
+        return sink;
+    }
+
+    /**
+     * For a sink whose placeholders are already resolved.
+     *
+     * @throws IllegalArgumentException if the value is not a URL
+     */
+    public static void requireSinkProtocol(String resolvedSink) {
+        if (!hasProtocol(resolvedSink)) {
+            throw new IllegalArgumentException(String.format(
+                "toSink(\"%s\"): '%s' is not a URL - a sink always has a protocol. Write the URL of a channel adapter " +
+                    "(kafka://, http://, slf4j://, ...), '%s' to hand the exchange to the flow that reads the queue '%s', " +
+                    "or leave toSink(...) out to end the flow",
+                resolvedSink, resolvedSink, ChannelProtocols.queueURL(resolvedSink), resolvedSink));
+        }
     }
 
     private static boolean hasProtocol(String destination) {

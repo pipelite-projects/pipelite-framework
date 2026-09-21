@@ -39,7 +39,6 @@ public class PipeliteTestFixtureFlowConfigurationTest {
                 .fromSource("queue://words-in")
                 .process("uppercase", (io, c) ->
                     io.setOutputPayload(io.getInputPayloadAs(String.class).toUpperCase()))
-                .toSink("words-out")
                 .build();
         }
     }
@@ -83,7 +82,6 @@ public class PipeliteTestFixtureFlowConfigurationTest {
                 .fromSource("queue://names-in")
                 .process("greet", (io, c) ->
                     io.setOutputPayload(greetingService.greet(io.getInputPayloadAs(String.class))))
-                .toSink("greetings-out")
                 .build();
         }
     }
@@ -131,7 +129,6 @@ public class PipeliteTestFixtureFlowConfigurationTest {
                 .fromSource("queue://enriched-in")
                 .process("enrich", (io, c) ->
                     io.setOutputPayload(greetingService.greet(io.getInputPayloadAs(String.class))))
-                .toSink("enriched-out")
                 .build();
         }
     }
@@ -156,7 +153,7 @@ public class PipeliteTestFixtureFlowConfigurationTest {
     static class NotAFlowConfiguration {
         @DefineFlow
         FlowDefinition someFlow() {
-            return Pipelite.defineFlow("ignored-flow").fromSource("queue://x").toSink("y").build();
+            return Pipelite.defineFlow("ignored-flow").fromSource("queue://x").build();
         }
     }
 

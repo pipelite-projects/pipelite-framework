@@ -21,9 +21,27 @@ given(
     .when(supplyTo("queue://orders-in"))
     .then(isExecutionCompleted(), payloadEquals(expectedOrder));
 ----
-<1> Real sinks (Kafka, HTTP, a linked flow, …) are transparently redirected to an internal capture endpoint for the duration of the test. The Kafka adapter is never actually instantiated.
+<1> Real sinks (Kafka, HTTP, …) are transparently redirected to an internal capture endpoint for the duration of the test. The Kafka adapter is never actually instantiated. A `queue://` sink, a hop to another flow, is left as it is.
 
 `flowDefinition(...)` registers the flow(s) under test; `supplyTo(entryPointURL)`, the URL the entry flow declares in `fromSource(...)` (a bare name is rejected), runs the whole pipeline and returns once the exchange has arrived at the sink (or the timeout elapses).
+
+== Flows with no sink
+
+A flow does not need a sink. When it has none, the fixture captures the exchange at the end of its last step, so there is no need for a stand-in `toSink(...)` just to have something to assert on:
+
+[source,java]
+----
+FlowDefinition flow = Pipelite.defineFlow("normalize-flow")
+    .fromSource("queue://raw-in")
+    .process("normalize", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(String.class).trim()))
+    .build();
+
+given(flowDefinition(flow), inputPayload("  hello "))
+    .when(supplyTo("queue://raw-in"))
+    .then(isExecutionCompleted(), payloadEquals("hello"));
+----
+
+In a chain of flows the exchange is captured where the last one ends.
 
 == Flows that don't reach the sink
 
@@ -80,7 +98,6 @@ FlowDefinition flowB = Pipelite.defineFlow("flow-b")
     .fromSource("queue://next-entry")
     .process("step-b", (io, c) -> io.setOutputPayload(
         io.getInputPayloadAs(String.class) + "-enriched"))
-    .toSink("out")
     .build();
 
 given(
@@ -109,7 +126,6 @@ class OrderFlowConfiguration {
         return Pipelite.defineFlow("order-flow")
             .fromSource("queue://orders-in")
             .process("process", (io, c) -> orderService.process(io.getInputPayloadAs(Order.class)))
-            .toSink("orders-out")
             .build();
     }
 }
