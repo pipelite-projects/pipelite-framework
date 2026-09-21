@@ -27,7 +27,7 @@ import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.endpoint.EventDrivenConsumerService;
 import io.pipelite.spi.flow.AbstractFlowNode;
 import io.pipelite.spi.flow.Flow;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -106,7 +106,7 @@ class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContex
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
 
         final SerializedFlowExecutionDump executionDump = exchange.getInputPayloadAs(SerializedFlowExecutionDump.class);
         final String dumpId = executionDump.getId();
@@ -126,7 +126,7 @@ class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContex
         final String exchangeData = executionDump.getExchangeData();
         final byte[] exchangeContent = BaseEncoding.base64().decode(exchangeData);
 
-        final Exchange recoveredExchange = converter.convert(exchangeContent, Exchange.class);
+        final ExchangeImpl recoveredExchange = converter.convert(exchangeContent, ExchangeImpl.class);
         recoveredExchange.setProperty(IOKeys.FLOW_EXECUTION_ATTEMPT_NUMBER_PROPERTY_NAME, executionDump.getAttemptNumber());
         recoveredExchange.setProperty(IOKeys.FLOW_EXECUTION_LAST_EXECUTED_PROCESSOR_PROPERTY_NAME, executionDump.getLastExecutedProcessor());
 
@@ -178,7 +178,7 @@ class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContex
      * onComplete} for anything outcome-dependent (e.g. removing a retry-channel dump, see #58)
      * must not assume synchronous completion just because this method itself already returned.
      */
-    private static void dispatch(Flow flow, FlowNode target, Exchange exchange, Runnable onComplete) {
+    private static void dispatch(Flow flow, FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
         if (flow.isConsumerOfType(EventDrivenConsumerService.class)) {
             flow.getConsumerAs(EventDrivenConsumerService.class).dispatchToNode(target, exchange, onComplete);
         } else {

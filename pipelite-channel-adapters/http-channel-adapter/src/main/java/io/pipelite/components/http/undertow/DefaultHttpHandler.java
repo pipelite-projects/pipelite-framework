@@ -18,7 +18,7 @@ package io.pipelite.components.http.undertow;
 import io.pipelite.components.http.HttpChannelAdapter;
 import io.pipelite.components.http.HttpConstants;
 import io.pipelite.spi.endpoint.Consumer;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.undertow.server.BlockingHttpExchange;
@@ -74,7 +74,7 @@ public class DefaultHttpHandler implements HttpHandler, ExchangeFactoryAware {
                     .lines()
                     .collect(Collectors.joining("\n"));
 
-                final Exchange exchange = exchangeFactory.createExchange(requestBodyAsText);
+                final ExchangeImpl exchange = exchangeFactory.createExchange(requestBodyAsText);
                 consumer.consume(exchange);
                 httpServerExchange.setStatusCode(201);
             }

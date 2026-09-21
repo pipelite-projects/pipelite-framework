@@ -18,7 +18,7 @@ package io.pipelite.spi.endpoint;
 import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.concurrent.QueuePressureGate;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.inbox.DurableInbox;
 import io.pipelite.spi.inbox.NoOpDurableInbox;
 
@@ -47,7 +47,7 @@ public non-sealed class DefaultPollingConsumer extends AbstractConsumer implemen
 
     private final Object LOCK = new Object();
 
-    protected final BlockingQueue<Exchange> queue;
+    protected final BlockingQueue<ExchangeImpl> queue;
 
     private final QueuePressureGate pressureGate;
 
@@ -69,9 +69,9 @@ public non-sealed class DefaultPollingConsumer extends AbstractConsumer implemen
     }
 
     @Override
-    public Exchange receive() {
+    public ExchangeImpl receive() {
         synchronized (LOCK){
-            final Exchange exchange = queue.poll();
+            final ExchangeImpl exchange = queue.poll();
             if (exchange != null) {
                 pressureGate.afterDequeue(queue::size);
             }
@@ -80,10 +80,10 @@ public non-sealed class DefaultPollingConsumer extends AbstractConsumer implemen
     }
 
     @Override
-    public Exchange receive(long timeout) {
+    public ExchangeImpl receive(long timeout) {
         synchronized (LOCK) {
             try {
-                final Exchange exchange = queue.poll(timeout, TimeUnit.MILLISECONDS);
+                final ExchangeImpl exchange = queue.poll(timeout, TimeUnit.MILLISECONDS);
                 if (exchange != null) {
                     pressureGate.afterDequeue(queue::size);
                 }
@@ -96,7 +96,7 @@ public non-sealed class DefaultPollingConsumer extends AbstractConsumer implemen
     }
 
     @Override
-    public Exchange receiveNoWait() {
+    public ExchangeImpl receiveNoWait() {
         return receive(0);
     }
 
@@ -106,7 +106,7 @@ public non-sealed class DefaultPollingConsumer extends AbstractConsumer implemen
     }
 
     @Override
-    public void consume(Exchange exchange) {
+    public void consume(ExchangeImpl exchange) {
         // Deliberately outside the synchronized(LOCK) block below: blocking here while holding
         // LOCK would deadlock against receive()/receive(timeout), which need that same lock to
         // dequeue and release pressure via afterDequeue(...).
@@ -158,7 +158,7 @@ public non-sealed class DefaultPollingConsumer extends AbstractConsumer implemen
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
         if(next != null){
             // Captured BEFORE dispatch, not read back off `exchange` after (issue #70) - same
             // reasoning as EventDrivenConsumer#dispatchToNext: a downstream node can hand this

@@ -123,7 +123,7 @@ Require the processor's outcome; using them after `supplyTo(...)` fails with a c
 
 === Custom expectations
 
-Any lambda matching `(Exchange exchange, TestProcessContribution contribution) -> void` is a valid `Expectation`; throw `AssertionError` yourself to signal failure:
+Any lambda matching `(ExchangeImpl exchange, TestProcessContribution contribution) -> void` is a valid `Expectation`; throw `AssertionError` yourself to signal failure:
 
 [source,java]
 ----

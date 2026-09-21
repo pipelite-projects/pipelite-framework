@@ -18,11 +18,11 @@ package io.pipelite.core.flow.execution.retry.internal;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ProcessContribution;
 import io.pipelite.dsl.process.Processor;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 /**
  * Resolves the {@link FlowExecutionDump} a retry-channel exchange carries (or, failing that,
@@ -49,21 +49,21 @@ class ResolveExecutionDumpProcessor implements Processor {
     }
 
     @Override
-    public void process(IOContext ioContext, ProcessContribution contribution) {
+    public void process(Exchange exchange, ProcessContribution contribution) {
 
-        final Exchange exchange = (Exchange)ioContext;
+        final ExchangeImpl exchangeImpl = (ExchangeImpl)exchange;
 
-        final FlowExecutionDump flowExecutionDump = exchange.getInputPayloadAs(FlowExecutionDump.class);
+        final FlowExecutionDump flowExecutionDump = exchangeImpl.getInputPayloadAs(FlowExecutionDump.class);
 
         if(flowExecutionDump == null){
 
-            final String executionDumpId = exchange.getProperty(IOKeys.FLOW_EXECUTION_DUMP_ID_PROPERTY_NAME, String.class);
+            final String executionDumpId = exchangeImpl.getProperty(IOKeys.FLOW_EXECUTION_DUMP_ID_PROPERTY_NAME, String.class);
             Preconditions.notNull(executionDumpId, String.format("Exchange property %s is required and cannot be null",
                 IOKeys.FLOW_EXECUTION_DUMP_ID_PROPERTY_NAME));
 
             final FlowExecutionDump loaded = dumpRepository.tryLoad(executionDumpId)
                 .orElseThrow(() -> new IllegalStateException(String.format("Unrecognized flow-execution-dump id '%s'", executionDumpId)));
-            ioContext.setOutputPayload(loaded);
+            exchange.setOutputPayload(loaded);
 
         }
 

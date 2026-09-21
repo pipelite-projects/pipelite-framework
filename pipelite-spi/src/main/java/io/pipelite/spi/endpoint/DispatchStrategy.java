@@ -15,7 +15,7 @@
  */
 package io.pipelite.spi.endpoint;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.FlowNode;
 
 /**
@@ -73,5 +73,5 @@ interface DispatchStrategy {
      * thread for {@link InlineDispatchStrategy} — never if {@code target} is never actually
      * attempted (e.g. the dispatching thread is interrupted before submission runs).
      */
-    void dispatch(FlowNode target, Exchange exchange, Runnable onComplete);
+    void dispatch(FlowNode target, ExchangeImpl exchange, Runnable onComplete);
 }

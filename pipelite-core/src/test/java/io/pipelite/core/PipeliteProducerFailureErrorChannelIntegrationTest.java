@@ -34,7 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Regression coverage for issue #89: a producer's (a flow's {@code .toSink(...)}) own failure
  * previously bypassed every configured {@code ExceptionHandler} entirely - no retry, no dead
  * letter - because no concrete {@code Producer} ever consulted {@code exceptionHandler}. Fixed by
- * making {@code DefaultProducer#process(Exchange)} final, wrapping the same try/catch shape
+ * making {@code DefaultProducer#process(ExchangeImpl)} final, wrapping the same try/catch shape
  * {@code AbstractProcessorNode} already had around a new {@code doProcess(Exchange)} hook every
  * concrete producer now implements instead.
  */

@@ -15,21 +15,22 @@
  */
 package io.pipelite.dsl.process;
 
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 
 /**
  * Relocated from {@code io.pipelite.spi.flow.ExceptionHandler} (issue #91) so it can be
  * referenced from the DSL's fluent builder (e.g. {@code BuildOperations#withExceptionHandler}) —
  * {@code pipelite-dsl} cannot depend on {@code pipelite-spi} (module dependency direction is
  * {@code pipelite-common} &lt;- {@code pipelite-dsl} &lt;- {@code pipelite-spi} &lt;-
- * {@code pipelite-core}, never the reverse). Keyed to {@link IOContext} instead of the SPI-level
- * {@code Exchange} - the same bridge {@link Processor#process(IOContext, ProcessContribution)}
- * already relies on, since {@code Exchange implements IOContext}. One interface, reused
+ * {@code pipelite-core}, never the reverse). Keyed to {@link Exchange} instead of the SPI-level
+ * {@code ExchangeImpl} - the same bridge {@link Processor#process(Exchange, ProcessContribution)}
+ * already relies on, since {@code ExchangeImpl implements Exchange}. One interface, reused
  * everywhere: every SPI-level call site already invokes {@code handleException(exception,
- * exchange)} with a real {@code Exchange}, which upcasts to {@code IOContext} with no conversion.
+ * exchange)} with a real {@code ExchangeImpl}, which upcasts to {@code Exchange} with no
+ * conversion.
  */
 public interface ExceptionHandler {
 
-    void handleException(Throwable exception, IOContext ioContext);
+    void handleException(Throwable exception, Exchange exchange);
 
 }

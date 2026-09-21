@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.flow.split;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 import java.util.List;
 import java.util.Objects;
@@ -37,8 +37,8 @@ public class UseOriginalAggregator implements Aggregator {
     }
 
     @Override
-    public Exchange aggregate(String id, List<Object> results) {
-        final Exchange original = repository.tryLoad(id)
+    public ExchangeImpl aggregate(String id, List<Object> results) {
+        final ExchangeImpl original = repository.tryLoad(id)
             .orElseThrow(() -> new IllegalStateException(
                 String.format("No original Exchange found in AggregateRepository for id '%s'", id)));
         original.setOutputPayload(results);

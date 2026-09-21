@@ -15,12 +15,12 @@
  */
 package io.pipelite.spi.endpoint;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 public interface PollingConsumer extends Consumer {
 
-    Exchange receive();
-    Exchange receive(long timeout);
-    Exchange receiveNoWait();
+    ExchangeImpl receive();
+    ExchangeImpl receive(long timeout);
+    ExchangeImpl receiveNoWait();
 
 }

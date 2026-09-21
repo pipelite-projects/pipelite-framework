@@ -20,7 +20,7 @@ import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.dsl.route.RoutingSlip;
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.AbstractFlowNode;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +59,7 @@ class RoutingSlipGateNode extends AbstractFlowNode implements PipeliteContextAwa
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
 
         final Optional<RoutingSlip> slip = exchange.tryGetRoutingSlip().filter(RoutingSlip::hasNext);
         if (slip.isPresent()) {
@@ -93,7 +93,7 @@ class RoutingSlipGateNode extends AbstractFlowNode implements PipeliteContextAwa
      * attempt, so that resumed attempt finds the same route (or return address) again instead of
      * silently skipping it.
      */
-    private void deliver(String target, Exchange exchange, Runnable undo) {
+    private void deliver(String target, ExchangeImpl exchange, Runnable undo) {
         try {
             pipeliteContext.supplyExchange(target, exchange);
         } catch (RuntimeException exception) {

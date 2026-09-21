@@ -23,7 +23,7 @@ import io.pipelite.core.flow.expression.TextExpressionEvaluator;
 import io.pipelite.dsl.route.RecipientList;
 import io.pipelite.dsl.route.RoutingTable;
 import io.pipelite.spi.flow.AbstractFlowNode;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 import java.util.Map;
 import java.util.Objects;
@@ -47,7 +47,7 @@ class RouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowE
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
 
         final Optional<RecipientList> routeHolder = routingTable.resolveRoute(exchange);
 

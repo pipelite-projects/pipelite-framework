@@ -16,7 +16,7 @@
 package io.pipelite.core.flow.route;
 
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.route.ExpressionCondition;
 import io.pipelite.dsl.route.Condition;
 import io.pipelite.dsl.route.ConditionEvaluator;
@@ -41,7 +41,7 @@ public class ExpressionConditionEvaluator implements ConditionEvaluator {
     }
 
     @Override
-    public boolean evaluate(Condition condition, IOContext ioContext) {
+    public boolean evaluate(Condition condition, Exchange exchange) {
 
         Preconditions.notNull(condition, "routeCondition is required and cannot be null");
         Preconditions.state(condition instanceof ExpressionCondition, "routeCondition is not an instance of ExpressionRouteCondition");
@@ -49,10 +49,10 @@ public class ExpressionConditionEvaluator implements ConditionEvaluator {
         final ExpressionCondition expressionCondition = (ExpressionCondition) condition;
         Preconditions.hasText(expressionCondition.getExpression(), "routeCondition.expression must have text");
 
-        if(ioContext.getInputPayload() != null){
-            expressionParser.putVariable(PAYLOAD_VARIABLE_NAME, ioContext.getInputPayload());
+        if(exchange.getInputPayload() != null){
+            expressionParser.putVariable(PAYLOAD_VARIABLE_NAME, exchange.getInputPayload());
         }
-        expressionParser.putVariable(HEADERS_VARIABLE_NAME, ioContext.getHeaders());
+        expressionParser.putVariable(HEADERS_VARIABLE_NAME, exchange.getHeaders());
 
         try{
             return expressionParser.evaluateAs(expressionCondition.getExpression(), Boolean.class);

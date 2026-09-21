@@ -58,7 +58,7 @@ import io.pipelite.spi.flow.Flow;
 import io.pipelite.spi.flow.concurrent.DefaultThreadFactory;
 import io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.MessageFactory;
 import io.pipelite.spi.inbox.DurableInbox;
@@ -432,7 +432,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     }
 
     @Override
-    public void supplyExchange(String destinationURL, Exchange exchange) {
+    public void supplyExchange(String destinationURL, ExchangeImpl exchange) {
 
         final ChannelURL channelURL = ChannelURL.parse(destinationURL);
         if(channelURL.hasProtocol()){
@@ -555,9 +555,9 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
             // other entry in this flow, let alone every other flow (an unhandled exception here
             // would otherwise propagate out of registerFlows() and prevent the whole context from
             // starting at all, over a single message).
-            final Exchange exchange;
+            final ExchangeImpl exchange;
             try {
-                exchange = inboxPayloadToExchangeConverter.convert(entry.getPayload(), Exchange.class);
+                exchange = inboxPayloadToExchangeConverter.convert(entry.getPayload(), ExchangeImpl.class);
             } catch (RuntimeException conversionFailure) {
                 deadLetterAndAcknowledge(resourceKey, durableInbox, entry, conversionFailure, flow.getName());
                 continue;

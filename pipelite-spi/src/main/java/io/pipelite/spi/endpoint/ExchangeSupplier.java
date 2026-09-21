@@ -15,9 +15,9 @@
  */
 package io.pipelite.spi.endpoint;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import java.util.function.Supplier;
 
-public interface ExchangeSupplier extends Supplier<Exchange> {
+public interface ExchangeSupplier extends Supplier<ExchangeImpl> {
 
 }

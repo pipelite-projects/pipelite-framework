@@ -41,8 +41,8 @@ import java.util.regex.Pattern;
  * retry dump serializes the whole exchange. Consumed as it is followed: routes already visited
  * are gone, so a resumed exchange continues from where it stopped.
  * <p>
- * Not part of the public API for now: {@code IOContext#setRoutingSlip} is disabled (issue #86), so
- * a processor cannot attach one; only {@code Exchange#setRoutingSlip} still can. What is described
+ * Not part of the public API for now: {@code Exchange#setRoutingSlip} is disabled (issue #86), so
+ * a processor cannot attach one; only {@code ExchangeImpl#setRoutingSlip} still can. What is described
  * here is implemented and tested, and is what the feature will look like when it is enabled again.
  */
 public class RoutingSlip implements Serializable {

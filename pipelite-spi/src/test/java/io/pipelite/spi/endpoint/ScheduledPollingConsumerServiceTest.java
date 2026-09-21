@@ -15,7 +15,7 @@
  */
 package io.pipelite.spi.endpoint;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.Message;
 import io.pipelite.spi.flow.exchange.SimpleMessage;
 import org.awaitility.Awaitility;
@@ -48,10 +48,10 @@ public class ScheduledPollingConsumerServiceTest {
         }
     }
 
-    private static Exchange anExchange() {
+    private static ExchangeImpl anExchange() {
         final Message message = new SimpleMessage("id");
         message.setPayload("payload");
-        return new Exchange(message);
+        return new ExchangeImpl(message);
     }
 
     /**
@@ -69,7 +69,7 @@ public class ScheduledPollingConsumerServiceTest {
         }
 
         @Override
-        public Exchange receive() {
+        public ExchangeImpl receive() {
             if (receiveCallCount.incrementAndGet() == 1) {
                 throw new RuntimeException("simulated transient receive() failure");
             }
@@ -77,7 +77,7 @@ public class ScheduledPollingConsumerServiceTest {
         }
 
         @Override
-        public void process(Exchange exchange) {
+        public void process(ExchangeImpl exchange) {
             processedCount.incrementAndGet();
         }
     }

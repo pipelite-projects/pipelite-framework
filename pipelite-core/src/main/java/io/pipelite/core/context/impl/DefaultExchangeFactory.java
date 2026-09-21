@@ -16,7 +16,7 @@
 package io.pipelite.core.context.impl;
 
 import io.pipelite.dsl.Headers;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.HeadersImpl;
 import io.pipelite.spi.flow.exchange.Message;
@@ -35,37 +35,37 @@ public class DefaultExchangeFactory implements ExchangeFactory {
     }
 
     @Override
-    public Exchange createExchange() {
+    public ExchangeImpl createExchange() {
         return createExchange(null, null);
     }
 
     @Override
-    public Exchange createExchange(Headers headers) {
+    public ExchangeImpl createExchange(Headers headers) {
         return createExchange(headers, null);
     }
 
     @Override
-    public Exchange createExchange(Object inputPayload) {
+    public ExchangeImpl createExchange(Object inputPayload) {
         return createExchange(null, inputPayload);
     }
 
     @Override
-    public Exchange createExchange(Headers headers, Object inputPayload) {
+    public ExchangeImpl createExchange(Headers headers, Object inputPayload) {
         final Message inputMessage = messageFactory.createMessage();
         inputMessage.setPayload(inputPayload);
-        final Exchange exchange = new Exchange(inputMessage, headers);
+        final ExchangeImpl exchange = new ExchangeImpl(inputMessage, headers);
         exchange.setOutput(messageFactory.createMessage());
         return exchange;
     }
 
     @Override
-    public Exchange copyExchange(Exchange current) {
+    public ExchangeImpl copyExchange(ExchangeImpl current) {
 
         final Message inputMessage = current.getInput();
         final Message messageCopy = messageFactory.copyMessage(inputMessage);
         final Headers headersCopy = new HeadersImpl((HeadersImpl) current.getHeaders());
 
-        final Exchange copy = new Exchange(messageCopy, headersCopy);
+        final ExchangeImpl copy = new ExchangeImpl(messageCopy, headersCopy);
         copyProperties(current, copy);
         final Message outputCopy = current.getOutput() != null
             ? messageFactory.copyMessage(current.getOutput())
@@ -76,7 +76,7 @@ public class DefaultExchangeFactory implements ExchangeFactory {
     }
 
     @Override
-    public Exchange nextExchange(Exchange current) {
+    public ExchangeImpl nextExchange(ExchangeImpl current) {
         // An exchange built by hand (new Exchange(input)) has no output message yet. It used to
         // only matter for a flow with a sink; every flow's last step now also moves on to the
         // end-of-flow routing slip gate (issue #86), so it has to cope with it.
@@ -85,13 +85,13 @@ public class DefaultExchangeFactory implements ExchangeFactory {
         }
         current.forwardIfNecessary();
         final Headers headersCopy = new HeadersImpl((HeadersImpl) current.getHeaders());
-        final Exchange exchange = new Exchange(current.getOutput(), headersCopy);
+        final ExchangeImpl exchange = new ExchangeImpl(current.getOutput(), headersCopy);
         exchange.setOutput(messageFactory.createMessage());
         copyProperties(current, exchange);
         return exchange;
     }
 
-    private static void copyProperties(Exchange source, Exchange destination){
+    private static void copyProperties(ExchangeImpl source, ExchangeImpl destination){
         source.propertySet().forEach(property -> {
             destination.setProperty(property.getKey(), property.getValue());
         });

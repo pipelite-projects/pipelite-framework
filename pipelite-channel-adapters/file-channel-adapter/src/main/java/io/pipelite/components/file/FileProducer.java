@@ -19,7 +19,7 @@ import io.pipelite.spi.endpoint.DefaultProducer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointProperties;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,7 +50,7 @@ public class FileProducer extends DefaultProducer {
     }
 
     @Override
-    public void doProcess(Exchange exchange) {
+    public void doProcess(ExchangeImpl exchange) {
 
         final StandardOpenOption[] options = append
             ? new StandardOpenOption[]{StandardOpenOption.CREATE, StandardOpenOption.APPEND}

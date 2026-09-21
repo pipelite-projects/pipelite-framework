@@ -20,10 +20,10 @@ import io.pipelite.core.definition.builder.retry.RetryBuilder;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpFactory;
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,17 +91,17 @@ public class RetryChannelExceptionHandler implements ExceptionHandler {
     }
 
     @Override
-    public void handleException(Throwable failureException, IOContext ioContext) {
+    public void handleException(Throwable failureException, Exchange exchange) {
 
         Preconditions.notNull(executionDumpFactory, "executionDumpFactory is required and cannot be null");
         Preconditions.notNull(dumpRepository, "dumpRepository is required and cannot be null");
 
         // Downcast is safe here: this handler is only ever wired by FlowDefinitionBuilder for
         // internal use and always invoked with a real Exchange (see issue #91).
-        final Exchange exchange = (Exchange) ioContext;
+        final ExchangeImpl exchangeImpl = (ExchangeImpl) exchange;
 
-        exchange.putHeader(IOKeys.FAILURE_EXCEPTION_TYPE_HEADER_NAME, failureException.getClass());
-        exchange.putHeader(IOKeys.FAILURE_EXCEPTION_MESSAGE_HEADER_NAME, failureException.getMessage());
+        exchangeImpl.putHeader(IOKeys.FAILURE_EXCEPTION_TYPE_HEADER_NAME, failureException.getClass());
+        exchangeImpl.putHeader(IOKeys.FAILURE_EXCEPTION_MESSAGE_HEADER_NAME, failureException.getMessage());
 
         // executionDumpFactory.create(...) already reads FLOW_EXECUTION_ATTEMPT_NUMBER_PROPERTY_NAME
         // off the exchange and sets attemptNumber+1 on the dump it returns — a previous version of
@@ -109,14 +109,14 @@ public class RetryChannelExceptionHandler implements ExceptionHandler {
         // executionDump.setAttemptNumber(attemptNumber) here, silently overwriting the correct
         // increment. That bug meant attemptNumber never actually advanced across retries, so
         // RetryStrategyFilter's cap never triggered. Fixed by not re-setting it.
-        final FlowExecutionDump executionDump = executionDumpFactory.create(failureException, exchange);
+        final FlowExecutionDump executionDump = executionDumpFactory.create(failureException, exchangeImpl);
         executionDump.setStackTrace(formatStackTrace(failureException));
         executionDump.setMaxAttempts(maxAttempts);
         executionDump.setExhaustionAction(exhaustionAction);
         executionDump.setDeadLetterFlowName(deadLetterFlowName);
 
         final String executionDumpId = executionDump.getId();
-        exchange.setProperty(IOKeys.FLOW_EXECUTION_DUMP_ID_PROPERTY_NAME, executionDumpId);
+        exchangeImpl.setProperty(IOKeys.FLOW_EXECUTION_DUMP_ID_PROPERTY_NAME, executionDumpId);
 
         dumpRepository.save(executionDump);
 

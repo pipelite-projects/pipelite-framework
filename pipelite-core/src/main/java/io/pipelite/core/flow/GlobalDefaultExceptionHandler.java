@@ -15,10 +15,10 @@
  */
 package io.pipelite.core.flow;
 
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,19 +52,19 @@ public class GlobalDefaultExceptionHandler implements ExceptionHandler {
     }
 
     @Override
-    public void handleException(Throwable exception, IOContext ioContext) {
+    public void handleException(Throwable exception, Exchange exchange) {
         // Downcast is safe here: this handler is only ever wired by FlowDefinitionBuilder for
         // internal use and always invoked with a real Exchange (see issue #91).
-        final Exchange exchange = (Exchange) ioContext;
+        final ExchangeImpl exchangeImpl = (ExchangeImpl) exchange;
         if (sysLogger.isErrorEnabled()) {
             // Only ever set by AbstractProcessorNode/SplitterNode - absent for a failure at the
             // consumer's own enqueue step (see this class's own Javadoc), the one case where no
             // single processor is "the" failing step.
-            final String failedProcessor = exchange.getProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, String.class);
+            final String failedProcessor = exchangeImpl.getProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, String.class);
             final String failedAt = failedProcessor != null ? String.format("processor '%s'", failedProcessor) : "the consumer";
             sysLogger.error("Exchange '{}' discarded after an unhandled exception in {} - " +
                     "no retry channel or error channel is configured for this flow, so no recovery was attempted",
-                exchange.getInput().getId(), failedAt, exception);
+                exchangeImpl.getInput().getId(), failedAt, exception);
         }
     }
 

@@ -18,7 +18,7 @@ package io.pipelite.components.time;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.spi.endpoint.DefaultPollingConsumer;
 import io.pipelite.spi.endpoint.Endpoint;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 
@@ -33,12 +33,12 @@ public class TimePollingConsumer extends DefaultPollingConsumer implements Excha
     }
 
     @Override
-    public Exchange receive() {
+    public ExchangeImpl receive() {
         return receive(0);
     }
 
     @Override
-    public Exchange receive(long timeout) {
+    public ExchangeImpl receive(long timeout) {
         Preconditions.notNull(exchangeFactory, "ExchangeFactory is required and cannot be null");
         return exchangeFactory.createExchange(LocalDateTime.now());
     }

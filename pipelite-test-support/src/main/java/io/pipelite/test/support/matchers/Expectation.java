@@ -15,7 +15,7 @@
  */
 package io.pipelite.test.support.matchers;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.test.TestProcessContribution;
 import io.pipelite.test.ThenOperations;
 
@@ -31,5 +31,5 @@ import io.pipelite.test.ThenOperations;
 @FunctionalInterface
 public interface Expectation {
 
-    void verify(Exchange exchange, TestProcessContribution contribution);
+    void verify(ExchangeImpl exchange, TestProcessContribution contribution);
 }

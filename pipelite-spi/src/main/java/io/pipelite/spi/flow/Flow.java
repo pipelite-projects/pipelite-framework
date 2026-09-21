@@ -17,7 +17,7 @@ package io.pipelite.spi.flow;
 
 import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.Endpoint;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 import java.util.Objects;
 
@@ -47,7 +47,7 @@ public class Flow {
         return sourceEndpoint;
     }
 
-    public void supply(Exchange exchange){
+    public void supply(ExchangeImpl exchange){
         consumer.consume(exchange);
     }
 

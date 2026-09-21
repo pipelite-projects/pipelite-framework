@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.flow.split;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 import java.util.List;
 
@@ -27,5 +27,5 @@ import java.util.List;
  */
 public interface Aggregator {
 
-    Exchange aggregate(String id, List<Object> results);
+    ExchangeImpl aggregate(String id, List<Object> results);
 }

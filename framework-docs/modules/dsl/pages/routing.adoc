@@ -40,7 +40,7 @@ To create custom conditions, implement the `Condition` interface:
 [source,java]
 ----
 public interface Condition {
-    boolean evaluate(IOContext exchange);
+    boolean evaluate(Exchange exchange);
 }
 ----
 

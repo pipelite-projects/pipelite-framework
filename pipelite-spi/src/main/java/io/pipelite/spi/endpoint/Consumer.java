@@ -16,13 +16,13 @@
 package io.pipelite.spi.endpoint;
 
 import io.pipelite.dsl.process.ExceptionHandler;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.FlowNode;
 
 public interface Consumer extends FlowNode {
 
     Endpoint getEndpoint();
-    void consume(Exchange exchange);
+    void consume(ExchangeImpl exchange);
     void setExceptionHandler(ExceptionHandler exceptionHandler);
     void tag(String tag);
 

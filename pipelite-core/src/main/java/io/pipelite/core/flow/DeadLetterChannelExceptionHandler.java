@@ -18,12 +18,12 @@ package io.pipelite.core.flow;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.channel.ChannelURL;
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.Flow;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,28 +62,28 @@ public class DeadLetterChannelExceptionHandler implements ExceptionHandler, Pipe
     }
 
     @Override
-    public void handleException(Throwable failureException, IOContext ioContext) {
+    public void handleException(Throwable failureException, Exchange exchange) {
 
         Preconditions.notNull(pipeliteContext, "pipeliteContext is required and cannot be null");
 
         // Downcast is safe here: this handler is only ever wired by FlowDefinitionBuilder for
         // internal use and always invoked with a real Exchange (see issue #91).
-        final Exchange exchange = (Exchange) ioContext;
+        final ExchangeImpl exchangeImpl = (ExchangeImpl) exchange;
 
-        exchange.putHeader(IOKeys.FAILURE_EXCEPTION_TYPE_HEADER_NAME, failureException.getClass());
-        exchange.putHeader(IOKeys.FAILURE_EXCEPTION_MESSAGE_HEADER_NAME, failureException.getMessage());
-        exchange.putHeader(IOKeys.FAILURE_STACK_TRACE_HEADER_NAME, formatStackTrace(failureException));
+        exchangeImpl.putHeader(IOKeys.FAILURE_EXCEPTION_TYPE_HEADER_NAME, failureException.getClass());
+        exchangeImpl.putHeader(IOKeys.FAILURE_EXCEPTION_MESSAGE_HEADER_NAME, failureException.getMessage());
+        exchangeImpl.putHeader(IOKeys.FAILURE_STACK_TRACE_HEADER_NAME, formatStackTrace(failureException));
 
         if (ChannelURL.parse(deadLetterTarget).hasProtocol()) {
             // Reuses PipeliteContext.supplyExchange(...)'s own protocol branch as-is - same
             // ChannelURL -> ChannelAdapter -> Endpoint -> Producer resolution, no Flow required.
-            pipeliteContext.supplyExchange(deadLetterTarget, exchange);
+            pipeliteContext.supplyExchange(deadLetterTarget, exchangeImpl);
             return;
         }
 
         final Optional<Flow> deadLetterFlow = pipeliteContext.tryFindFlowByName(deadLetterTarget);
         if(deadLetterFlow.isPresent()){
-            deadLetterFlow.get().supply(exchange);
+            deadLetterFlow.get().supply(exchangeImpl);
         } else if(sysLogger.isWarnEnabled()){
             sysLogger.warn("Dead letter flow '{}' is not registered, unable to route exchange", deadLetterTarget);
         }

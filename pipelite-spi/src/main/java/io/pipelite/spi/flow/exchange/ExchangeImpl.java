@@ -16,7 +16,7 @@
 package io.pipelite.spi.flow.exchange;
 
 import io.pipelite.dsl.Headers;
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.route.RoutingSlip;
 import io.pipelite.spi.context.IOKeys;
 
@@ -24,26 +24,26 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class Exchange implements IOContext, Serializable {
+public class ExchangeImpl implements Exchange, Serializable {
 
     private final Headers headers;
     private final Map<String, Object> properties;
     private final Message input;
     private Message output;
 
-    public Exchange(Message input) {
+    public ExchangeImpl(Message input) {
         this(input, null);
     }
 
-    public Exchange(Message input, Headers headers) {
+    public ExchangeImpl(Message input, Headers headers) {
         this(input, null, headers, null);
     }
 
-    public Exchange(Message input, Message output, Headers headers) {
+    public ExchangeImpl(Message input, Message output, Headers headers) {
         this(input, output, headers, null);
     }
 
-    public Exchange(Message input, Message output, Headers headers, Map<String, Object> properties) {
+    public ExchangeImpl(Message input, Message output, Headers headers, Map<String, Object> properties) {
         Objects.requireNonNull(input, "input is required and cannot be null.");
         this.input = input;
         this.output = output;
@@ -71,6 +71,7 @@ public class Exchange implements IOContext, Serializable {
         headers.putHeader(headerName, headerValue);
     }
 
+    @Override
     public void removeHeader(String headerName){
         headers.removeHeader(headerName);
     }
@@ -167,7 +168,7 @@ public class Exchange implements IOContext, Serializable {
         return headers.tryGetHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME);
     }
 
-    // @Override - IOContext#setReturnAddress is disabled for now, see IOContext
+    // @Override - Exchange#setReturnAddress is disabled for now, see io.pipelite.dsl.Exchange
     public void setReturnAddress(String flowName) {
         if(!headers.hasHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME)){
             headers.putHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME, flowName);
@@ -179,7 +180,7 @@ public class Exchange implements IOContext, Serializable {
         headers.removeHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME);
     }
 
-    // @Override - IOContext#setRoutingSlip is disabled for now, see IOContext
+    // @Override - Exchange#setRoutingSlip is disabled for now, see io.pipelite.dsl.Exchange
     public void setRoutingSlip(RoutingSlip routingSlip) {
         properties.put(IOKeys.ROUTING_SLIP_PROPERTY_NAME, routingSlip);
     }

@@ -15,7 +15,7 @@
  */
 package io.pipelite.spi.endpoint;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.Message;
 import io.pipelite.spi.flow.exchange.SimpleMessage;
 import org.awaitility.Awaitility;
@@ -31,10 +31,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class DefaultPollingConsumerTest {
 
-    private static Exchange exchange(int id) {
+    private static ExchangeImpl exchange(int id) {
         final Message message = new SimpleMessage("Id#" + id);
         message.setPayload("Payload#" + id);
-        return new Exchange(message);
+        return new ExchangeImpl(message);
     }
 
     private static DefaultPollingConsumer newConsumer() {

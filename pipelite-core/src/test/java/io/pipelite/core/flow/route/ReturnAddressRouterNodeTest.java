@@ -18,7 +18,7 @@ package io.pipelite.core.flow.route;
 import io.pipelite.core.Pipelite;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.core.context.PipeliteContext;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.awaitility.Awaitility;
 import org.junit.Before;
@@ -56,7 +56,7 @@ public class ReturnAddressRouterNodeTest {
 
         context.start();
 
-        final Exchange exchange = exchangeFactory.createExchange("Hello Pipelite!");
+        final ExchangeImpl exchange = exchangeFactory.createExchange("Hello Pipelite!");
         exchange.setReturnAddress("recipient-start");
 
         context.supplyExchange("sender-start", exchange);

@@ -25,7 +25,7 @@ import io.pipelite.dsl.route.ExpressionCondition;
 import io.pipelite.dsl.route.RecipientList;
 import io.pipelite.expression.ExpressionParser;
 import io.pipelite.spi.flow.AbstractFlowNode;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +59,7 @@ class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContex
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
 
         if(sysLogger.isDebugEnabled()){
             sysLogger.debug("Forwarding exchange to RecipientList {}", ToStringUtils.arrayToString(recipientList.toArray(), 5));
@@ -75,7 +75,7 @@ class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContex
             }).collect(Collectors.toList());
 
         filteredRecipients.forEach(endpointURL -> {
-            final Exchange copy = exchangeFactory.copyExchange(exchange);
+            final ExchangeImpl copy = exchangeFactory.copyExchange(exchange);
             pipeliteContext.supplyExchange(endpointURL, copy);
         });
     }

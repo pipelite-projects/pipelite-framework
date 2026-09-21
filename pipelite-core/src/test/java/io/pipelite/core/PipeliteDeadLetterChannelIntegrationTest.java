@@ -20,7 +20,7 @@ import io.pipelite.core.definition.DuplicateProcessorNameException;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.awaitility.Awaitility;
 import org.junit.Before;
@@ -58,11 +58,11 @@ public class PipeliteDeadLetterChannelIntegrationTest {
     public void givenDeadLetterChannelAlone_whenProcessorThrows_thenRoutedImmediatelyWithNoRetry(){
 
         final AtomicInteger attemptCount = new AtomicInteger(0);
-        final AtomicReference<Exchange> deadLettered = new AtomicReference<>();
+        final AtomicReference<ExchangeImpl> deadLettered = new AtomicReference<>();
 
         final FlowDefinition deadLetterQueue = Pipelite.defineFlow("dlc-only-poison-queue")
             .fromSource("dlc-only-poison-queue")
-            .process("capture", (io, c) -> deadLettered.set((Exchange) io))
+            .process("capture", (io, c) -> deadLettered.set((ExchangeImpl) io))
             .toSink("dlc-only-poison-out")
             .build();
 
@@ -96,11 +96,11 @@ public class PipeliteDeadLetterChannelIntegrationTest {
     public void givenRetryChannelAndDeadLetterChannel_whenAttemptsAreExhausted_thenRoutedToDeadLetterOnlyAfterExhaustion(){
 
         final AtomicInteger attemptCount = new AtomicInteger(0);
-        final AtomicReference<Exchange> deadLettered = new AtomicReference<>();
+        final AtomicReference<ExchangeImpl> deadLettered = new AtomicReference<>();
 
         final FlowDefinition deadLetterQueue = Pipelite.defineFlow("dlc-composed-poison-queue")
             .fromSource("dlc-composed-poison-queue")
-            .process("capture", (io, c) -> deadLettered.set((Exchange) io))
+            .process("capture", (io, c) -> deadLettered.set((ExchangeImpl) io))
             .toSink("dlc-composed-poison-out")
             .build();
 
@@ -156,14 +156,14 @@ public class PipeliteDeadLetterChannelIntegrationTest {
     @Test
     public void givenProtocolQualifiedTarget_whenProcessorThrows_thenDeliveredDirectlyToTheChannelAdapter(){
 
-        final AtomicReference<Exchange> deadLettered = new AtomicReference<>();
+        final AtomicReference<ExchangeImpl> deadLettered = new AtomicReference<>();
 
         // No protocol here: an internal ("logic") source is what LinkChannelAdapter registers a
         // consumer for (see LinkChannelAdapter#onFlowRegistered) - link:// is only used on the
         // sending side (below), never on a receiving fromSource(...).
         final FlowDefinition deadLetterReceiver = Pipelite.defineFlow("link-qualified-dlc-receiver")
             .fromSource("link-qualified-dlc-poison-queue")
-            .process("capture", (io, c) -> deadLettered.set((Exchange) io))
+            .process("capture", (io, c) -> deadLettered.set((ExchangeImpl) io))
             .toSink("link-qualified-dlc-poison-out")
             .build();
 
@@ -188,11 +188,11 @@ public class PipeliteDeadLetterChannelIntegrationTest {
     @Test
     public void givenPlainFlowName_whenToChannelIsCalled_thenAcceptedAndRedirectionAppliedAutomatically(){
 
-        final AtomicReference<Exchange> deadLettered = new AtomicReference<>();
+        final AtomicReference<ExchangeImpl> deadLettered = new AtomicReference<>();
 
         final FlowDefinition deadLetterQueue = Pipelite.defineFlow("plain-name-dlc-poison-queue")
             .fromSource("plain-name-dlc-poison-queue")
-            .process("capture", (io, c) -> deadLettered.set((Exchange) io))
+            .process("capture", (io, c) -> deadLettered.set((ExchangeImpl) io))
             .toSink("plain-name-dlc-poison-out")
             .build();
 
@@ -219,14 +219,14 @@ public class PipeliteDeadLetterChannelIntegrationTest {
     @Test
     public void givenDeadLetterFlowNameDiffersFromItsSourceResource_whenToChannelIsCalled_thenResolvedByFlowNameNotSourceResource(){
 
-        final AtomicReference<Exchange> deadLettered = new AtomicReference<>();
+        final AtomicReference<ExchangeImpl> deadLettered = new AtomicReference<>();
 
         // The dead-letter flow's own Pipelite.defineFlow(...) name is deliberately different from
         // its fromSource(...) resource, proving toChannel(...) resolves by flow identity, not
         // by the (unrelated) resource that flow happens to consume from.
         final FlowDefinition deadLetterQueue = Pipelite.defineFlow("distinct-flow-name-dlc-queue")
             .fromSource("totally-unrelated-source-resource")
-            .process("capture", (io, c) -> deadLettered.set((Exchange) io))
+            .process("capture", (io, c) -> deadLettered.set((ExchangeImpl) io))
             .toSink("distinct-flow-name-dlc-out")
             .build();
 

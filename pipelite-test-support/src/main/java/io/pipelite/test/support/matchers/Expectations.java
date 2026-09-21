@@ -15,7 +15,7 @@
  */
 package io.pipelite.test.support.matchers;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.Message;
 import io.pipelite.test.ExecutionTarget;
 import io.pipelite.test.TestProcessContribution;
@@ -255,7 +255,7 @@ public final class Expectations {
             }
 
             @Override
-            public void verify(Exchange exchange, TestProcessContribution contribution) {
+            public void verify(ExchangeImpl exchange, TestProcessContribution contribution) {
                 for (Expectation expectation : expectations) {
                     expectation.verify(exchange, contribution);
                 }
@@ -284,7 +284,7 @@ public final class Expectations {
             }
 
             @Override
-            public void verify(Exchange exchange, TestProcessContribution contribution) {
+            public void verify(ExchangeImpl exchange, TestProcessContribution contribution) {
                 for (Expectation expectation : expectations) {
                     expectation.verify(exchange, contribution);
                 }
@@ -292,7 +292,7 @@ public final class Expectations {
         };
     }
 
-    private static Object effectivePayload(Exchange exchange) {
+    private static Object effectivePayload(ExchangeImpl exchange) {
         final Message outputMessage = exchange.getOutput();
         if (exchange.isOutputSet() && outputMessage != null && outputMessage.hasPayload()) {
             return outputMessage.getPayload();

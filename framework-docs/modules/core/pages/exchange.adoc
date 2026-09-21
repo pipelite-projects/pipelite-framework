@@ -4,11 +4,17 @@
 The `Exchange` is the fundamental vehicle through which data travels along a flow.
 Each time a source produces an event, a new `Exchange` is created and passed through all nodes in the pipeline.
 
+== Two types, one exchange
+
+What your code sees is the `io.pipelite.dsl.Exchange` interface: the input and output payload, and the headers. It is what `Processor`, `ExceptionHandler` and `Condition` implementations receive.
+
+The framework, and the authors of channel adapters, work with `io.pipelite.spi.flow.exchange.ExchangeImpl`, the concrete class behind it. It adds the message containers, the internal properties and `forwardIfNecessary()`, which is why the channel adapter SPI (`Producer`, `Consumer`, `Flow#supply`) is written in terms of `ExchangeImpl`.
+
 == Structure
 
 [source,java]
 ----
-public class Exchange implements IOContext, Serializable {
+public class ExchangeImpl implements Exchange, Serializable {
     private final Message input;    // incoming message (immutable after creation)
     private Message output;         // response message (optional)
     private final Headers headers;  // cross-cutting metadata
@@ -36,7 +42,7 @@ exchange.forwardIfNecessary();
 
 == Headers
 
-Headers are string key-value pairs shared across all nodes in the flow.
+Headers are string key-value pairs shared across all nodes in the flow. The methods below are shortcuts to `exchange.getHeaders()`, which returns the underlying `Headers` when you need it (the expression engine uses it to resolve `Headers['name']`).
 
 [source,java]
 ----

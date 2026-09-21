@@ -16,7 +16,7 @@
 package io.pipelite.spi.endpoint;
 
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,10 +46,10 @@ public non-sealed class DefaultProducer extends AbstractProducer implements Prod
      * dead-letter channels entirely, unlike a processor step's failure, which {@code
      * AbstractProcessorNode} already routes through the same handler. Mirrors {@code
      * AbstractProcessorNode#process}'s exact shape so a producer failure is handled identically to
-     * a processor failure. Concrete producers implement {@link #doProcess(Exchange)} instead.
+     * a processor failure. Concrete producers implement {@link #doProcess(ExchangeImpl)} instead.
      */
     @Override
-    public final void process(Exchange exchange) {
+    public final void process(ExchangeImpl exchange) {
         try {
             doProcess(exchange);
         } catch (RuntimeException exception) {
@@ -65,6 +65,6 @@ public non-sealed class DefaultProducer extends AbstractProducer implements Prod
         }
     }
 
-    public void doProcess(Exchange exchange) {
+    public void doProcess(ExchangeImpl exchange) {
     }
 }

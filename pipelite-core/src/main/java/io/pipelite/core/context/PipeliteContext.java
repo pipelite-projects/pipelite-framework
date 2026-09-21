@@ -19,7 +19,7 @@ import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.channel.ChannelConfigurer;
 import io.pipelite.spi.flow.Flow;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.inbox.DurableInboxProvider;
 
@@ -56,7 +56,7 @@ public interface PipeliteContext {
 
     boolean isRegistered(String flowName);
 
-    void supplyExchange(String endpointURL, Exchange exchange);
+    void supplyExchange(String endpointURL, ExchangeImpl exchange);
 
     /**
      * Looks up a registered {@link Flow} by its source endpoint resource (the same value

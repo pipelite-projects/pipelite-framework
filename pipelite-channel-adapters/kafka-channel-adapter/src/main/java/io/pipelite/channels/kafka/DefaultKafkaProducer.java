@@ -22,7 +22,7 @@ import io.pipelite.spi.context.ContextEventListener;
 import io.pipelite.spi.endpoint.DefaultProducer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -49,7 +49,7 @@ public class DefaultKafkaProducer extends DefaultProducer implements ContextEven
     }
 
     @Override
-    public void doProcess(Exchange exchange) {
+    public void doProcess(ExchangeImpl exchange) {
 
         final Object recordValue = exchange.getInputPayloadAs(Object.class);
         if(recordValue != null) {

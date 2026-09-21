@@ -71,7 +71,7 @@ public class FlowFactoryTest {
         final Service consumerService = flow.getConsumerAs(Service.class);
         consumerService.start();
 
-        final Exchange exchange = new Exchange(new SimpleMessage("input"), new SimpleMessage("output"), new HeadersImpl());
+        final ExchangeImpl exchange = new ExchangeImpl(new SimpleMessage("input"), new SimpleMessage("output"), new HeadersImpl());
         exchange.setInputPayload("ORIGINAL-PAYLOAD");
         flow.supply(exchange);
 

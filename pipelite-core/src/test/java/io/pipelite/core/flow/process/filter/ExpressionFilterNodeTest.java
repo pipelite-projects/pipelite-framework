@@ -20,7 +20,7 @@ import io.pipelite.core.context.impl.DefaultMessageFactory;
 import io.pipelite.dsl.process.ProcessContribution;
 import io.pipelite.expression.ExpressionParser;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,7 +42,7 @@ public class ExpressionFilterNodeTest {
 
         ExpressionFilterNode onlyDogsFilter = new ExpressionFilterNode("Headers['Animal-Kind'] eq 'Dog'", expressionParser);
 
-        final Exchange exchange = exchangeFactory.createExchange();
+        final ExchangeImpl exchange = exchangeFactory.createExchange();
         exchange.putHeader("Animal-Kind", "Cat");
 
         final ProcessContribution processContribution = Mockito.mock(ProcessContribution.class);
@@ -57,7 +57,7 @@ public class ExpressionFilterNodeTest {
 
         ExpressionFilterNode onlyDogsFilter = new ExpressionFilterNode("Headers['Animal-Kind'] eq 'Dog'", expressionParser);
 
-        final Exchange exchange = exchangeFactory.createExchange();
+        final ExchangeImpl exchange = exchangeFactory.createExchange();
         exchange.putHeader("Animal-Kind", "Dog");
 
         final ProcessContribution processContribution = Mockito.mock(ProcessContribution.class);

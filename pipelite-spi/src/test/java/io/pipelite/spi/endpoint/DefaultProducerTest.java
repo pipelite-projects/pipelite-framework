@@ -15,10 +15,10 @@
  */
 package io.pipelite.spi.endpoint;
 
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.SimpleMessage;
 import org.junit.Assert;
 import org.junit.Test;
@@ -28,7 +28,7 @@ import org.junit.Test;
  * process(Exchange)} directly, so none of them ever consulted {@code exceptionHandler} - a
  * producer's own failure always propagated uncaught, bypassing retry/dead-letter channels
  * entirely, unlike a processor step's failure. {@code process(Exchange)} is now {@code final} on
- * {@link DefaultProducer}, wrapping the new {@link DefaultProducer#doProcess(Exchange)} hook in
+ * {@link DefaultProducer}, wrapping the new {@link DefaultProducer#doProcess(ExchangeImpl)} hook in
  * the same try/catch shape {@code AbstractProcessorNode} already had.
  */
 public class DefaultProducerTest {
@@ -42,19 +42,19 @@ public class DefaultProducerTest {
         }
 
         @Override
-        public void doProcess(Exchange exchange) {
+        public void doProcess(ExchangeImpl exchange) {
             throw failure;
         }
     }
 
     private static final class CapturingExceptionHandler implements ExceptionHandler {
         private Throwable capturedException;
-        private Exchange capturedExchange;
+        private ExchangeImpl capturedExchange;
 
         @Override
-        public void handleException(Throwable exception, IOContext ioContext) {
+        public void handleException(Throwable exception, Exchange ioContext) {
             this.capturedException = exception;
-            this.capturedExchange = (Exchange) ioContext;
+            this.capturedExchange = (ExchangeImpl) ioContext;
         }
     }
 
@@ -63,8 +63,8 @@ public class DefaultProducerTest {
         return new FailingProducer(endpoint, failure);
     }
 
-    private static Exchange newExchange() {
-        return new Exchange(new SimpleMessage("test-id"));
+    private static ExchangeImpl newExchange() {
+        return new ExchangeImpl(new SimpleMessage("test-id"));
     }
 
     @Test
@@ -88,7 +88,7 @@ public class DefaultProducerTest {
         producer.setExceptionHandler(handler);
         producer.setProcessorName("out-endpoint");
 
-        final Exchange exchange = newExchange();
+        final ExchangeImpl exchange = newExchange();
         producer.process(exchange); // must not throw - the handler resolves it instead
 
         Assert.assertSame(failure, handler.capturedException);

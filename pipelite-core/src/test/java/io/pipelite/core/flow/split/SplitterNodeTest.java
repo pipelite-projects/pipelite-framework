@@ -22,7 +22,7 @@ import io.pipelite.dsl.split.SplitSegment;
 import io.pipelite.dsl.split.SplitSegmentImpl;
 import io.pipelite.dsl.split.SplitStep;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.junit.Before;
 import org.junit.Test;
@@ -84,7 +84,7 @@ public class SplitterNodeTest {
             })
         ));
 
-        final Exchange exchange = exchangeFactory.createExchange(List.of(1, 2, 3, 4));
+        final ExchangeImpl exchange = exchangeFactory.createExchange(List.of(1, 2, 3, 4));
         subject.process(exchange);
 
         // A header set on a child (via the defensive Headers copy) must never leak back
@@ -105,7 +105,7 @@ public class SplitterNodeTest {
             new SplitStep("step-2", (io, c) -> io.setOutputPayload(io.getInputPayloadAs(Integer.class) + 1))
         ));
 
-        final Exchange exchange = exchangeFactory.createExchange(List.of(1, 2, 3));
+        final ExchangeImpl exchange = exchangeFactory.createExchange(List.of(1, 2, 3));
         subject.process(exchange);
 
         assertEquals(List.of(3, 5, 7), exchange.getOutput().getPayloadAs(List.class));
@@ -116,7 +116,7 @@ public class SplitterNodeTest {
 
         final SplitterNode subject = wired(segmentOf());
 
-        final Exchange exchange = exchangeFactory.createExchange(List.of("a", "b", "c"));
+        final ExchangeImpl exchange = exchangeFactory.createExchange(List.of("a", "b", "c"));
         subject.process(exchange);
 
         assertEquals(List.of("a", "b", "c"), exchange.getOutput().getPayloadAs(List.class));
@@ -129,7 +129,7 @@ public class SplitterNodeTest {
             new SplitStep("noop", (io, c) -> io.setOutputPayload(io.getInputPayload()))
         ));
 
-        final Exchange exchange = exchangeFactory.createExchange(List.of());
+        final ExchangeImpl exchange = exchangeFactory.createExchange(List.of());
         subject.process(exchange);
 
         assertEquals(List.of(), exchange.getOutput().getPayloadAs(List.class));
@@ -139,7 +139,7 @@ public class SplitterNodeTest {
     public void givenSuccessfulSplit_whenProcessed_thenRepositoryHasNoOrphanEntry() {
 
         final SplitterNode subject = wired(segmentOf());
-        final Exchange exchange = exchangeFactory.createExchange(List.of(1, 2, 3));
+        final ExchangeImpl exchange = exchangeFactory.createExchange(List.of(1, 2, 3));
         final String id = exchange.getInput().getId();
 
         subject.process(exchange);
@@ -154,7 +154,7 @@ public class SplitterNodeTest {
             new SplitStep("boom", (io, c) -> { throw new RuntimeException("simulated"); })
         ));
 
-        final Exchange exchange = exchangeFactory.createExchange(List.of(1));
+        final ExchangeImpl exchange = exchangeFactory.createExchange(List.of(1));
         final String id = exchange.getInput().getId();
 
         try {
@@ -177,7 +177,7 @@ public class SplitterNodeTest {
         final java.util.List<Throwable> handled = new java.util.ArrayList<>();
         subject.setExceptionHandler((exception, exch) -> handled.add(exception));
 
-        final Exchange exchange = exchangeFactory.createExchange(List.of(1, 2, 3));
+        final ExchangeImpl exchange = exchangeFactory.createExchange(List.of(1, 2, 3));
         final String id = exchange.getInput().getId();
 
         // Must not throw: the exceptionHandler absorbs it.

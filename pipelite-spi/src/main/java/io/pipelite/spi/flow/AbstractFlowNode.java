@@ -17,7 +17,7 @@ package io.pipelite.spi.flow;
 
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.dsl.process.ExceptionHandler;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import io.pipelite.spi.flow.process.ExchangePreProcessor;
@@ -57,7 +57,7 @@ public abstract class AbstractFlowNode implements FlowNode {
         }
     }
 
-    protected void preProcessExchange(Exchange exchange){
+    protected void preProcessExchange(ExchangeImpl exchange){
 
         Preconditions.notNull(flowName, "flowName is required and cannot be null");
         Preconditions.notNull(processorName, "processorName is required and cannot be null");
@@ -69,7 +69,7 @@ public abstract class AbstractFlowNode implements FlowNode {
             .forEach(exchangePreProcessor -> exchangePreProcessor.preProcess(ctx, exchange));
     }
 
-    protected void postProcessExchange(Exchange exchange){
+    protected void postProcessExchange(ExchangeImpl exchange){
 
         Preconditions.notNull(flowName, "flowName is required and cannot be null");
         Preconditions.notNull(processorName, "processorName is required and cannot be null");

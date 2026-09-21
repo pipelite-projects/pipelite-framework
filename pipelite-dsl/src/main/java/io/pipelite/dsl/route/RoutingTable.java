@@ -16,7 +16,7 @@
 package io.pipelite.dsl.route;
 
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 
 import java.util.Objects;
 import java.util.Optional;
@@ -38,11 +38,11 @@ public class RoutingTable<V extends Condition> extends CopyOnWriteArrayList<Rout
         this.defaultRoutes = RecipientList.of(defaultRoutes);
     }
 
-    public Optional<RecipientList> resolveRoute(IOContext ioContext){
+    public Optional<RecipientList> resolveRoute(Exchange exchange){
 
         for(RouteEntry<V> routeEntry : this){
             final Condition routeCondition = routeEntry.getCondition();
-            boolean isSatisfied = routeConditionEvaluator.evaluate(routeCondition, ioContext);
+            boolean isSatisfied = routeConditionEvaluator.evaluate(routeCondition, exchange);
             if(isSatisfied){
                 return Optional.of(routeEntry.getDestination());
             }

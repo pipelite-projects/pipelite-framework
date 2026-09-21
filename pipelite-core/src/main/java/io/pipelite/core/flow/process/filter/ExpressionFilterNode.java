@@ -17,7 +17,7 @@ package io.pipelite.core.flow.process.filter;
 
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.flow.ExpressionVariables;
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ProcessContribution;
 import io.pipelite.dsl.process.Processor;
 import io.pipelite.expression.ExpressionParser;
@@ -48,11 +48,11 @@ class ExpressionFilterNode implements Processor {
     }
 
     @Override
-    public void process(IOContext ioContext, ProcessContribution contribution) {
+    public void process(Exchange exchange, ProcessContribution contribution) {
 
-        Optional.ofNullable(ioContext.getInputPayload())
+        Optional.ofNullable(exchange.getInputPayload())
             .ifPresent(inputPayload -> expressionParser.putVariable(PAYLOAD_VARIABLE_NAME, inputPayload));
-        expressionParser.putVariable(HEADERS_VARIABLE_NAME, ioContext.getHeaders());
+        expressionParser.putVariable(HEADERS_VARIABLE_NAME, exchange.getHeaders());
 
         final boolean isSatisfied = expressionParser.evaluateAs(expression, Boolean.class);
 

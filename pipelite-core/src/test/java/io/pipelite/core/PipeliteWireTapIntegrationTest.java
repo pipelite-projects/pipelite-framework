@@ -18,7 +18,7 @@ package io.pipelite.core;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.awaitility.Awaitility;
 import org.junit.Assert;
@@ -61,7 +61,7 @@ public class PipeliteWireTapIntegrationTest {
 
         final ExchangeFactory exchangeFactory = context.getExchangeFactory();
 
-        final Exchange exchange = exchangeFactory.createExchange("Hello Pipelite!");
+        final ExchangeImpl exchange = exchangeFactory.createExchange("Hello Pipelite!");
         context.supplyExchange("origin-start", exchange);
 
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> forwardedCount.get() == 1);

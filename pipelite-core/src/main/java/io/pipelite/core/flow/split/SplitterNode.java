@@ -23,7 +23,7 @@ import io.pipelite.dsl.Headers;
 import io.pipelite.dsl.split.SplitSegment;
 import io.pipelite.dsl.split.SplitStep;
 import io.pipelite.spi.flow.AbstractFlowNode;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.context.IOKeys;
@@ -120,10 +120,10 @@ class SplitterNode extends AbstractFlowNode implements PipeliteContextAware {
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
 
         final String splitId = exchange.getInput().getId();
-        Exchange aggregated;
+        ExchangeImpl aggregated;
 
         try {
             preProcessExchange(exchange);
@@ -134,9 +134,9 @@ class SplitterNode extends AbstractFlowNode implements PipeliteContextAware {
 
             for (Object item : items) {
                 final Headers childHeaders = new HeadersImpl((HeadersImpl) exchange.getHeaders());
-                final Exchange child = exchangeFactory.createExchange(childHeaders, item);
+                final ExchangeImpl child = exchangeFactory.createExchange(childHeaders, item);
                 segmentHead.process(child);
-                final Exchange collected = collector.consumeResult();
+                final ExchangeImpl collected = collector.consumeResult();
                 results.add(collected.getOutput().getPayloadAs(Object.class));
             }
 
@@ -166,7 +166,7 @@ class SplitterNode extends AbstractFlowNode implements PipeliteContextAware {
         }
 
         if (next != null) {
-            final Exchange nextExchange = exchangeFactory.nextExchange(aggregated);
+            final ExchangeImpl nextExchange = exchangeFactory.nextExchange(aggregated);
             next.process(nextExchange);
         }
     }

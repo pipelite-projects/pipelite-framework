@@ -15,7 +15,7 @@
  */
 package io.pipelite.spi.endpoint;
 
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +28,7 @@ public non-sealed class DefaultConsumer extends AbstractConsumer implements Cons
     }
 
     @Override
-    public void consume(Exchange exchange) {
+    public void consume(ExchangeImpl exchange) {
         try{
             process(exchange);
         }catch(Throwable exception){
@@ -41,7 +41,7 @@ public non-sealed class DefaultConsumer extends AbstractConsumer implements Cons
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
         if(!hasNext()){
             throw new IllegalStateException("DefaultConsumer must have a next FlowNode");
         }

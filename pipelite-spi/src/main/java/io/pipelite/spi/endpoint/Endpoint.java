@@ -17,7 +17,7 @@ package io.pipelite.spi.endpoint;
 
 import io.pipelite.dsl.Headers;
 import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 
 public interface Endpoint {
 
@@ -30,9 +30,9 @@ public interface Endpoint {
     Producer createProducer();
 
     @Deprecated
-    Exchange createExchange();
+    ExchangeImpl createExchange();
     @Deprecated
-    Exchange createExchange(Headers headers);
+    ExchangeImpl createExchange(Headers headers);
 
     <T extends ChannelAdapter> T getChannelAdapter(Class<T> channelType);
 

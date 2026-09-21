@@ -18,7 +18,7 @@ package io.pipelite.components.link;
 import io.pipelite.spi.endpoint.DefaultProducer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +31,7 @@ public class LinkProducer extends DefaultProducer {
     }
 
     @Override
-    public void doProcess(Exchange exchange) {
+    public void doProcess(ExchangeImpl exchange) {
 
         final LinkChannelAdapter component = endpoint.getChannelAdapter(LinkChannelAdapter.class);
         final EndpointURL endpointURL = endpoint.getEndpointURL();

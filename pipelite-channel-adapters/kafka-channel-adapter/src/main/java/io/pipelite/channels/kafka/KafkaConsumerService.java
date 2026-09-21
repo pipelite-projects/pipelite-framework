@@ -19,7 +19,7 @@ import io.pipelite.channels.kafka.config.KafkaChannelConfiguration;
 import io.pipelite.channels.kafka.support.KafkaConstants;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.spi.endpoint.*;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -95,7 +95,7 @@ public class KafkaConsumerService extends EventDrivenConsumerService {
          * Package-visible so it can be exercised directly in tests without a real or mocked
          * {@code poll()} cycle. Durably writes every record in {@code records} to the source's
          * {@code DurableInbox} and enqueues it for standard dispatch (issue #71: {@link
-         * EventDrivenConsumerService#process(Exchange)} — write-through then {@code queue.put}),
+         * EventDrivenConsumerService#process(ExchangeImpl)} — write-through then {@code queue.put}),
          * in order, on the calling (poll) thread, then commits the whole batch's offsets together
          * — but only if every record was durably captured. Downstream pipeline execution itself
          * happens later, asynchronously, on this consumer's own {@code DispatchStrategy} thread
@@ -115,7 +115,7 @@ public class KafkaConsumerService extends EventDrivenConsumerService {
             for (ConsumerRecord<?, ?> record : records) {
                 final Object recordKey = record.key();
                 final Object recordValue = record.value();
-                final Exchange exchange = exchangeFactory.createExchange(recordValue);
+                final ExchangeImpl exchange = exchangeFactory.createExchange(recordValue);
                 exchange.putHeader(KafkaConstants.KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME, recordKey);
                 try {
                     process(exchange);

@@ -22,7 +22,7 @@ import io.pipelite.spi.flow.concurrent.ExecutorType;
 import io.pipelite.spi.flow.concurrent.FlowNameAbbreviator;
 import io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties;
 import io.pipelite.spi.flow.concurrent.SourceWorkerPoolAware;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.pipelite.spi.flow.exchange.FlowNode;
@@ -130,7 +130,7 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
      * {@link DispatchStrategy#dispatch} — not merely been submitted), including on this fallback
      * path.
      */
-    public void dispatchToNode(FlowNode target, Exchange exchange, Runnable onComplete) {
+    public void dispatchToNode(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
         if (dispatchStrategy == null) {
             if (logger.isWarnEnabled()) {
                 logger.warn("dispatchToNode(...) called before this service started - running '{}' ungated, " +
@@ -173,12 +173,12 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
     }
 
     @Override
-    public void consume(Exchange exchange) {
+    public void consume(ExchangeImpl exchange) {
         eventDrivenConsumer.consume(exchange);
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
         eventDrivenConsumer.process(exchange);
     }
 

@@ -27,7 +27,7 @@ import io.pipelite.dsl.process.Processor;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.channel.ChannelURL;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.flow.exchange.HeadersImpl;
@@ -126,17 +126,17 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
     // processor-mode assertions — the field below is the authoritative source for
     // processor mode.
     private final ExchangeFactory exchangeFactory;
-    private Exchange exchange;
+    private ExchangeImpl exchange;
     private TestProcessContribution contribution;
 
     // --- flow mode ---
     private final List<FlowDefinition> flowDefinitions;
     private long timeoutSeconds = DEFAULT_TIMEOUT_SECONDS;
-    private Exchange capturedFlowExchange;
+    private ExchangeImpl capturedFlowExchange;
     // True once supplyTo() is called, regardless of whether the flow completed
     // before timeout. Signals "flow mode is active" not "flow executed successfully".
     private boolean flowMode;
-    private final Map<String, Exchange> stepSnapshots;
+    private final Map<String, ExchangeImpl> stepSnapshots;
 
     private PipeliteTestFixture() {
         final IdentityGenerator identityGenerator = new DistributedIdentityGeneratorImpl();
@@ -214,12 +214,12 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
         flowMode = true;
 
         final String testId = UUID.randomUUID().toString();
-        final CompletableFuture<Exchange> captureFuture = CaptureChannelAdapter.register(testId);
+        final CompletableFuture<ExchangeImpl> captureFuture = CaptureChannelAdapter.register(testId);
         final DefaultPipeliteContext context = new DefaultPipeliteContext();
         final AtomicReference<Throwable> flowFailure = new AtomicReference<>();
 
         StepSnapshotCapture snapshotCapture = null;
-        Exchange captured = null;
+        ExchangeImpl captured = null;
         try {
             final List<FlowDefinition> copies = flowDefinitions.stream()
                 .map(this::redirectSinkToCapture)
@@ -246,7 +246,7 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
             snapshotCapture = registerStepSnapshotCapture(copies, context.getExchangeFactory());
             context.start();
 
-            final Exchange flowExchange = context.getExchangeFactory().createExchange(headers, inputPayload);
+            final ExchangeImpl flowExchange = context.getExchangeFactory().createExchange(headers, inputPayload);
             CaptureChannelAdapter.attachTestId(flowExchange, testId);
             context.supplyExchange(entryPointEndpoint, flowExchange);
             captured = captureFuture.get(timeoutSeconds, TimeUnit.SECONDS);
@@ -336,11 +336,11 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
 
     @Override
     public ThenOperations then(Expectation... expectations) {
-        final Exchange exchangeUnderInspection = isFlowMode() ? capturedFlowExchange : exchange;
+        final ExchangeImpl exchangeUnderInspection = isFlowMode() ? capturedFlowExchange : exchange;
         for (Expectation expectation : expectations) {
             if (expectation instanceof StepExpectation) {
                 final StepExpectation stepExpectation = (StepExpectation) expectation;
-                final Exchange snapshot = resolveStepSnapshot(stepExpectation);
+                final ExchangeImpl snapshot = resolveStepSnapshot(stepExpectation);
                 stepExpectation.verify(snapshot, null);
             } else {
                 expectation.verify(exchangeUnderInspection, contribution);
@@ -349,11 +349,11 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
         return this;
     }
 
-    private Exchange resolveStepSnapshot(StepExpectation stepExpectation) {
+    private ExchangeImpl resolveStepSnapshot(StepExpectation stepExpectation) {
         final String stepName = stepExpectation.stepName();
         final String flowName = stepExpectation.flowName();
         if (flowName != null) {
-            final Exchange snapshot = stepSnapshots.get(flowName + "::" + stepName);
+            final ExchangeImpl snapshot = stepSnapshots.get(flowName + "::" + stepName);
             if (snapshot == null) {
                 throw new AssertionError(String.format(
                     "Step '%s' in flow '%s' was not reached during flow execution", stepName, flowName));
@@ -383,7 +383,7 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
 
     @Override
     public Object getOutputPayload() {
-        final Exchange exchangeUnderInspection = requireExchangeAvailable();
+        final ExchangeImpl exchangeUnderInspection = requireExchangeAvailable();
         final Message outputMessage = exchangeUnderInspection.getOutput();
         if (exchangeUnderInspection.isOutputSet() && outputMessage.hasPayload()) {
             return outputMessage.getPayload();
@@ -406,7 +406,7 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
 
     @Override
     public <T> T getHeaderAs(String name, Class<T> expectedType) {
-        final Exchange exchangeUnderInspection = requireExchangeAvailable();
+        final ExchangeImpl exchangeUnderInspection = requireExchangeAvailable();
         return exchangeUnderInspection.tryGetHeaderAs(name, expectedType).orElse(null);
     }
 
@@ -418,7 +418,7 @@ public class PipeliteTestFixture implements GivenOperations, ExecutionTarget, Wh
         return flowMode;
     }
 
-    private Exchange requireExchangeAvailable() {
+    private ExchangeImpl requireExchangeAvailable() {
         if (isFlowMode()) {
             if (capturedFlowExchange == null) {
                 throw new IllegalStateException(

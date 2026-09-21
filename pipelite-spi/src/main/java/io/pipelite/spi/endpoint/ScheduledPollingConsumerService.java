@@ -17,7 +17,7 @@ package io.pipelite.spi.endpoint;
 
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.context.AbstractService;
-import io.pipelite.spi.flow.exchange.Exchange;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.FlowNode;
 import io.pipelite.spi.flow.process.ExchangePostProcessor;
 import io.pipelite.spi.flow.process.ExchangePreProcessor;
@@ -94,7 +94,7 @@ public class ScheduledPollingConsumerService extends AbstractService implements 
                 // finished across further ticks, rather than one tick monopolizing this consumer's
                 // single-threaded executor for however long an unbounded drain would take.
                 for (int i = 0; i < batchSize; i++) {
-                    final Exchange exchange = pollingConsumer.receive();
+                    final ExchangeImpl exchange = pollingConsumer.receive();
                     if (exchange == null) {
                         break;
                     }
@@ -130,12 +130,12 @@ public class ScheduledPollingConsumerService extends AbstractService implements 
     }
 
     @Override
-    public void consume(Exchange exchange) {
+    public void consume(ExchangeImpl exchange) {
         pollingConsumer.consume(exchange);
     }
 
     @Override
-    public void process(Exchange exchange) {
+    public void process(ExchangeImpl exchange) {
         pollingConsumer.process(exchange);
     }
 
@@ -190,19 +190,19 @@ public class ScheduledPollingConsumerService extends AbstractService implements 
     }
 
     @Override
-    public Exchange receive() {
+    public ExchangeImpl receive() {
         synchronized (this){
             return pollingConsumer.receive();
         }
     }
 
     @Override
-    public Exchange receive(long timeout) {
+    public ExchangeImpl receive(long timeout) {
         return pollingConsumer.receive(timeout);
     }
 
     @Override
-    public Exchange receiveNoWait() {
+    public ExchangeImpl receiveNoWait() {
         return pollingConsumer.receiveNoWait();
     }
 

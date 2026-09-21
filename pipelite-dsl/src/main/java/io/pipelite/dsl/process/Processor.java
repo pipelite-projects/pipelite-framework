@@ -15,10 +15,10 @@
  */
 package io.pipelite.dsl.process;
 
-import io.pipelite.dsl.IOContext;
+import io.pipelite.dsl.Exchange;
 
 public interface Processor {
 
-    void process(IOContext ioContext, ProcessContribution contribution);
+    void process(Exchange exchange, ProcessContribution contribution);
 
 }
