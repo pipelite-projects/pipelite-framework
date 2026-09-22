@@ -134,6 +134,14 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     private final ServiceManager serviceManager;
     private final ChannelAdapterManager channelAdapterManager;
 
+    // Whether the built-in retry channel has been created yet, tracked here rather than asked of
+    // flowRegistry (issue #116): flowRegistry.isRegistered(RETRY_CHANNEL_NAME) answered "does any
+    // flow read a source whose resource is 'retry-channel'", not "has the retry channel already
+    // been created" - a user flow on queue://retry-channel or even time://retry-channel, registered
+    // before the first retryable flow, made the answer yes and silently skipped creating it. A
+    // source resource is an address, not an identity (issue #108); the two must never be confused.
+    private boolean retryChannelCreated = false;
+
     private final DefaultEndpointFactory endpointFactory;
     private final FlowFactory flowFactory;
     private final ExchangeFactory exchangeFactory;
@@ -508,7 +516,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
                 exceptionHandler.setDumpRepository(executionDumpRepository);
 
                 // Create the retry-channel if not already done
-                if(!flowRegistry.isRegistered(RETRY_CHANNEL_NAME)){
+                if(!retryChannelCreated){
                     // Built here rather than once in the constructor: executionDumpRepository may
                     // have been swapped by setFlowExecutionDumpRepository(...) any time before
                     // start(), and this factory must bake in whatever is current now, not
@@ -524,6 +532,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
                     serviceManager.registerService(retryService);
 
+                    retryChannelCreated = true;
                 }
 
             } else {
