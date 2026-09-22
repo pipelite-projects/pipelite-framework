@@ -382,7 +382,22 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
         serviceManager.startServices();
 
         // notify context-started event
-        channelAdapterManager.notifyContextStarted();
+        try {
+            channelAdapterManager.notifyContextStarted();
+        } catch (RuntimeException startFailure) {
+            // A ContextEventListener.onContextStarted() failing here must not leave the consumer
+            // threads serviceManager.startServices() just started running behind a reported
+            // start() failure (issue #54) - the caller sees an exception and reasonably assumes
+            // nothing is active. Roll back exactly like a normal stop() would, so that assumption
+            // actually holds; a failure during that rollback is attached rather than allowed to
+            // replace/hide the real cause.
+            try {
+                stop();
+            } catch (RuntimeException rollbackFailure) {
+                startFailure.addSuppressed(rollbackFailure);
+            }
+            throw startFailure;
+        }
 
         if(sysLogger.isDebugEnabled()){
             sysLogger.debug("PipeliteContext started");
