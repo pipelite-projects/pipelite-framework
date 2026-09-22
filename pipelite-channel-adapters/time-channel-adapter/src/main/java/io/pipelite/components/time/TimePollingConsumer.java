@@ -37,9 +37,25 @@ public class TimePollingConsumer extends DefaultPollingConsumer implements Excha
         return receive(0);
     }
 
+    /**
+     * A queued exchange first (issue #115) - the only way one gets onto {@code queue} is a plain
+     * {@code consume(...)}, which the recovery of a durable-inbox entry and the fallback of a
+     * retry that cannot find its failed processor ({@code SupplyExchangeProcessor}, since #108)
+     * both use - and only when there is none, a fresh tick. Before this, an entry recovered onto a
+     * {@code time://} source sat on {@code queue} forever: this method never looked at it, so it
+     * was never executed and never acknowledged, and kept being recovered again on every restart.
+     * {@link DefaultPollingConsumer#receive(long)} never blocks here, since {@link
+     * io.pipelite.spi.endpoint.ScheduledPollingConsumerService} only ever calls {@link #receive()}
+     * (timeout 0); a genuine positive timeout would make this wait for a queued exchange up to
+     * that long before falling back to a tick, same as {@code FileTailPollingConsumer}.
+     */
     @Override
     public ExchangeImpl receive(long timeout) {
         Preconditions.notNull(exchangeFactory, "ExchangeFactory is required and cannot be null");
+        final ExchangeImpl queued = super.receive(timeout);
+        if (queued != null) {
+            return queued;
+        }
         return exchangeFactory.createExchange(LocalDateTime.now());
     }
 
