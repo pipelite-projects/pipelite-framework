@@ -16,26 +16,33 @@
 package io.pipelite.core;
 
 import io.pipelite.core.context.ConfigurablePipeliteContext;
+import io.pipelite.core.context.ContextValidationException;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
 import org.awaitility.Awaitility;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Issue #116: the built-in retry channel used to be created only if {@code
- * flowRegistry.isRegistered("retry-channel")} was false - a check on the resource of a source, not
- * on whether the retry channel itself had been created. A user flow reading a source whose
- * resource happens to be {@code retry-channel}, registered before the first retryable flow, made
- * that check answer "yes, already registered" and silently skipped creating it: retries then never
- * ran, with no error. The fix tracks creation with its own field instead of asking the registry.
+ * Issue #116, two layers of the same fix:
  * <p>
- * Every scenario below is expected to retry exactly like the baseline: a source resource is an
- * address, never an identity (issue #108), so a flow sharing {@code retry-channel}'s resource,
- * under any protocol, is legitimate and must not interfere.
+ * The built-in retry channel used to be created only if {@code
+ * flowRegistry.isRegistered("retry-channel")} was false - a check on the resource of a source, not
+ * on whether the retry channel itself had been created. {@code DefaultPipeliteContext} now tracks
+ * that with its own field instead, so a collision on a protocol {@code ReservedFlowNameValidator}
+ * does not check (below) no longer silently keeps the retry channel from being created.
+ * <p>
+ * {@code ReservedFlowNameValidator} additionally fails {@code start()} outright when a flow's own
+ * name, or the queue its source reads, is exactly {@code retry-channel} - the two axes {@code
+ * flowRegistry} keys its two maps by. A source resource shared with the retry channel under any
+ * other protocol is not one of them: a resource is an address, never an identity (issue #108), and
+ * the retry channel is never reached through one regardless (its source is a {@code
+ * TypedSourceDefinition}, not a queue).
  */
 public class PipeliteRetryChannelCollisionIntegrationTest {
 
@@ -86,33 +93,76 @@ public class PipeliteRetryChannelCollisionIntegrationTest {
 
     @Test
     public void baseline_noCollidingFlow_theRetryRuns() {
-        org.junit.Assert.assertEquals(2, attemptsAfterOneFailure(null, false));
+        Assert.assertEquals(2, attemptsAfterOneFailure(null, false));
     }
 
-    @Test
-    public void givenAQueueFlowNamedRetryChannel_registeredBeforeTheRetryableFlow_theRetryStillRuns() {
-        final FlowDefinition collidingFlow = Pipelite.defineFlow("user-flow").fromSource("queue://retry-channel").build();
-        org.junit.Assert.assertEquals(2, attemptsAfterOneFailure(collidingFlow, true));
-    }
-
-    @Test
-    public void givenAQueueFlowNamedRetryChannel_registeredAfterTheRetryableFlow_theRetryRuns() {
-        final FlowDefinition collidingFlow = Pipelite.defineFlow("user-flow").fromSource("queue://retry-channel").build();
-        org.junit.Assert.assertEquals(2, attemptsAfterOneFailure(collidingFlow, false));
-    }
-
+    /**
+     * The mechanical fix on its own: a source resource shared under a protocol the reserved-name
+     * validator does not check (below) is still legitimate, and must not keep the retry channel
+     * from being created - regardless of whether it is registered before or after the retryable
+     * flow, which is what made the old, registry-based check depend on registration order.
+     */
     @Test
     public void givenATimeFlowNamedRetryChannel_registeredBeforeTheRetryableFlow_theRetryStillRuns() {
         final FlowDefinition collidingFlow = Pipelite.defineFlow("time-flow")
             .fromSource("time://retry-channel?period=3600000&timeUnit=MILLISECONDS")
             .build();
-        org.junit.Assert.assertEquals(2, attemptsAfterOneFailure(collidingFlow, true));
+        Assert.assertEquals(2, attemptsAfterOneFailure(collidingFlow, true));
+    }
+
+    /**
+     * The reserved-name validator: a queue named {@code retry-channel} is rejected at {@code
+     * start()}, whichever side of the retryable flow it is registered on - unlike the old,
+     * registry-based check, this one does not depend on registration order.
+     */
+    @Test
+    public void givenAQueueFlowNamedRetryChannel_registeredBeforeTheRetryableFlow_thenStartFailsNamingIt() {
+        final FlowDefinition collidingFlow = Pipelite.defineFlow("user-flow").fromSource("queue://retry-channel").build();
+        assertStartFailsOn(collidingFlow, true,
+            "Flow 'user-flow', fromSource(\"queue://retry-channel\"): 'retry-channel' is reserved for the framework's own retry channel; choose a different queue name");
     }
 
     @Test
-    public void givenAFlowNamedRetryChannelOnAnotherSource_registeredBeforeTheRetryableFlow_theRetryRuns() {
+    public void givenAQueueFlowNamedRetryChannel_registeredAfterTheRetryableFlow_thenStartFailsNamingIt() {
+        final FlowDefinition collidingFlow = Pipelite.defineFlow("user-flow").fromSource("queue://retry-channel").build();
+        assertStartFailsOn(collidingFlow, false,
+            "Flow 'user-flow', fromSource(\"queue://retry-channel\"): 'retry-channel' is reserved for the framework's own retry channel; choose a different queue name");
+    }
+
+    /**
+     * The other axis the validator checks: the flow's own {@code defineFlow(...)} name, an
+     * identity distinct from the queue its source reads (issue #111) - reserved just the same.
+     */
+    @Test
+    public void givenAFlowNamedRetryChannelOnAnotherSource_thenStartFailsNamingIt() {
         final FlowDefinition collidingFlow = Pipelite.defineFlow("retry-channel").fromSource("queue://something-else").build();
-        org.junit.Assert.assertEquals(2, attemptsAfterOneFailure(collidingFlow, true));
+        assertStartFailsOn(collidingFlow, true,
+            "Flow 'retry-channel', defineFlow(\"retry-channel\"): this name is reserved for the framework's own retry channel; choose a different flow name");
+    }
+
+    private void assertStartFailsOn(FlowDefinition collidingFlow, boolean collidingFlowFirst, String expectedProblem) {
+        context = (ConfigurablePipeliteContext) Pipelite.createContext();
+        context.setFlowExecutionDumpRepository(new FlowExecutionDumpInMemoryRepository());
+
+        final FlowDefinition retryable = Pipelite.defineFlow("retryable-flow")
+            .fromSource("queue://orders")
+            .withRetry(retry -> retry.maxAttempts(3).onErrorChannel(err -> err.toDLQ()))
+            .build();
+
+        if (collidingFlowFirst) {
+            context.registerFlowDefinition(collidingFlow);
+        }
+        context.registerFlowDefinition(retryable);
+        if (!collidingFlowFirst) {
+            context.registerFlowDefinition(collidingFlow);
+        }
+
+        try {
+            context.start();
+            Assert.fail("expected the context not to start");
+        } catch (ContextValidationException expected) {
+            Assert.assertEquals(List.of(expectedProblem), expected.getProblems());
+        }
     }
 
 }
