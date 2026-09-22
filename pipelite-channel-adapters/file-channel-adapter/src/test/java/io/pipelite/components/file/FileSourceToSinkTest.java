@@ -164,7 +164,7 @@ public class FileSourceToSinkTest {
         final String query = append ? "?append=true" : "";
         final EndpointURL endpointURL = EndpointURL.parse(file.toString() + query, RESOURCE_PATTERN);
         final Endpoint endpoint = new DefaultEndpoint(endpointURL);
-        return new FileProducer(endpoint);
+        return new FileProducer(endpoint, configuration);
     }
 
     private static class UpperCaseLineRecordMapper implements FileRecordMapper<String> {

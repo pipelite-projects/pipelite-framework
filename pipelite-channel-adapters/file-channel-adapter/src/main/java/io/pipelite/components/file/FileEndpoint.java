@@ -54,7 +54,7 @@ public class FileEndpoint extends DefaultEndpoint {
 
     @Override
     public Producer createProducer() {
-        return new FileProducer(this);
+        return new FileProducer(this, configuration);
     }
 
 }
