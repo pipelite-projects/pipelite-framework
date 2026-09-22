@@ -107,6 +107,7 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
     private static final String EXCHANGE_DATA_KEY = "exchangeData";
     private static final String ENCODING_KEY = "encoding";
     private static final String STATUS_KEY = "status";
+    private static final String NEXT_ATTEMPT_TIME_KEY = "nextAttemptTime";
 
     private static final String CLAIM_FILE_EXTENSION = ".claim";
 
@@ -176,7 +177,9 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
     }
 
     /**
-     * {@code PENDING} always is. An {@code IN_PROGRESS} dump this process did not itself just
+     * {@code PENDING} is eligible once due (issue #95: a dump with a future {@code
+     * nextAttemptTime} is skipped, not offered, until the backoff it was captured with elapses).
+     * An {@code IN_PROGRESS} dump this process did not itself just
      * abandon (that is {@link #sweepAbandonedClaims()}'s job, already run above, for this
      * process's own claims) is only eligible if whoever holds its claim is actually gone - which a
      * plain status flag can never tell on its own, since nothing updates it when a *different*
@@ -191,7 +194,7 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
      */
     private boolean isEligible(FlowExecutionDump dump) {
         if (dump.getStatus() == FlowExecutionDumpStatus.PENDING) {
-            return true;
+            return dump.isDue();
         }
         final Optional<ProcessScopedFileLock> probe = ProcessScopedFileLock.tryAcquire(claimFile(dump.getId()));
         if (probe.isEmpty()) {
@@ -353,6 +356,8 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
         putIfNotNull(properties, EXCHANGE_DATA_KEY, dump.getExchangeData());
         putIfNotNull(properties, ENCODING_KEY, dump.getEncoding());
         properties.setProperty(STATUS_KEY, dump.getStatus().name());
+        putIfNotNull(properties, NEXT_ATTEMPT_TIME_KEY,
+            dump.getNextAttemptTime() != null ? dump.getNextAttemptTime().toString() : null);
 
         final StringWriter writer = new StringWriter();
         try {
@@ -412,6 +417,10 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
         // parse failure on an unrecognized/missing value.
         final String statusText = properties.getProperty(STATUS_KEY);
         dump.setStatus(statusText != null ? FlowExecutionDumpStatus.valueOf(statusText) : FlowExecutionDumpStatus.PENDING);
+        // Absent for a dump written before backoff existed, and for one captured with no
+        // .backoff(...) declared - both mean "due immediately" (FlowExecutionDump#isDue()).
+        final String nextAttemptTimeText = properties.getProperty(NEXT_ATTEMPT_TIME_KEY);
+        dump.setNextAttemptTime(nextAttemptTimeText != null ? LocalDateTime.parse(nextAttemptTimeText) : null);
 
         return dump;
     }

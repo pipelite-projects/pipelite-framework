@@ -97,4 +97,24 @@ public interface FlowExecutionDump {
     void setStatus(FlowExecutionDumpStatus status);
     FlowExecutionDumpStatus getStatus();
 
+    /**
+     * When this dump becomes eligible for {@link FlowExecutionDumpRepository#poll()} again -
+     * {@code null} means "due immediately", the behavior every dump had before backoff existed
+     * (issue #95). Set once at capture time by {@code RetryChannelExceptionHandler} from the
+     * flow's declared {@code Backoff}, never recomputed afterward: a fresh dump (and a fresh
+     * {@code nextAttemptTime}) is created on every subsequent failure, not this one reused.
+     */
+    void setNextAttemptTime(LocalDateTime nextAttemptTime);
+    LocalDateTime getNextAttemptTime();
+
+    /**
+     * {@code true} once {@link #getNextAttemptTime()} has passed (or was never set). Precision is
+     * bounded by whatever cadence a repository's own {@code poll()} runs on - the retry channel's
+     * default is one poll per second - not by this check itself.
+     */
+    default boolean isDue() {
+        final LocalDateTime nextAttemptTime = getNextAttemptTime();
+        return nextAttemptTime == null || !nextAttemptTime.isAfter(LocalDateTime.now());
+    }
+
 }

@@ -29,8 +29,9 @@ public interface RetryOperations {
     RetryOperations maxAttempts(int maxAttempts);
 
     /**
-     * Accepted now, not yet honored by the retry-channel's own polling mechanics - a separate
-     * follow-up issue.
+     * The delay to wait between one attempt and the next (issue #95) - {@link Backoff#linear} or
+     * {@link Backoff#exponential}. With none declared, a retry runs as soon as the retry channel
+     * next polls, same as before this existed.
      */
     RetryOperations backoff(Backoff backoff);
 

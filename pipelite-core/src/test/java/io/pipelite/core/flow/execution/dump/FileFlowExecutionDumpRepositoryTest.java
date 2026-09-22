@@ -67,6 +67,7 @@ public class FileFlowExecutionDumpRepositoryTest {
     public void shouldRoundTripEveryFieldThroughSaveAndTryLoad() {
 
         final SerializedFlowExecutionDump saved = aDump("dump-1", LocalDateTime.of(2026, 9, 10, 12, 30, 0));
+        saved.setNextAttemptTime(LocalDateTime.of(2026, 9, 10, 12, 30, 2));
         subject.save(saved);
 
         final FlowExecutionDump loaded = subject.tryLoad("dump-1").orElseThrow();
@@ -84,6 +85,18 @@ public class FileFlowExecutionDumpRepositoryTest {
         Assert.assertEquals(saved.getDeadLetterTarget(), loaded.getDeadLetterTarget());
         Assert.assertEquals(saved.getExchangeData(), ((SerializedFlowExecutionDump) loaded).getExchangeData());
         Assert.assertEquals(saved.getEncoding(), ((SerializedFlowExecutionDump) loaded).getEncoding());
+        Assert.assertEquals(saved.getNextAttemptTime(), loaded.getNextAttemptTime());
+    }
+
+    @Test
+    public void shouldRoundTripANullNextAttemptTimeAsNull() {
+
+        final SerializedFlowExecutionDump saved = aDump("dump-1b", LocalDateTime.now());
+        subject.save(saved);
+
+        final FlowExecutionDump loaded = subject.tryLoad("dump-1b").orElseThrow();
+
+        Assert.assertNull("no backoff configured must round-trip as null, not a parse failure", loaded.getNextAttemptTime());
     }
 
     @Test
@@ -115,6 +128,38 @@ public class FileFlowExecutionDumpRepositoryTest {
     @Test
     public void shouldReturnEmptyFromPollWhenNothingWasEverSaved() {
         Assert.assertEquals(Optional.empty(), subject.poll());
+    }
+
+    // -------------------------------------------------------------------------
+    // Issue #95: a dump's own backoff schedule gates its eligibility for poll()
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void shouldNotReturnAPendingDumpFromPollBeforeItsNextAttemptTime() {
+        final SerializedFlowExecutionDump dump = aDump("not-due-yet", LocalDateTime.now());
+        dump.setNextAttemptTime(LocalDateTime.now().plusHours(1));
+        subject.save(dump);
+
+        Assert.assertEquals(Optional.empty(), subject.poll());
+    }
+
+    @Test
+    public void shouldReturnAPendingDumpFromPollOnceItsNextAttemptTimeHasPassed() {
+        final SerializedFlowExecutionDump dump = aDump("now-due", LocalDateTime.now());
+        dump.setNextAttemptTime(LocalDateTime.now().minusSeconds(1));
+        subject.save(dump);
+
+        Assert.assertEquals("now-due", subject.poll().orElseThrow().getId());
+    }
+
+    @Test
+    public void givenTheOldestDumpIsNotYetDue_thenPollSkipsItForTheNextOldestThatIs() {
+        final SerializedFlowExecutionDump notYetDue = aDump("older-not-due", LocalDateTime.of(2026, 9, 10, 10, 0, 0));
+        notYetDue.setNextAttemptTime(LocalDateTime.now().plusHours(1));
+        subject.save(notYetDue);
+        subject.save(aDump("newer-due", LocalDateTime.of(2026, 9, 10, 11, 0, 0)));
+
+        Assert.assertEquals("newer-due", subject.poll().orElseThrow().getId());
     }
 
     @Test

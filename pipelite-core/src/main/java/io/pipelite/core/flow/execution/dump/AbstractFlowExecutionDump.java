@@ -38,6 +38,7 @@ public abstract class AbstractFlowExecutionDump implements FlowExecutionDump {
     private FlowExecutionDump.ExhaustionAction exhaustionAction = FlowExecutionDump.ExhaustionAction.NONE;
     private String deadLetterTarget;
     private FlowExecutionDumpStatus status = FlowExecutionDumpStatus.PENDING;
+    private LocalDateTime nextAttemptTime;
 
     private transient Throwable failureException;
 
@@ -169,6 +170,16 @@ public abstract class AbstractFlowExecutionDump implements FlowExecutionDump {
     @Override
     public FlowExecutionDumpStatus getStatus() {
         return status;
+    }
+
+    @Override
+    public void setNextAttemptTime(LocalDateTime nextAttemptTime) {
+        this.nextAttemptTime = nextAttemptTime;
+    }
+
+    @Override
+    public LocalDateTime getNextAttemptTime() {
+        return nextAttemptTime;
     }
 
     @Override

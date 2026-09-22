@@ -70,6 +70,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
     private String declaredFailureHandling;
     private boolean retryChannelRequested = false;
     private int retryMaxAttempts = RetryBuilder.DEFAULT_MAX_ATTEMPTS;
+    private Backoff retryBackoff;
     private boolean builtInDeadLetterQueueRequested = false;
     private String deadLetterTarget;
     private ExceptionHandler customExceptionHandler;
@@ -196,8 +197,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
         configurator.configure(retryBuilder);
         retryChannelRequested = true;
         retryMaxAttempts = retryBuilder.getMaxAttempts();
-        // retryBuilder.getBackoff() accepted by the DSL but not yet consumed here - separate
-        // follow-up issue (see RetryOperations#backoff's own Javadoc).
+        retryBackoff = retryBuilder.getBackoff();
         final ErrorChannelDefinition errorChannelDefinition = retryBuilder.getErrorChannelDefinition();
         if (errorChannelDefinition != null) {
             applyErrorChannelDefinition(errorChannelDefinition);
@@ -269,6 +269,7 @@ public class FlowDefinitionBuilder implements FlowOperations {
         if (retryChannelRequested) {
             final RetryChannelExceptionHandler handler = new RetryChannelExceptionHandler();
             handler.setMaxAttempts(retryMaxAttempts);
+            handler.setBackoff(retryBackoff);
             if (builtInDeadLetterQueueRequested) {
                 handler.setExhaustionAction(FlowExecutionDump.ExhaustionAction.BUILT_IN_DLQ);
             } else if (deadLetterTarget != null) {
