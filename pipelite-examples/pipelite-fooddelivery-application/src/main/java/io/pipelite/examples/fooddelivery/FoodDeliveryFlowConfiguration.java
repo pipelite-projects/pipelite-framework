@@ -203,7 +203,7 @@ public class FoodDeliveryFlowConfiguration {
             // case it doesn't, not a Flow the user has to build just to catch that.
             .withRetry(retry -> retry
                 .maxAttempts(KITCHEN_MAX_ATTEMPTS)
-                .backoff(Backoff.exponential(Duration.ofMinutes(1)))
+                .backoff(Backoff.exponential(Duration.ofSeconds(2)))
                 .onErrorChannel(err -> err.toDLQ()))
             .build();
     }
