@@ -15,15 +15,19 @@
  */
 package io.pipelite.core.flow.execution.dump;
 
+import io.pipelite.common.support.fs.ProcessScopedFileLock;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
+import io.pipelite.core.flow.execution.FlowExecutionDumpStatus;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -131,6 +135,133 @@ public class FileFlowExecutionDumpRepositoryTest {
     @Test(expected = IllegalArgumentException.class)
     public void shouldRejectSavingAFlowExecutionDumpThatIsNotSerializedFlowExecutionDump() {
         subject.save(new DefaultFlowExecutionDump("id", "hash", "flow", LocalDateTime.now()));
+    }
+
+    // -------------------------------------------------------------------------
+    // Issue #76: tryClaim's exclusivity, and recovering it after a crash
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void shouldClaimAPendingDumpOnlyOnce() {
+        subject.save(aDump("dump-4", LocalDateTime.now()));
+
+        Assert.assertTrue(subject.tryClaim("dump-4"));
+        Assert.assertFalse("already claimed, must not be claimable a second time", subject.tryClaim("dump-4"));
+    }
+
+    @Test
+    public void shouldNotClaimADumpThatWasNeverSaved() {
+        Assert.assertFalse(subject.tryClaim("never-saved"));
+    }
+
+    @Test
+    public void shouldNoLongerReturnAClaimedDumpFromPoll() {
+        subject.save(aDump("dump-5", LocalDateTime.now()));
+        subject.tryClaim("dump-5");
+
+        Assert.assertEquals(Optional.empty(), subject.poll());
+    }
+
+    /**
+     * The core of #76's fix: exclusivity comes from an OS-level lock this repository holds open
+     * for the whole claim, not from the dump's own {@code status} field, which is kept only as a
+     * fast filter for {@link FlowExecutionDumpRepository#poll()}. Resetting it externally - as a
+     * bug elsewhere, or a dump written by code that never knew about the lock, might do - must not
+     * reopen a claim that is still genuinely held.
+     */
+    @Test
+    public void givenAClaimIsStillHeld_thenResettingTheDumpsStatusOnDiskDoesNotReopenIt() {
+        final SerializedFlowExecutionDump dump = aDump("dump-6", LocalDateTime.now());
+        subject.save(dump);
+        Assert.assertTrue(subject.tryClaim("dump-6"));
+
+        dump.setStatus(FlowExecutionDumpStatus.PENDING);
+        subject.save(dump);
+
+        Assert.assertFalse("the still-open lock must refuse a second claim regardless of the status field",
+            subject.tryClaim("dump-6"));
+    }
+
+    @Test
+    public void givenTwoRepositoryInstancesOverTheSameDirectory_thenOnlyOneCanClaimTheSameDump() {
+        final FlowExecutionDumpRepository other = new FileFlowExecutionDumpRepository(directory);
+        subject.save(aDump("shared", LocalDateTime.now()));
+
+        Assert.assertTrue(subject.tryClaim("shared"));
+        Assert.assertFalse("a second instance over the same directory must not win the same claim, " +
+            "the same way two process instances sharing it must not", other.tryClaim("shared"));
+    }
+
+    @Test
+    public void shouldDeleteTheClaimFileOnRemove() {
+        subject.save(aDump("dump-7", LocalDateTime.now()));
+        subject.tryClaim("dump-7");
+
+        subject.remove("dump-7");
+
+        Assert.assertFalse(Files.exists(directory.resolve("dump-7.claim")));
+    }
+
+    /**
+     * The whole point of the OS-level lock over a timeout-based lease (issue #76, Option B over
+     * Option A in the design discussion): once it is actually free, recovery is immediate, with no
+     * safety-net duration to wait out - that duration exists only for the narrower case in the
+     * next test, a thread dying without the process dying with it.
+     */
+    @Test
+    public void givenAnExternallyHeldClaimIsReleased_thenTheNextAttemptSucceedsImmediately() {
+        final SerializedFlowExecutionDump dump = aDump("crashed", LocalDateTime.now());
+        subject.save(dump);
+
+        // Stands in for a different process's still-open claim on this same directory: an
+        // independent OS-level lock on the claim file, with the dump's own status flipped the same
+        // way tryClaim would - without ever going through `subject`, so `subject` has no
+        // bookkeeping of its own to reconcile once this is released.
+        final ProcessScopedFileLock otherProcessClaim =
+            ProcessScopedFileLock.tryAcquire(directory.resolve("crashed.claim")).orElseThrow();
+        dump.setStatus(FlowExecutionDumpStatus.IN_PROGRESS);
+        subject.save(dump);
+
+        Assert.assertFalse("a live claim, even one this repository instance did not itself open, must be respected",
+            subject.tryClaim("crashed"));
+
+        // The crash: the OS releases the lock the instant the holding process terminates, with no
+        // notice to anyone and no timeout to wait out.
+        otherProcessClaim.close();
+
+        Assert.assertTrue("once the OS lock is actually free, a claim must succeed immediately, with no waiting",
+            subject.tryClaim("crashed"));
+    }
+
+    /**
+     * The narrower case Option B alone cannot recover from: the process stays alive but the
+     * specific thread that opened the claim never releases it. This repository's own periodic
+     * self-cleanup, piggybacked on {@link FlowExecutionDumpRepository#poll()}, is what closes that
+     * gap - see {@code FileFlowExecutionDumpRepository}'s own Javadoc.
+     */
+    @Test
+    public void givenAClaimIsHeldPastTheSafetyNetDuration_thenPollReclaimsItAutomatically() throws InterruptedException {
+        final FlowExecutionDumpRepository shortSafetyNet =
+            new FileFlowExecutionDumpRepository(directory, Duration.ofMillis(30));
+        shortSafetyNet.save(aDump("abandoned", LocalDateTime.now()));
+        Assert.assertTrue(shortSafetyNet.tryClaim("abandoned"));
+
+        Thread.sleep(80);
+
+        final FlowExecutionDump polled = shortSafetyNet.poll().orElseThrow();
+        Assert.assertEquals("abandoned", polled.getId());
+        Assert.assertTrue("reclaimed by the same process's own safety net, it must be claimable again",
+            shortSafetyNet.tryClaim("abandoned"));
+    }
+
+    @Test
+    public void givenAClaimIsWellWithinTheSafetyNetDuration_thenPollDoesNotReclaimIt() {
+        final FlowExecutionDumpRepository generousSafetyNet =
+            new FileFlowExecutionDumpRepository(directory, Duration.ofHours(1));
+        generousSafetyNet.save(aDump("in-progress", LocalDateTime.now()));
+        Assert.assertTrue(generousSafetyNet.tryClaim("in-progress"));
+
+        Assert.assertEquals("still within the safety net, not abandoned", Optional.empty(), generousSafetyNet.poll());
     }
 
 }
