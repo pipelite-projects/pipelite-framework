@@ -27,6 +27,7 @@ import io.pipelite.dsl.route.RouteEntry;
 import io.pipelite.dsl.route.RoutingTable;
 import io.pipelite.spi.flow.AbstractFlowNode;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +52,8 @@ class RouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowE
 
     private PipeliteContext pipeliteContext;
 
+    private ExchangeFactory exchangeFactory;
+
     RouterNode(RoutingTable<?> routingTable, TextExpressionEvaluator textExpressionEvaluator) {
         this.routingTable = Preconditions.notNull(routingTable, "routingTable is required and cannot be null");
         this.textExpressionEvaluator = Preconditions.notNull(textExpressionEvaluator, "textExpressionEvaluator is required and cannot be null");
@@ -63,6 +66,11 @@ class RouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowE
      * the default handler protect this step too. Routing to several destinations is not atomic: if
      * the second delivery fails after the first went through, a retry of this step sends to the
      * first one again (at-least-once, as everywhere else in the framework).
+     * <p>
+     * Each destination gets its own copy of the exchange (issue #106), the same snapshot
+     * {@link RecipientListRouterNode} hands each recipient: a route with more than one destination
+     * used to hand the very same instance to every flow behind it, which then mutated it (headers,
+     * properties, output message) concurrently with no ordering guarantee.
      */
     @Override
     public void process(ExchangeImpl exchange) {
@@ -95,7 +103,9 @@ class RouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowE
 
                 try{
                     Objects.requireNonNull(pipeliteContext, "pipeliteContext not set, it's required and cannot be null");
-                    pipeliteContext.supplyExchange(destination, exchange);
+                    // Issue #106: a snapshot per destination, the same as RecipientListRouterNode,
+                    // so two destinations of one route never mutate the same instance concurrently.
+                    pipeliteContext.supplyExchange(destination, exchangeFactory.copyExchange(exchange));
                 }catch (RuntimeException exception){
                     throw new IllegalStateException(String.format("Unable to forward exchange on route-name '%s' due to an underlying error", destination), exception);
                 }
@@ -121,5 +131,6 @@ class RouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowE
     @Override
     public void setPipeliteContext(PipeliteContext pipeliteContext) {
         this.pipeliteContext = pipeliteContext;
+        this.exchangeFactory = pipeliteContext.getExchangeFactory();
     }
 }

@@ -43,6 +43,7 @@ public class RouterNodeTest {
 
         pipeliteContext = Mockito.mock(PipeliteContext.class);
         exchangeFactory = new DefaultExchangeFactory(new DefaultMessageFactory(new DistributedIdentityGeneratorImpl()));
+        Mockito.when(pipeliteContext.getExchangeFactory()).thenReturn(exchangeFactory);
 
         final ExpressionParser expressionParser = new ExpressionParser();
         final ConditionEvaluator conditionEvaluator = new ExpressionConditionEvaluator(expressionParser);
@@ -51,6 +52,7 @@ public class RouterNodeTest {
         routingTable.add(new RouteEntry<>(RecipientList.of("Exit-LasVegas"), new ExpressionCondition("Headers['Destination'] == 'LasVegas'")));
         routingTable.add(new RouteEntry<>(RecipientList.of("Exit-SanFrancisco"), new ExpressionCondition("Headers['Destination'] == 'SanFrancisco'")));
         routingTable.add(new RouteEntry<>(RecipientList.of("Exit-LosAngeles"), new ExpressionCondition("Headers['Destination'] == 'LosAngeles'")));
+        routingTable.add(new RouteEntry<>(RecipientList.of("Exit-Denver", "Exit-Phoenix"), new ExpressionCondition("Headers['Destination'] == 'Multi'")));
         routingTable.setDefaultRoutes("Exit-Airport");
 
         final TextExpressionEvaluator textExpressionEvaluator = new TextExpressionEvaluator(expressionParser);
@@ -68,6 +70,44 @@ public class RouterNodeTest {
         subject.process(exchange);
 
         Mockito.verify(pipeliteContext).supplyExchange(Mockito.same("Exit-LosAngeles"), Mockito.any());
+    }
+
+    /**
+     * Issue #106: a route with a single destination still gets its own copy, not the original
+     * instance - copying always, the same as {@link RecipientListRouterNode}, keeps the behavior
+     * independent of how many destinations a route has.
+     */
+    @Test
+    public void shouldSupplyACopyNotTheOriginalInstance(){
+
+        final ExchangeImpl exchange = exchangeFactory.createExchange();
+        exchange.putHeader("Destination", "LosAngeles");
+        subject.process(exchange);
+
+        final org.mockito.ArgumentCaptor<ExchangeImpl> delivered = org.mockito.ArgumentCaptor.forClass(ExchangeImpl.class);
+        Mockito.verify(pipeliteContext).supplyExchange(Mockito.eq("Exit-LosAngeles"), delivered.capture());
+        Assert.assertNotSame(exchange, delivered.getValue());
+    }
+
+    /**
+     * Issue #106: each destination of a route with several gets its own copy, so the flows behind
+     * them never mutate one shared instance concurrently.
+     */
+    @Test
+    public void givenARouteWithSeveralDestinations_thenEachGetsItsOwnCopy(){
+
+        final ExchangeImpl exchange = exchangeFactory.createExchange();
+        exchange.putHeader("Destination", "Multi");
+        subject.process(exchange);
+
+        final org.mockito.ArgumentCaptor<ExchangeImpl> toDenver = org.mockito.ArgumentCaptor.forClass(ExchangeImpl.class);
+        final org.mockito.ArgumentCaptor<ExchangeImpl> toPhoenix = org.mockito.ArgumentCaptor.forClass(ExchangeImpl.class);
+        Mockito.verify(pipeliteContext).supplyExchange(Mockito.eq("Exit-Denver"), toDenver.capture());
+        Mockito.verify(pipeliteContext).supplyExchange(Mockito.eq("Exit-Phoenix"), toPhoenix.capture());
+
+        Assert.assertNotSame(toDenver.getValue(), toPhoenix.getValue());
+        Assert.assertNotSame(exchange, toDenver.getValue());
+        Assert.assertNotSame(exchange, toPhoenix.getValue());
     }
 
     @Test
@@ -118,7 +158,9 @@ public class RouterNodeTest {
         router.process(exchange);
 
         Assert.assertTrue(handled.get().getMessage(), handled.get().getMessage().contains("unresolved route name"));
-        Mockito.verifyNoInteractions(pipeliteContext);
+        // Not verifyNoInteractions: setPipeliteContext itself now asks the mock for its
+        // ExchangeFactory (issue #106) - what matters here is that nothing was ever delivered.
+        Mockito.verify(pipeliteContext, Mockito.never()).supplyExchange(Mockito.anyString(), Mockito.any());
     }
 
     @Test
