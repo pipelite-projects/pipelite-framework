@@ -27,7 +27,7 @@ Pipelite.defineFlow("http-inbound")
     .toSink("slf4j://log")
     .build();
 ----
-<1> Opens an HTTP listener on port 80 (default) at path `/ingress`.
+<1> Opens an HTTP listener on port 8080 (default) at path `/ingress`.
 
 === URL format
 
@@ -47,8 +47,43 @@ http://<path>
 
 The Undertow server is started automatically by `HttpChannelAdapter.onContextStarted()` upon the first registration of an HTTP consumer.
 
-NOTE: The default port is 80.
-Custom port and host configuration will be available in a future release.
+=== Adapter-wide configuration
+
+Port, host and the maximum size of a single request body are shared by every `http://` source in
+a context - one Undertow instance serves all of them - so they are configured once, adapter-wide,
+the same way Kafka's `bootstrapServers` is:
+
+[source,java]
+----
+context.addChannelConfigurer((HttpChannelConfigurer) configuration -> {
+    configuration.setPort(8443);
+    configuration.setHost("127.0.0.1");
+    configuration.setMaxEntitySize(1024 * 1024); // bytes
+});
+----
+
+[cols="1,1,3"]
+|===
+|Setting |Default |Description
+
+|port
+|8080
+|The Undertow listener's TCP port.
+
+|host
+|`0.0.0.0`
+|The interface Undertow binds to.
+
+|maxEntitySize
+|10 MiB
+|Upper bound on a single request's body size, in bytes. A request exceeding it receives a `413`
+response instead of being read into memory unbounded.
+|===
+
+WARNING: `HttpChannelAdapter` has no built-in authentication and does not terminate TLS - it is
+not safe to expose directly on an untrusted network. Put a reverse proxy (nginx, an API gateway,
+a load balancer) in front of it to handle TLS termination and authentication before traffic
+reaches this adapter.
 
 == Usage as sink (outbound)
 
