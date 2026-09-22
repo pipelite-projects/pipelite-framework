@@ -24,11 +24,13 @@ import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.undertow.server.BlockingHttpExchange;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
+import io.undertow.server.RequestTooBigException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -67,6 +69,18 @@ public class DefaultHttpHandler implements HttpHandler, ExchangeFactoryAware {
                 return;
             }
 
+            // Rejected before reading a single byte (issue #52) whenever the client sends a
+            // truthful Content-Length - getMaxEntitySize() reflects whatever
+            // HttpChannelConfiguration#setMaxEntitySize configured, via
+            // UndertowOptions.MAX_ENTITY_SIZE. The mid-read catches below are the fallback for a
+            // chunked request (no Content-Length to check upfront) or one that lies about it.
+            final long maxEntitySize = httpServerExchange.getMaxEntitySize();
+            final long contentLength = httpServerExchange.getRequestContentLength();
+            if (maxEntitySize > 0 && contentLength > maxEntitySize) {
+                httpServerExchange.setStatusCode(413);
+                return;
+            }
+
             try (BlockingHttpExchange blockingHttpExchange = httpServerExchange.startBlocking()) {
                 final InputStream requestBodyStream = blockingHttpExchange.getInputStream();
                 String requestBodyAsText = new BufferedReader(
@@ -77,6 +91,19 @@ public class DefaultHttpHandler implements HttpHandler, ExchangeFactoryAware {
                 final ExchangeImpl exchange = exchangeFactory.createExchange(requestBodyAsText);
                 consumer.consume(exchange);
                 httpServerExchange.setStatusCode(201);
+            } catch (RequestTooBigException tooBig) {
+                // Undertow itself enforces UndertowOptions.MAX_ENTITY_SIZE by throwing this
+                // mid-read for a chunked (Content-Length-less) request that turns out too big.
+                rejectAsTooLargeIfStillPossible(httpServerExchange);
+            } catch (UncheckedIOException possiblyTooBig) {
+                // BufferedReader#lines() (used above) wraps every IOException, including
+                // RequestTooBigException, thrown while iterating its Stream - the same condition as
+                // the direct catch above, just reached through Stream.collect(...) instead of a
+                // plain read() call.
+                if (!(possiblyTooBig.getCause() instanceof RequestTooBigException)) {
+                    throw possiblyTooBig;
+                }
+                rejectAsTooLargeIfStillPossible(httpServerExchange);
             }
         } finally {
             httpServerExchange.endExchange();
@@ -87,6 +114,19 @@ public class DefaultHttpHandler implements HttpHandler, ExchangeFactoryAware {
     @Override
     public void setExchangeFactory(ExchangeFactory exchangeFactory) {
         this.exchangeFactory = exchangeFactory;
+    }
+
+    /**
+     * Undertow's own reaction to exceeding {@code MAX_ENTITY_SIZE} mid-read is to terminate the
+     * connection outright (its {@link RequestTooBigException}'s own message: "Connection
+     * terminated") - by the time that reaches this handler, the exchange may already be past the
+     * point where a status code can be set at all. Best-effort: a clean 413 when still possible,
+     * a reset connection (no worse than before this existed) otherwise.
+     */
+    private static void rejectAsTooLargeIfStillPossible(HttpServerExchange httpServerExchange) {
+        if (!httpServerExchange.isResponseStarted()) {
+            httpServerExchange.setStatusCode(413);
+        }
     }
 
 }

@@ -17,6 +17,7 @@ package io.pipelite.examples.fooddelivery;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -53,8 +54,6 @@ class OrderGenerator {
 
     private static final Logger logger = LoggerFactory.getLogger(OrderGenerator.class);
 
-    private static final String HTTP_ORDERS_ENDPOINT = "http://localhost:80/orders";
-
     private static final List<String> RESTAURANTS =
         List.of("Pizzeria Da Mario", "Sushi Time", "Burger House", "Taco Fiesta", "Green Bowl");
     private static final List<String> CUSTOMERS =
@@ -65,11 +64,19 @@ class OrderGenerator {
         "2x Margherita + 1x Coke", "8pz Sashimi Mix", "1x Cheeseburger Menu", "3x Tacos al Pastor", "1x Quinoa Bowl");
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
+    // Same "http.port" property FoodDeliveryChannelConfiguration wires the adapter's own listener
+    // to (issue #48) - kept in sync since this client would otherwise silently fail against
+    // whatever port the ingress actually bound to.
+    private final String httpOrdersEndpoint;
 
     private int orderSequence = 0;
     private int emittedCount = 0;
     private boolean finished = false;
     private boolean filesPrepared = false;
+
+    OrderGenerator(@Value("${http.port:8080}") int httpPort) {
+        this.httpOrdersEndpoint = String.format("http://localhost:%d/orders", httpPort);
+    }
 
     // Single-threaded by construction: time:// sources run on one dedicated poller thread per
     // flow (see EventDrivenConsumerService's "one thread per flow" model discussed throughout
@@ -123,7 +130,7 @@ class OrderGenerator {
     private void postHttpOrder(String orderId, String restaurant, String customer, String items, String amount) {
         final String body = String.join("|", orderId, restaurant, customer, items, amount);
         final HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create(HTTP_ORDERS_ENDPOINT))
+            .uri(URI.create(httpOrdersEndpoint))
             .timeout(Duration.ofSeconds(5))
             .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
             .build();
@@ -134,7 +141,7 @@ class OrderGenerator {
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }
-            logger.warn("[generator] failed to POST {} to {}: {}", orderId, HTTP_ORDERS_ENDPOINT, e.getMessage());
+            logger.warn("[generator] failed to POST {} to {}: {}", orderId, httpOrdersEndpoint, e.getMessage());
         }
     }
 

@@ -15,9 +15,13 @@
  */
 package io.pipelite.components.http;
 
+import io.pipelite.components.http.config.DefaultHttpChannelConfiguration;
+import io.pipelite.components.http.config.HttpChannelConfiguration;
+import io.pipelite.components.http.config.HttpChannelConfigurer;
 import io.pipelite.components.http.undertow.DefaultHttpHandler;
 import io.pipelite.dsl.definition.SourceConfigurer;
 import io.pipelite.spi.channel.ChannelAdapter;
+import io.pipelite.spi.channel.ChannelConfigurer;
 import io.pipelite.spi.context.ContextEventListener;
 import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.Endpoint;
@@ -26,6 +30,7 @@ import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.undertow.Handlers;
 import io.undertow.Undertow;
+import io.undertow.UndertowOptions;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.handlers.BlockingHandler;
 import io.undertow.server.handlers.PathHandler;
@@ -36,9 +41,9 @@ import java.util.Optional;
 
 public class HttpChannelAdapter implements ChannelAdapter, ExchangeFactoryAware, ContextEventListener {
 
-    private static final Integer DEFAULT_SERVER_PORT = 80;
-
     private final Map<String, Consumer> consumersByResource;
+
+    private final HttpChannelConfiguration configuration;
 
     private Undertow server;
 
@@ -46,6 +51,22 @@ public class HttpChannelAdapter implements ChannelAdapter, ExchangeFactoryAware,
 
     public HttpChannelAdapter(){
         consumersByResource = new LinkedHashMap<>();
+        configuration = new DefaultHttpChannelConfiguration();
+    }
+
+    /**
+     * Adapter-wide: port, host and the request body size cap (issues #48, #52), supplied by the
+     * caller via {@code context.addChannelConfigurer((HttpChannelConfigurer) c -> ...)} - the same
+     * mechanism {@code KafkaChannelAdapter} uses for {@code bootstrapServers}.
+     */
+    @Override
+    public void configure(ChannelConfigurer<?> channelConfigurer) {
+        ((HttpChannelConfigurer) channelConfigurer).configure(configuration);
+    }
+
+    @Override
+    public Class<? extends ChannelConfigurer<?>> getChannelConfigurerType() {
+        return HttpChannelConfigurer.class;
     }
 
     @Override
@@ -74,7 +95,8 @@ public class HttpChannelAdapter implements ChannelAdapter, ExchangeFactoryAware,
 
         if(server == null){
             server = Undertow.builder()
-                .addHttpListener(DEFAULT_SERVER_PORT, "0.0.0.0")
+                .addHttpListener(configuration.getPort(), configuration.getHost())
+                .setServerOption(UndertowOptions.MAX_ENTITY_SIZE, configuration.getMaxEntitySize())
                 .setHandler(createHttpHandler())
                 .build();
         }
