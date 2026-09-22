@@ -17,6 +17,7 @@ package io.pipelite.core.context.impl;
 
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.components.ChannelAdapterDiscovery;
+import io.pipelite.core.components.DuplicateChannelAdapterProtocolException;
 import io.pipelite.core.context.ChannelAdapterManager;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelConfigurer;
@@ -60,19 +61,24 @@ public class DefaultChannelAdapterManager implements ChannelAdapterManager {
         if(channelAdapter instanceof ExchangeFactoryAware){
             ((ExchangeFactoryAware) channelAdapter).setExchangeFactory(exchangeFactory);
         }
+        // Fails fast (issue #57) instead of silently keeping the first registration and dropping
+        // this one - putIfAbsent's own "someone already claimed this" case used to be treated as a
+        // plain no-op, indistinguishable from an idempotent re-registration.
         final ChannelAdapter oldChannelAdapter = channelAdapters.putIfAbsent(channelName, channelAdapter);
-        if(oldChannelAdapter == null){
-            final Optional<ChannelConfigurer<?>> channelConfigurerHolder = channelConfigurers
-                .stream()
-                .filter(cc -> {
-                    final Class<? extends ChannelConfigurer<?>> configurerType = channelAdapter.getChannelConfigurerType();
-                    return configurerType != null && configurerType.isAssignableFrom(cc.getClass());
-                })
-                .findFirst();
-            if(channelConfigurerHolder.isPresent()){
-                final ChannelConfigurer<?> channelConfigurer = channelConfigurerHolder.get();
-                channelAdapter.configure(channelConfigurer);
-            }
+        if(oldChannelAdapter != null){
+            throw new DuplicateChannelAdapterProtocolException(channelName,
+                oldChannelAdapter.getClass().getName(), channelAdapter.getClass().getName());
+        }
+        final Optional<ChannelConfigurer<?>> channelConfigurerHolder = channelConfigurers
+            .stream()
+            .filter(cc -> {
+                final Class<? extends ChannelConfigurer<?>> configurerType = channelAdapter.getChannelConfigurerType();
+                return configurerType != null && configurerType.isAssignableFrom(cc.getClass());
+            })
+            .findFirst();
+        if(channelConfigurerHolder.isPresent()){
+            final ChannelConfigurer<?> channelConfigurer = channelConfigurerHolder.get();
+            channelAdapter.configure(channelConfigurer);
         }
     }
 

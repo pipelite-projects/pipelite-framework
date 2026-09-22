@@ -40,17 +40,21 @@ class CandidateComponentMetadata {
         return channelAdapterType;
     }
 
+    // Issue #57: both fields, not just channelAdapterType - the same class declared under two
+    // different protocols is a distinct candidate for each, not a duplicate of itself, and this is
+    // the only thing standing between the classpath scanner's Collectors.toSet() and silently
+    // collapsing them into one, losing whichever protocol the discarded copy would have claimed.
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         CandidateComponentMetadata that = (CandidateComponentMetadata) o;
-        return Objects.equals(channelAdapterType, that.channelAdapterType);
+        return Objects.equals(protocolName, that.protocolName) && Objects.equals(channelAdapterType, that.channelAdapterType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(channelAdapterType);
+        return Objects.hash(protocolName, channelAdapterType);
     }
 
 }
