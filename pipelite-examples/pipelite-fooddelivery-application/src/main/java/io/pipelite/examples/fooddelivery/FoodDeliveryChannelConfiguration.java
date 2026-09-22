@@ -17,6 +17,7 @@ package io.pipelite.examples.fooddelivery;
 
 import io.pipelite.channels.kafka.config.KafkaChannelConfigurer;
 import io.pipelite.components.file.FileChannelConfigurer;
+import io.pipelite.components.http.config.HttpChannelConfigurer;
 import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.spring.context.PipeliteContextInitializer;
@@ -35,10 +36,13 @@ import org.springframework.stereotype.Component;
 public class FoodDeliveryChannelConfiguration implements PipeliteContextInitializer {
 
     private final String kafkaBootstrapServers;
+    private final int httpPort;
 
     public FoodDeliveryChannelConfiguration(
-            @Value("${kafka.bootstrap-servers:localhost:9092}") String kafkaBootstrapServers) {
+            @Value("${kafka.bootstrap-servers:localhost:9092}") String kafkaBootstrapServers,
+            @Value("${http.port:8080}") int httpPort) {
         this.kafkaBootstrapServers = kafkaBootstrapServers;
+        this.httpPort = httpPort;
     }
 
     @Override
@@ -55,6 +59,10 @@ public class FoodDeliveryChannelConfiguration implements PipeliteContextInitiali
             (KafkaChannelConfigurer) configuration -> configuration.setBootstrapServers(kafkaBootstrapServers));
         configurableContext.addChannelConfigurer(
             (FileChannelConfigurer) configuration -> configuration.setStateDirectory(FoodDeliveryPaths.FILE_ADAPTER_STATE_DIRECTORY));
+        // Defaults to 8080, no longer the framework's own previous hardcoded 80 (issue #48) -
+        // OrderGenerator's HTTP client is wired to the same property, so the two stay in sync.
+        configurableContext.addChannelConfigurer(
+            (HttpChannelConfigurer) configuration -> configuration.setPort(httpPort));
     }
 
 }

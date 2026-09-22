@@ -40,8 +40,8 @@ import org.springframework.context.annotation.Bean;
  *       Without it, the kitchen-processing → Kafka → dispatch-processing hop simply won't
  *       deliver anything, but the HTTP/File ingress into the kitchen stage still works.</li>
  *   <li>Run this class ({@code mvn spring-boot:run} from this module, or your IDE). The HTTP
- *       ingress binds to port 80 (fixed by the http-channel-adapter) — free it first if
- *       something else is already listening there.</li>
+ *       ingress binds to port 8080 by default — free it first if something else is already
+ *       listening there, or override it (see below).</li>
  *   <li>Watch the console: {@code orderGeneratorFlow}'s {@code time://} tick drives
  *       {@link OrderGenerator} to emit ~40 simulated orders over HTTP and the partner CSV file,
  *       so kitchen/dispatch worker overlap is visible immediately with no manual input.</li>
@@ -55,6 +55,11 @@ import org.springframework.context.annotation.Bean;
  * property (or the equivalent {@code KAFKA_BOOTSTRAP_SERVERS} environment variable, per Spring
  * Boot's relaxed binding) — see {@link FoodDeliveryChannelConfiguration}. Defaults to {@code
  * localhost:9092}, matching the bundled compose file.
+ *
+ * <p>The HTTP ingress port can likewise be overridden via {@code http.port} (or {@code
+ * HTTP_PORT}) — see {@link FoodDeliveryChannelConfiguration} and {@link OrderGenerator}, which
+ * reads the same property so its own client keeps posting to whichever port the adapter actually
+ * bound to. Defaults to {@code 8080}, no longer the framework's own previous hardcoded {@code 80}.
  */
 @SpringBootApplication
 @EnablePipelite(flowConfigurations = FoodDeliveryFlowConfiguration.class)
