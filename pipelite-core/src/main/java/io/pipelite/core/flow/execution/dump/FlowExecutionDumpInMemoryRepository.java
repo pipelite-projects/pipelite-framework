@@ -71,7 +71,7 @@ public class FlowExecutionDumpInMemoryRepository implements FlowExecutionDumpRep
     public Optional<FlowExecutionDump> poll() {
         return dumps.values()
             .stream()
-            .filter(dump -> dump.getStatus() == FlowExecutionDumpStatus.PENDING)
+            .filter(dump -> dump.getStatus() == FlowExecutionDumpStatus.PENDING && dump.isDue())
             .min(Comparator.comparing(FlowExecutionDump::getCreationTime));
     }
 

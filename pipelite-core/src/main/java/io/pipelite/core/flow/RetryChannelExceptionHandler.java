@@ -23,6 +23,7 @@ import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpFactory;
 import io.pipelite.dsl.Exchange;
+import io.pipelite.dsl.definition.builder.Backoff;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 
@@ -45,6 +47,7 @@ public class RetryChannelExceptionHandler implements ExceptionHandler, DeclaresD
     // above) is fine — set once by FlowDefinitionBuilder.build() from user DSL config, never
     // re-set afterward.
     private int maxAttempts = RetryBuilder.DEFAULT_MAX_ATTEMPTS;
+    private Backoff backoff;
     private FlowExecutionDump.ExhaustionAction exhaustionAction = FlowExecutionDump.ExhaustionAction.NONE;
     private String deadLetterTarget;
 
@@ -70,6 +73,14 @@ public class RetryChannelExceptionHandler implements ExceptionHandler, DeclaresD
 
     public void setMaxAttempts(int maxAttempts) {
         this.maxAttempts = maxAttempts;
+    }
+
+    /**
+     * The delay to honor between attempts (issue #95) - {@code null} (the default) means retry as
+     * soon as the retry channel polls, same as before this existed.
+     */
+    public void setBackoff(Backoff backoff) {
+        this.backoff = backoff;
     }
 
     /**
@@ -131,6 +142,9 @@ public class RetryChannelExceptionHandler implements ExceptionHandler, DeclaresD
         executionDump.setMaxAttempts(maxAttempts);
         executionDump.setExhaustionAction(exhaustionAction);
         executionDump.setDeadLetterTarget(deadLetterTarget);
+        if (backoff != null) {
+            executionDump.setNextAttemptTime(LocalDateTime.now().plus(backoff.delayBeforeAttempt(executionDump.getAttemptNumber())));
+        }
 
         final String executionDumpId = executionDump.getId();
         exchangeImpl.setProperty(IOKeys.FLOW_EXECUTION_DUMP_ID_PROPERTY_NAME, executionDumpId);

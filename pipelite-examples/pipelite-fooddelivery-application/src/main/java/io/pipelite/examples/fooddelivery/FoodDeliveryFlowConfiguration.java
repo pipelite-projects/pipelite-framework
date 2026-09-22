@@ -24,9 +24,11 @@ import io.pipelite.core.Pipelite;
 import io.pipelite.dsl.annotation.DefineFlow;
 import io.pipelite.dsl.annotation.FlowConfiguration;
 import io.pipelite.dsl.definition.FlowDefinition;
+import io.pipelite.dsl.definition.builder.Backoff;
 import io.pipelite.spi.endpoint.SourceConcurrencyConfigurer;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -201,6 +203,7 @@ public class FoodDeliveryFlowConfiguration {
             // case it doesn't, not a Flow the user has to build just to catch that.
             .withRetry(retry -> retry
                 .maxAttempts(KITCHEN_MAX_ATTEMPTS)
+                .backoff(Backoff.exponential(Duration.ofMinutes(1)))
                 .onErrorChannel(err -> err.toDLQ()))
             .build();
     }
@@ -239,6 +242,7 @@ public class FoodDeliveryFlowConfiguration {
             // retries jump directly back to validate-order-amount, not the flow's source.
             .withRetry(retry -> retry
                 .maxAttempts(DISPATCH_MAX_ATTEMPTS)
+                .backoff(Backoff.exponential(Duration.ofSeconds(2)))
                 .onErrorChannel(err -> err.toChannel("queue://" + DISPATCH_DEAD_LETTER_SOURCE)))
             .build();
     }
