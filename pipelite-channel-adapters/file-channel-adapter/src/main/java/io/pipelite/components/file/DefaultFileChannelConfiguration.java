@@ -21,6 +21,7 @@ import io.pipelite.common.support.fs.PipeliteHome;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public class DefaultFileChannelConfiguration implements FileChannelConfiguration {
 
@@ -29,6 +30,7 @@ public class DefaultFileChannelConfiguration implements FileChannelConfiguration
     private static final FileRecordMapper<String> DEFAULT_MAPPER = new LineRecordMapper();
 
     private Path stateDirectory;
+    private Path allowedWriteDirectory;
 
     private final Map<String, FileRecordMapper<?>> mappers = new HashMap<>();
 
@@ -40,6 +42,16 @@ public class DefaultFileChannelConfiguration implements FileChannelConfiguration
     @Override
     public Path getStateDirectory() {
         return stateDirectory != null ? stateDirectory : DEFAULT_STATE_DIRECTORY;
+    }
+
+    @Override
+    public void setAllowedWriteDirectory(Path allowedWriteDirectory) {
+        this.allowedWriteDirectory = Preconditions.notNull(allowedWriteDirectory, "allowedWriteDirectory is required and cannot be null");
+    }
+
+    @Override
+    public Optional<Path> getAllowedWriteDirectory() {
+        return Optional.ofNullable(allowedWriteDirectory);
     }
 
     @Override

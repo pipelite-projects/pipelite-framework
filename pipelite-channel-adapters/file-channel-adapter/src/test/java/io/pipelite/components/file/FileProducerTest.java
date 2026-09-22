@@ -20,6 +20,7 @@ import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.SimpleMessage;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -101,11 +102,66 @@ public class FileProducerTest {
         assertEquals("hello", Files.readString(target, StandardCharsets.UTF_8));
     }
 
+    // -------------------------------------------------------------------------
+    // Issue #60: path normalization and opt-in containment
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void shouldAcceptATargetInsideTheConfiguredAllowedWriteDirectory() throws IOException {
+        final Path allowedDirectory = temporaryFolder.getRoot().toPath();
+        final Path target = allowedDirectory.resolve("nested").resolve("out.txt");
+        final FileProducer subject = newProducer(target, false, allowedDirectory);
+
+        subject.process(exchangeWithPayload("hello"));
+
+        assertEquals("hello", Files.readString(target, StandardCharsets.UTF_8));
+    }
+
+    @Test
+    public void shouldRejectADotDotSegmentThatEscapesTheConfiguredAllowedWriteDirectory() throws IOException {
+        // Also exercises normalization itself, not just containment: without normalize()
+        // collapsing "allowed/../outside.txt" first, the raw path's own segments still start
+        // with "allowed" and the containment check below would wrongly accept it.
+        final Path allowedDirectory = temporaryFolder.newFolder("allowed").toPath();
+        final Path escapingTarget = allowedDirectory.resolve("..").resolve("outside.txt");
+
+        try {
+            newProducer(escapingTarget, false, allowedDirectory);
+            Assert.fail("expected the escaping target to be rejected");
+        } catch (IllegalArgumentException expected) {
+            Assert.assertTrue(expected.getMessage(), expected.getMessage().contains("escapes"));
+        }
+        Assert.assertFalse("nothing must be written for a rejected target",
+            Files.exists(allowedDirectory.resolveSibling("outside.txt")));
+    }
+
+    @Test
+    public void shouldRejectAnAbsolutePathOutsideTheConfiguredAllowedWriteDirectoryEvenWithoutDotDot() throws IOException {
+        final Path allowedDirectory = temporaryFolder.newFolder("allowed").toPath();
+        final Path unrelatedTarget = temporaryFolder.newFolder("elsewhere").toPath().resolve("out.txt");
+
+        try {
+            newProducer(unrelatedTarget, false, allowedDirectory);
+            Assert.fail("expected the unrelated target to be rejected");
+        } catch (IllegalArgumentException expected) {
+            // A fully attacker-controlled absolute path needs no ".." at all to land outside the
+            // allowed directory - the containment check must not rely on ".." being present.
+        }
+    }
+
     private static FileProducer newProducer(Path target, boolean append) {
+        return newProducer(target, append, null);
+    }
+
+    private static FileProducer newProducer(Path target, boolean append, Path allowedWriteDirectory) {
         final String query = append ? "?append=true" : "";
         final EndpointURL endpointURL = EndpointURL.parse(target.toString() + query, RESOURCE_PATTERN);
         final Endpoint endpoint = new DefaultEndpoint(endpointURL);
-        return new FileProducer(endpoint);
+        final DefaultFileChannelConfiguration configuration = new DefaultFileChannelConfiguration();
+        if (allowedWriteDirectory != null) {
+            configuration.setAllowedWriteDirectory(allowedWriteDirectory);
+        }
+        return new FileProducer(endpoint, configuration);
     }
 
     private static ExchangeImpl exchangeWithPayload(Object payload) {

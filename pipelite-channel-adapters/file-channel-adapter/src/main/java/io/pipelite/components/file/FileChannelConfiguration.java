@@ -16,11 +16,23 @@
 package io.pipelite.components.file;
 
 import java.nio.file.Path;
+import java.util.Optional;
 
 public interface FileChannelConfiguration {
 
     void setStateDirectory(Path stateDirectory);
     Path getStateDirectory();
+
+    /**
+     * Confines every {@code file://} sink's target to this directory (issue #60) - {@link
+     * FileProducer} rejects, at creation time, any resource whose normalized path resolves
+     * outside it. Unset by default (empty), which preserves the pre-#60 behavior of accepting any
+     * path: this is an opt-in safety net for a context where the resource may be built from
+     * external input (e.g. via a property resolver), not a restriction every caller is forced
+     * into.
+     */
+    void setAllowedWriteDirectory(Path allowedWriteDirectory);
+    Optional<Path> getAllowedWriteDirectory();
 
     void registerMapper(String name, FileRecordMapper<?> mapper);
 

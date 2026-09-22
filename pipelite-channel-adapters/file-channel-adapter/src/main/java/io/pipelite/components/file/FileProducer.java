@@ -38,13 +38,26 @@ public class FileProducer extends DefaultProducer {
     private final Charset charset;
     private final boolean append;
 
-    public FileProducer(Endpoint endpoint) {
+    public FileProducer(Endpoint endpoint, FileChannelConfiguration configuration) {
         super(endpoint);
 
         final EndpointURL endpointURL = endpoint.getEndpointURL();
         final EndpointProperties properties = endpointURL.getProperties();
 
-        this.target = Path.of(endpointURL.getResource());
+        // Normalized unconditionally (issue #60): the resource is treated as potentially
+        // attacker-influenced (e.g. built from external input via a property resolver), and
+        // collapsing '..'/'.' segments here is what makes the containment check below meaningful
+        // rather than trivially bypassable.
+        final Path resolvedTarget = Path.of(endpointURL.getResource()).normalize();
+        configuration.getAllowedWriteDirectory().ifPresent(allowedWriteDirectory -> {
+            final Path normalizedAllowedDirectory = allowedWriteDirectory.normalize().toAbsolutePath();
+            if (!resolvedTarget.toAbsolutePath().startsWith(normalizedAllowedDirectory)) {
+                throw new IllegalArgumentException(String.format(
+                    "Target path '%s' escapes the configured allowedWriteDirectory '%s'",
+                    resolvedTarget, normalizedAllowedDirectory));
+            }
+        });
+        this.target = resolvedTarget;
         this.charset = Charset.forName(properties.getOrDefault(FileConstants.CHARSET_PROPERTY_NAME, FileConstants.DEFAULT_CHARSET));
         this.append = Boolean.parseBoolean(properties.getOrDefault(FileConstants.APPEND_PROPERTY_NAME, "false"));
     }

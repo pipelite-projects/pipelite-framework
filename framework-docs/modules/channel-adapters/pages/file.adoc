@@ -165,6 +165,7 @@ File channel behavior is provided via `FileChannelConfigurer`:
 FileChannelConfigurer configurer = configuration -> {
     configuration.setStateDirectory(Path.of("/var/lib/myapp/pipelite-file-state"));
     configuration.registerMapper("upper", new UpperCaseLineRecordMapper());
+    configuration.setAllowedWriteDirectory(Path.of("/var/lib/myapp/outbox"));
 };
 
 context.addChannelConfigurer(configurer);
@@ -187,6 +188,10 @@ WARNING: Only the *first* `FileChannelConfigurer` registered on a context is app
 |`mappers`
 |(empty)
 |Registry of named `FileRecordMapper` instances, populated via `registerMapper(name, mapper)` and looked up via the `recordMapper` URL parameter.
+
+|`allowedWriteDirectory`
+|(unset - unrestricted)
+|Confines every `file://` sink's target to this directory. `FileProducer` normalizes the resource path and, when this is set, rejects (at flow-registration time) any target that resolves outside it. Unset by default, preserving the historical behavior of accepting any path - this is an opt-in safety net for a context where the resource might be built from external input, not a restriction every caller is forced into.
 |===
 
 == State persistence and resume semantics
