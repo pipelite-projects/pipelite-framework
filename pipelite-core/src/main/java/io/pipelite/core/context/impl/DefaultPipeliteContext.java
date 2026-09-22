@@ -24,9 +24,11 @@ import io.pipelite.core.config.FlowConfigurationScanner;
 import io.pipelite.core.config.NoOpEndpointURLPropertyResolver;
 import io.pipelite.core.context.*;
 import io.pipelite.core.context.internal.DestinationURLs;
+import io.pipelite.core.context.internal.ReservedNames;
 import io.pipelite.core.context.internal.validation.ContextValidatorChain;
 import io.pipelite.core.context.internal.validation.FlowReferenceValidator;
 import io.pipelite.core.context.internal.validation.QueueSourceUniquenessValidator;
+import io.pipelite.core.context.internal.validation.ReservedFlowNameValidator;
 import io.pipelite.core.context.internal.validation.ContextValidator;
 import io.pipelite.core.context.internal.validation.ValidationContext;
 import io.pipelite.core.flow.DeadLetterChannelExceptionHandler;
@@ -85,8 +87,6 @@ import java.util.concurrent.TimeUnit;
 
 public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
-    private static final String RETRY_CHANNEL_NAME = "retry-channel";
-
     // Namespaced under a dedicated "state/" prefix, sibling to (never inside) any channel
     // adapter's own PipeliteHome subfolder (e.g. "file-channel-adapter") - reserved for the
     // core framework's own durable state, leaving room for future concerns of the same kind
@@ -134,6 +134,17 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     private final ServiceManager serviceManager;
     private final ChannelAdapterManager channelAdapterManager;
 
+    // Whether the built-in retry channel has been created yet, tracked here rather than asked of
+    // flowRegistry (issue #116): flowRegistry.isRegistered(ReservedNames.RETRY_CHANNEL) answered
+    // "does any flow read a source whose resource is 'retry-channel'", not "has the retry channel
+    // already been created" - a user flow on queue://retry-channel or even time://retry-channel,
+    // registered before the first retryable flow, made the answer yes and silently skipped creating
+    // it. A source resource is an address, not an identity (issue #108); the two must never be
+    // confused. ReservedFlowNameValidator rejects that name outright before this ever runs, but
+    // this field stays: it is what actually decides whether to create the channel, and does not
+    // depend on the validator having run.
+    private boolean retryChannelCreated = false;
+
     private final DefaultEndpointFactory endpointFactory;
     private final FlowFactory flowFactory;
     private final ExchangeFactory exchangeFactory;
@@ -173,6 +184,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
         contextValidatorChain = new ContextValidatorChain();
         contextValidatorChain.add(new FlowReferenceValidator());
         contextValidatorChain.add(new QueueSourceUniquenessValidator());
+        contextValidatorChain.add(new ReservedFlowNameValidator());
 
         dependencyRegistry = new DefaultDependencyRegistry();
         flowConfigurationScanner = new FlowConfigurationScanner();
@@ -508,14 +520,14 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
                 exceptionHandler.setDumpRepository(executionDumpRepository);
 
                 // Create the retry-channel if not already done
-                if(!flowRegistry.isRegistered(RETRY_CHANNEL_NAME)){
+                if(!retryChannelCreated){
                     // Built here rather than once in the constructor: executionDumpRepository may
                     // have been swapped by setFlowExecutionDumpRepository(...) any time before
                     // start(), and this factory must bake in whatever is current now, not
                     // whatever was current at construction time (see #68).
                     final RetryChannelDefinitionFactory retryChannelDefinitionFactory =
                         new RetryChannelDefinitionFactory(executionDumpRepository, this, deadLetterQueueRepository);
-                    final FlowDefinition retryChannelDefinition = retryChannelDefinitionFactory.createDefinition(RETRY_CHANNEL_NAME);
+                    final FlowDefinition retryChannelDefinition = retryChannelDefinitionFactory.createDefinition(ReservedNames.RETRY_CHANNEL);
                     final Flow retryChannel = flowFactory.createFlow(retryChannelDefinition);
                     flowRegistry.addFlow(retryChannel);
 
@@ -524,6 +536,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
                     serviceManager.registerService(retryService);
 
+                    retryChannelCreated = true;
                 }
 
             } else {
