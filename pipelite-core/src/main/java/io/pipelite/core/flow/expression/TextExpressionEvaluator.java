@@ -35,25 +35,35 @@ public class TextExpressionEvaluator {
         return ExpressionUtils.hasExpressionText(text);
     }
 
+    /**
+     * Single-pass substitution (issue #128): {@code expressionMatcher.find()} only ever walks
+     * forward through the original {@code text}, via {@link Matcher#appendReplacement}/{@link
+     * Matcher#appendTail} - it never re-scans a value once substituted in. A previous version
+     * rebuilt the whole string after each match and reset the matcher on *that*, so a variable
+     * whose own value happened to contain {@code #{...}} - self-referential, part of a cycle
+     * between two variables, or just coincidentally shaped like one - was found again on the next
+     * iteration and evaluated again, forever: a remotely-triggerable thread DoS given any
+     * attacker-influenced value flowing into a variable (a Kafka/HTTP header or payload field
+     * routed into {@code RouterNode}'s variables, for instance). This shape can't loop: a
+     * replacement is only ever written to the output buffer, never fed back into the matcher.
+     */
     public String evaluateText(String text, Map<String,Object> variables){
-
-        String expressionText = new String(text.getBytes());
         synchronized (this){
-            final Matcher expressionMatcher = ExpressionVariables.EXPRESSION_PATTERN.matcher(expressionText);
-            String evaluatedText = expressionText;
+            final Matcher expressionMatcher = ExpressionVariables.EXPRESSION_PATTERN.matcher(text);
+            final StringBuilder result = new StringBuilder();
             while (expressionMatcher.find()){
                 final String expression = expressionMatcher.group(1);
+                // Re-registered on every match, not hoisted above the loop: ExpressionParser#
+                // evaluateAs (evaluateAsText's delegate) clears its evaluation context in a
+                // finally block after every single evaluation, so a text with more than one
+                // #{...} expression would otherwise see empty variables from the second match on.
                 variables.forEach(expressionParser::putVariable);
-                evaluatedText = expressionParser.evaluateAsText(expression);
-                evaluatedText = evaluatedText != null ? evaluatedText : "null";
-                final int startIdx = expressionMatcher.start(0);
-                final int endIdx = expressionMatcher.end(0);
-                evaluatedText = String.format("%s%s%s", expressionText.substring(0, startIdx), evaluatedText, expressionText.substring(endIdx));
-                expressionMatcher.reset(evaluatedText);
-                expressionText = evaluatedText;
+                String evaluatedExpression = expressionParser.evaluateAsText(expression);
+                evaluatedExpression = evaluatedExpression != null ? evaluatedExpression : "null";
+                expressionMatcher.appendReplacement(result, Matcher.quoteReplacement(evaluatedExpression));
             }
-            return evaluatedText;
+            expressionMatcher.appendTail(result);
+            return result.toString();
         }
-
     }
 }
