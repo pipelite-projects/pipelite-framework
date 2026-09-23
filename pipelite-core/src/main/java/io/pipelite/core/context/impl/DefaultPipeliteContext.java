@@ -219,7 +219,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
         // deserialize during recovery (issue #70) - see recoverPendingInboxEntries(...) below.
         // Same shared directory as durableInboxProvider above, not a separate subfolder - a dead
         // letter's file name (<hash>_dlq, see FileDurableInboxDeadLetterWriter) already can't
-        // collide with a live segment's own (<hash>_<seq>.log). setDurableInboxDeadLetterWriter(...)
+        // collide with a live segment's own (<hash>_<seq>.inbox). setDurableInboxDeadLetterWriter(...)
         // can swap this for something else entirely (a pluggable interface, unlike
         // DurableInbox/DurableInboxProvider - see its own Javadoc).
         durableInboxDeadLetterWriter = new FileDurableInboxDeadLetterWriter(

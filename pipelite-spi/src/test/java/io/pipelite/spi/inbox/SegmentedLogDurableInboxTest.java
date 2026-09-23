@@ -136,8 +136,8 @@ public class SegmentedLogDurableInboxTest {
         Assert.assertEquals(1, inboxA.pendingEntries().size());
         Assert.assertEquals(2, inboxB.pendingEntries().size());
         Assert.assertTrue("both instances' segment files must land in the same shared directory",
-            Files.exists(directory().resolve("resource-a_00000000000000000000.log")));
-        Assert.assertTrue(Files.exists(directory().resolve("resource-b_00000000000000000000.log")));
+            Files.exists(directory().resolve("resource-a_00000000000000000000.inbox")));
+        Assert.assertTrue(Files.exists(directory().resolve("resource-b_00000000000000000000.inbox")));
     }
 
     @Test
@@ -173,7 +173,7 @@ public class SegmentedLogDurableInboxTest {
         // Simulate a crash mid-append: truncate the segment file so its last frame is torn
         // (append a few stray bytes that look like the start of another frame but aren't
         // complete - a short length prefix with no body/crc to follow).
-        final Path segment = directory.resolve(RESOURCE_PREFIX + "_00000000000000000000.log");
+        final Path segment = directory.resolve(RESOURCE_PREFIX + "_00000000000000000000.inbox");
         Assert.assertTrue(Files.exists(segment));
         try (RandomAccessFile raf = new RandomAccessFile(segment.toFile(), "rw")) {
             raf.seek(raf.length());
@@ -201,7 +201,7 @@ public class SegmentedLogDurableInboxTest {
         // silently misinterpreted through whatever codec happens to be current.
         final Path directory = directory();
         Files.createDirectories(directory);
-        final Path segment = directory.resolve(RESOURCE_PREFIX + "_00000000000000000000.log");
+        final Path segment = directory.resolve(RESOURCE_PREFIX + "_00000000000000000000.inbox");
 
         final byte frameType = 1; // FRAME_TYPE_RECORD
         final byte bogusCodecVersion = (byte) 99;
@@ -239,7 +239,7 @@ public class SegmentedLogDurableInboxTest {
         final String firstId = inbox.enqueue("first".getBytes(StandardCharsets.UTF_8), Map.of());
         final String secondId = inbox.enqueue("second".getBytes(StandardCharsets.UTF_8), Map.of());
 
-        final Path firstSegment = directory().resolve(RESOURCE_PREFIX + "_00000000000000000000.log");
+        final Path firstSegment = directory().resolve(RESOURCE_PREFIX + "_00000000000000000000.inbox");
         Assert.assertTrue("first segment should exist before it is fully acknowledged", Files.exists(firstSegment));
 
         inbox.acknowledge(firstId);
