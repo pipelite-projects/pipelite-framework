@@ -65,4 +65,47 @@ public class TextExpressionEvaluatorTest {
         Assert.assertEquals("banking.us-bank.topic.tx-approval/1", result);
 
     }
+
+    // -------------------------------------------------------------------------
+    // Issue #128: a variable's own evaluated value must never be re-scanned for
+    // further #{...} expressions - doing so is what let a self-referential or
+    // cyclic value hang the calling thread forever.
+    // -------------------------------------------------------------------------
+
+    @Test(timeout = 3000)
+    public void shouldNotLoopWhenAVariablesValueContainsItsOwnExpressionPattern(){
+
+        final Map<String,Object> variables = new HashMap<>();
+        variables.put("x", "value-#{x}-suffix");
+
+        final String result = subject.evaluateText("#{x}", variables);
+
+        Assert.assertEquals("value-#{x}-suffix", result);
+
+    }
+
+    @Test(timeout = 3000)
+    public void shouldNotLoopOnATwoVariableCycle(){
+
+        final Map<String,Object> variables = new HashMap<>();
+        variables.put("a", "#{b}");
+        variables.put("b", "#{a}");
+
+        final String result = subject.evaluateText("destination-#{a}", variables);
+
+        Assert.assertEquals("destination-#{b}", result);
+
+    }
+
+    @Test(timeout = 3000)
+    public void shouldNotLoopWhenAVariablesValueHappensToContainTheExpressionDelimiters(){
+
+        final Map<String,Object> variables = new HashMap<>();
+        variables.put("topic", "#{topic}");
+
+        final String result = subject.evaluateText("banking.#{topic}.events", variables);
+
+        Assert.assertEquals("banking.#{topic}.events", result);
+
+    }
 }
