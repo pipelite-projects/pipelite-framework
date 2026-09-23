@@ -27,9 +27,21 @@ public class TimeChannelAdapter implements ChannelAdapter {
         return new TimeEndpoint(EndpointURL.parse(url), this);
     }
 
+    /**
+     * Defaults {@code durableInbox} to {@code false} (issue #120): a {@code time://} tick's payload
+     * is {@code LocalDateTime.now()} at the instant it fires, regenerated on the adapter's own
+     * schedule regardless of what a crash destroys - nothing external and irreplaceable is ever at
+     * risk the way it is for a source whose messages arrive from outside (HTTP, Kafka, a tailed
+     * file), which is what #70's durable inbox exists to protect. A caller with an actual reason to
+     * durably track ticks can still opt back in explicitly ({@code fromSource(url, c ->
+     * c.durableInbox(true))}) - {@code DefaultEndpointFactory} runs that callback after this
+     * pre-seed, so an explicit value always wins.
+     */
     @Override
     public SourceConfigurer newSourceConfigurer() {
-        return new TimeSourceConfigurer();
+        final TimeSourceConfigurer configurer = new TimeSourceConfigurer();
+        configurer.durableInbox(false);
+        return configurer;
     }
 
 }

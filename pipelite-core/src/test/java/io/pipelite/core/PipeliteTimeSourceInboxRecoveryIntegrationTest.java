@@ -80,7 +80,10 @@ public class PipeliteTimeSourceInboxRecoveryIntegrationTest {
         final DefaultPipeliteContext context = new DefaultPipeliteContext();
         context.setFlowExecutionDumpRepository(new FlowExecutionDumpInMemoryRepository());
         context.registerFlowDefinition(Pipelite.defineFlow(FLOW_NAME)
-            .fromSource("time://tick?period=200&timeUnit=MILLISECONDS")
+            // durableInbox explicitly opted back in (issue #120 flipped time://'s own default to
+            // off, since a plain tick is always regenerable) - this test's whole point is a source
+            // that actually tracks entries durably, to prove recovery from them works.
+            .fromSource("time://tick?period=200&timeUnit=MILLISECONDS&durableInbox=true")
             .process("record", (io, c) -> processed.add(io.getInputPayload()))
             .build());
         context.start();

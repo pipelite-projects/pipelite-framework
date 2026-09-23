@@ -138,6 +138,60 @@ public class DefaultEndpointFactorySourceConfigurerTest {
         Assert.assertEquals(Integer.valueOf(3), endpoint.getProperties().getAsInteger("batchSize"));
     }
 
+    /**
+     * Issue #120: a {@code time://} tick is always regenerable on its own schedule, so - unlike
+     * every other adapter, which keeps today's "on by default" durable inbox - it defaults {@code
+     * durableInbox} to {@code false} even with no configurer callback at all, the plain {@code
+     * fromSource(String)} overload most {@code time://} flows actually use.
+     */
+    @Test
+    public void shouldDefaultDurableInboxToFalseForATimeSourceWithNoConfigurerAtAll() {
+
+        final FlowDefinition flowDefinition = Pipelite.defineFlow("time-flow")
+            .fromSource("time://tick")
+            .build();
+
+        final Endpoint endpoint = endpointFactory.createEndpoint(sourceDefinitionOf(flowDefinition));
+
+        Assert.assertFalse(endpoint.getProperties().getAsBooleanOrDefault("durableInbox", true));
+    }
+
+    /**
+     * The adapter's own default (issue #120) is pre-seeded before any user callback runs, so an
+     * explicit opt-in still wins - a caller with an actual reason to durably track ticks is not
+     * locked out of it.
+     */
+    @Test
+    public void shouldAllowExplicitlyOptingBackIntoDurableInboxForATimeSource() {
+
+        final FlowDefinition flowDefinition = Pipelite.defineFlow("time-flow")
+            .fromSource("time://tick", (TimeSourceConfigurer c) -> c.durableInbox(true))
+            .build();
+
+        final Endpoint endpoint = endpointFactory.createEndpoint(sourceDefinitionOf(flowDefinition));
+
+        Assert.assertTrue(endpoint.getProperties().getAsBooleanOrDefault("durableInbox", false));
+    }
+
+    /**
+     * Every non-{@code time} adapter keeps today's "on by default" behavior untouched (issue #120
+     * only flips the default for {@code time://}) - a plain {@code fromSource(String)} kafka source
+     * with no configurer at all must resolve with no {@code durableInbox} property set at all,
+     * exactly as before this mechanism started running unconditionally, leaving {@code
+     * FlowFactory#wireDurableInbox}'s own hardcoded {@code true} fallback to apply.
+     */
+    @Test
+    public void shouldLeaveDurableInboxUnsetForOtherAdaptersWithNoConfigurer() {
+
+        final FlowDefinition flowDefinition = Pipelite.defineFlow("kafka-flow")
+            .fromSource("kafka://orders")
+            .build();
+
+        final Endpoint endpoint = endpointFactory.createEndpoint(sourceDefinitionOf(flowDefinition));
+
+        Assert.assertFalse(endpoint.getProperties().containsKey("durableInbox"));
+    }
+
     @Test
     public void shouldLowerHttpSourceConfigurerAllowedMethodOntoTheEndpoint() {
 
