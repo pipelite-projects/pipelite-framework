@@ -81,8 +81,22 @@ public class LockedFileStore {
         this.directory = Preconditions.notNull(directory, "directory is required and cannot be null");
     }
 
+    /**
+     * Skips touching {@code <fileName>.lock} entirely when {@code fileName} itself doesn't exist
+     * (issue #123's own follow-up) - a caller scanning many file names for the ones that currently
+     * exist (e.g. a directory listing) would otherwise resurrect a {@code .lock} file for every
+     * absent one it happens to check, permanently, since nothing ever revisits an id once its data
+     * file is gone for good. Safe precisely because a lock-free existence check before a read never
+     * needs to wait for an in-flight write to finish: a concurrent {@link #writeAtomically} never
+     * makes {@code fileName} visible until its final rename, so this either sees the fully-old or
+     * the fully-new state, exactly like a locked read would - it just doesn't fabricate a lock file
+     * for the "not there (yet or anymore)" case.
+     */
     public Optional<String> readLocked(String fileName) {
         return withLocks(fileName, file -> {
+            if (!Files.exists(file)) {
+                return Optional.empty();
+            }
             try (FileChannel lockChannel = openLockChannel(fileName);
                  FileLock lock = lockChannel.lock()) {
                 return readCurrent(file);
@@ -131,18 +145,43 @@ public class LockedFileStore {
      * the file is new or empty) and writes back what it returns — a single lock held for the
      * whole read-modify-write, unlike calling {@link #readLocked(String)} followed by
      * {@link #writeLocked(String, String)} separately.
+     * <p>
+     * A {@code null} return means "no update" - nothing is written, {@code fileName} is left
+     * exactly as it already was (including absent, if it didn't exist). Returning {@code ""} for
+     * that purpose used to be safe under the old truncate-in-place write, where writing an empty
+     * string to an already-absent file was itself a no-op; it is not safe here (issue #123's own
+     * follow-up) - {@link #writeAtomically} always fully replaces {@code fileName} with whatever
+     * it's given, so returning {@code ""} for an absent file actively (re)creates it as a 0-byte
+     * file instead of leaving it absent. Every caller with a "nothing to do" branch must return
+     * {@code null} from it, not {@code ""}.
+     * <p>
+     * Unlike {@link #readLocked(String)}, this can't skip the lock on a lock-free existence check
+     * first - the whole point of a single held lock spanning read-decide-write is to stay
+     * consistent against a concurrent writer that might be *about* to create {@code fileName}, not
+     * just to protect an already-decided state. When {@code fileName} turns out absent and
+     * {@code transform} confirms there is nothing to do (returns {@code null}), the {@code .lock}
+     * file this call itself just opened for nothing is removed before returning, best effort, for
+     * the same reason {@link #readLocked(String)} avoids creating one at all: nothing will ever
+     * revisit this file name again once it's genuinely never going to exist.
      */
     public void readAndWriteLocked(String fileName, Function<Optional<String>, String> transform) {
         withLocks(fileName, file -> {
+            final Optional<String> current;
+            final String updated;
             try (FileChannel lockChannel = openLockChannel(fileName);
                  FileLock lock = lockChannel.lock()) {
-                final Optional<String> current = readCurrent(file);
-                final String updated = transform.apply(current);
-                writeAtomically(file, updated);
-                return null;
+                current = readCurrent(file);
+                updated = transform.apply(current);
+                if (updated != null) {
+                    writeAtomically(file, updated);
+                }
             } catch (IOException exception) {
                 throw new IllegalStateException(String.format("Unable to read-and-write locked file '%s'", file), exception);
             }
+            if (current.isEmpty() && updated == null) {
+                deleteLockFileQuietly(fileName);
+            }
+            return null;
         });
     }
 

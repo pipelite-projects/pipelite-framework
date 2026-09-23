@@ -199,6 +199,42 @@ public class FileFlowExecutionDumpRepositoryTest {
         Assert.assertFalse(subject.tryClaim("never-saved"));
     }
 
+    /**
+     * A real regression, found manually exercising the food-delivery example after #123 shipped:
+     * a duplicate tryClaim(id) call on an id that was already resolved and removed used to
+     * resurrect it as a 0-byte .dump file, since LockedFileStore's own "nothing to claim" no-op
+     * relied on writing "" being harmless under the old truncate-in-place write - it is not under
+     * the new atomic-replace one, which was fixed to require null for a genuine no-op instead.
+     */
+    @Test
+    public void aSecondTryClaimOnAnIdThatWasNeverSavedMustNotCreateAStrayDumpFile() {
+        Assert.assertFalse(subject.tryClaim("never-saved"));
+        Assert.assertFalse(Files.exists(directory.resolve("never-saved.dump")));
+        Assert.assertFalse(Files.exists(directory.resolve("never-saved.claim")));
+    }
+
+    /**
+     * A second, distinct regression found on the same exercise, after the fix above: even once the
+     * 0-byte .dump file was gone, a duplicate tryClaim(id) on an id whose dump was already resolved
+     * and removed still permanently resurrected a {@code .claim} file (and, via {@link
+     * ProcessScopedFileLock}'s own {@code CREATE}-on-open, a {@code .dump.lock} file too) - exactly
+     * the two orphans reported manually against the food-delivery example. Fixed by checking the
+     * dump file's existence before ever touching the claim file, not after.
+     */
+    @Test
+    public void aTryClaimOnAnAlreadyRemovedDumpMustNotResurrectIt() {
+        subject.save(aDump("dump-4b", LocalDateTime.now()));
+        subject.remove("dump-4b");
+
+        Assert.assertFalse(subject.tryClaim("dump-4b"));
+        Assert.assertFalse(Files.exists(directory.resolve("dump-4b.dump")));
+        Assert.assertFalse("must not resurrect the claim file for an id nothing will ever revisit again",
+            Files.exists(directory.resolve("dump-4b.claim")));
+        Assert.assertFalse("must not resurrect the dump file's own lock file either",
+            Files.exists(directory.resolve("dump-4b.dump.lock")));
+        Assert.assertEquals(Optional.empty(), subject.tryLoad("dump-4b"));
+    }
+
     @Test
     public void shouldNoLongerReturnAClaimedDumpFromPoll() {
         subject.save(aDump("dump-5", LocalDateTime.now()));

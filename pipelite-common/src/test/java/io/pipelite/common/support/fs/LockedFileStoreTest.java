@@ -119,6 +119,55 @@ public class LockedFileStoreTest {
         Assert.assertEquals(Optional.of("after"), subject.readLocked("state.txt"));
     }
 
+    /**
+     * A real regression, found manually exercising the food-delivery example after #123 shipped:
+     * a caller with a "nothing to update" branch used to return "" there, relying on the old
+     * truncate-in-place write treating that as a no-op on an already-absent file. Under the new
+     * atomic-replace write, "" is a real value like any other - it actively (re)creates the file
+     * as 0 bytes instead of leaving it absent. {@code null} is the only correct way to signal
+     * "don't write anything".
+     */
+    @Test
+    public void shouldNotCreateAFileWhenTransformReturnsNullForAnAbsentFile() {
+        subject.readAndWriteLocked("never-written.txt", current -> null);
+        Assert.assertFalse(Files.exists(directory.resolve("never-written.txt")));
+        Assert.assertEquals(Optional.empty(), subject.readLocked("never-written.txt"));
+    }
+
+    @Test
+    public void shouldLeaveAnExistingFileUntouchedWhenTransformReturnsNull() {
+        subject.writeLocked("state.txt", "before");
+        subject.readAndWriteLocked("state.txt", current -> null);
+        Assert.assertEquals(Optional.of("before"), subject.readLocked("state.txt"));
+    }
+
+    /**
+     * A real regression, found manually exercising the food-delivery example after the first
+     * #123 follow-up shipped: a caller probing many file names for the ones that currently exist
+     * (a directory scan, a duplicate claim attempt racing a concurrent delete) used to resurrect
+     * a {@code .lock} file for every absent one it checked, permanently - nothing ever revisits an
+     * id once its data file is gone for good. {@link #readLocked(String)} must skip touching the
+     * lock file entirely when the data file isn't there.
+     */
+    @Test
+    public void shouldNotCreateALockFileWhenReadingAFileThatDoesNotExist() {
+        subject.readLocked("never-written.txt");
+        Assert.assertFalse(Files.exists(directory.resolve("never-written.txt.lock")));
+    }
+
+    /**
+     * Same regression as {@link #shouldNotCreateALockFileWhenReadingAFileThatDoesNotExist()}, but
+     * for {@link #readAndWriteLocked(String, java.util.function.Function)} - which can't skip the
+     * lock up front (it must stay consistent against a concurrent writer), but must still clean up
+     * the {@code .lock} file it opened for nothing once it confirms there was nothing to read and
+     * nothing to write.
+     */
+    @Test
+    public void shouldNotLeaveALockFileBehindWhenReadAndWriteFindsNothingAndWritesNothing() {
+        subject.readAndWriteLocked("never-written.txt", current -> null);
+        Assert.assertFalse(Files.exists(directory.resolve("never-written.txt.lock")));
+    }
+
     @Test
     public void shouldDeleteAnExistingFile() {
         subject.writeLocked("state.txt", "value");
