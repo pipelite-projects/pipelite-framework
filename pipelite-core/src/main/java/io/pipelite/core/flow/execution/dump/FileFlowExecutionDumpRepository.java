@@ -196,6 +196,12 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
         if (dump.getStatus() == FlowExecutionDumpStatus.PENDING) {
             return dump.isDue();
         }
+        if (!dumpFileExists(dump.getId())) {
+            // Resolved and removed between poll()'s own read of this dump and this check -
+            // skip the claim-file probe entirely rather than resurrecting a .claim file for an
+            // id nothing will ever revisit again (issue #123's own follow-up).
+            return false;
+        }
         final Optional<ProcessScopedFileLock> probe = ProcessScopedFileLock.tryAcquire(claimFile(dump.getId()));
         if (probe.isEmpty()) {
             return false;
@@ -213,7 +219,12 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
     private void resetToPending(String id) {
         store.readAndWriteLocked(fileName(id), current -> {
             if (current.isEmpty()) {
-                return "";
+                // Already gone (e.g. resolved and removed between the caller's own check and this
+                // call) - null tells LockedFileStore not to write anything, leaving it absent
+                // rather than (re)creating it as an empty file (issue #123's own follow-up: ""
+                // is not a safe no-op under an atomic-replace write the way it was under the old
+                // truncate-in-place one).
+                return null;
             }
             final FlowExecutionDump dump = parse(current.get());
             dump.setStatus(FlowExecutionDumpStatus.PENDING);
@@ -260,6 +271,15 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
         // its own Javadoc; this is what actually commits to one once offered, including when
         // called without a prior poll(), which the interface's own contract does not require of a
         // caller in general even though today's one production caller always does).
+        if (!dumpFileExists(id)) {
+            // Nothing to claim - already resolved and removed by whoever's attempt finished
+            // first, or never existed. Checked before ever touching the claim file, not after
+            // (issue #123's own follow-up): ProcessScopedFileLock.tryAcquire's own CREATE-if
+            // -missing open would otherwise resurrect a .claim file for an id nothing will ever
+            // revisit again - most commonly hit by exactly the duplicate-delivery race
+            // (issue #61) this method's claim is meant to guard against in the first place.
+            return false;
+        }
         final Optional<ProcessScopedFileLock> lockHolder = ProcessScopedFileLock.tryAcquire(claimFile(id));
         if (lockHolder.isEmpty()) {
             return false;
@@ -268,11 +288,10 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
         store.readAndWriteLocked(fileName(id), current -> {
             if (!current.isPresent()) {
                 // Nothing to claim - already resolved and removed by whoever's attempt finished
-                // first, or never existed. readAndWriteLocked requires a String back regardless;
-                // "" round-trips as still-absent (parse() is never called on it since poll()/
-                // tryLoad() both go through readLocked, which already treats an empty file as
-                // absent - same convention this repository uses everywhere else).
-                return "";
+                // first, or never existed. null tells LockedFileStore not to write anything,
+                // leaving it absent rather than (re)creating it as an empty file (issue #123's own
+                // follow-up).
+                return null;
             }
             final FlowExecutionDump dump = parse(current.get());
             dump.setStatus(FlowExecutionDumpStatus.IN_PROGRESS);
@@ -332,6 +351,10 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
 
     private static String fileName(String id) {
         return id + FILE_EXTENSION;
+    }
+
+    private boolean dumpFileExists(String id) {
+        return Files.exists(directory.resolve(fileName(id)));
     }
 
     private Path claimFile(String id) {
