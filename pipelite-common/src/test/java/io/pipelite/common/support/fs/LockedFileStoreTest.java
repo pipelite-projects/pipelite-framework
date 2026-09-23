@@ -21,14 +21,19 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 public class LockedFileStoreTest {
 
@@ -118,9 +123,6 @@ public class LockedFileStoreTest {
     public void shouldDeleteAnExistingFile() {
         subject.writeLocked("state.txt", "value");
         subject.deleteLocked("state.txt");
-        // Checked before any readLocked(...) call on purpose: readLocked's own CREATE-if-missing
-        // behavior (see shouldCreateDirectoryLazilyOnFirstRead) would otherwise recreate an empty
-        // file here and mask a real deletion failure.
         Assert.assertFalse(Files.exists(directory.resolve("state.txt")));
     }
 
@@ -179,6 +181,62 @@ public class LockedFileStoreTest {
         final String content = subject.readLocked("shared.txt").orElseThrow();
         for (int i = 0; i < threadCount; i++) {
             Assert.assertTrue("missing entry for thread " + i, content.contains(i + ";"));
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Issue #123: writes go through a temp file + atomic rename, never a
+    // truncate-then-write in place, and the OS lock lives on a dedicated
+    // .lock file rather than the data file itself.
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void shouldNotLeaveATemporaryFileBehindAfterASuccessfulWrite() throws IOException {
+        subject.writeLocked("state.txt", "value");
+        assertNoStrayTempFiles();
+    }
+
+    @Test
+    public void shouldNotLeaveATemporaryFileBehindAfterASuccessfulReadAndWrite() throws IOException {
+        subject.readAndWriteLocked("state.txt", current -> "value");
+        assertNoStrayTempFiles();
+    }
+
+    @Test
+    public void shouldLockADedicatedFileSeparateFromTheDataFileItself() {
+        subject.writeLocked("state.txt", "value");
+        Assert.assertTrue("expected a dedicated .lock file alongside the data file",
+            Files.exists(directory.resolve("state.txt.lock")));
+    }
+
+    @Test
+    public void shouldDeleteTheLockFileWhenDeletingTheDataFile() {
+        subject.writeLocked("state.txt", "value");
+        subject.deleteLocked("state.txt");
+        Assert.assertFalse(Files.exists(directory.resolve("state.txt")));
+        Assert.assertFalse(Files.exists(directory.resolve("state.txt.lock")));
+    }
+
+    /**
+     * The exact crash window issue #123 describes: a temp file was fully written but the process
+     * died before the atomic rename ran. Since the real data file is never touched until that
+     * rename succeeds, an orphaned temp file lying around must not affect it at all - the previous
+     * content survives completely untouched, never truncated or partially overwritten.
+     */
+    @Test
+    public void anOrphanedTempFileFromAnInterruptedWriteMustNotAffectThePreviousContent() throws IOException {
+        subject.writeLocked("state.txt", "original");
+
+        Files.writeString(directory.resolve("state.txt." + UUID.randomUUID() + ".tmp"), "orphaned-content",
+            StandardCharsets.UTF_8);
+
+        Assert.assertEquals(Optional.of("original"), subject.readLocked("state.txt"));
+    }
+
+    private void assertNoStrayTempFiles() throws IOException {
+        try (Stream<Path> files = Files.list(directory)) {
+            final List<Path> tempFiles = files.filter(path -> path.getFileName().toString().endsWith(".tmp")).toList();
+            Assert.assertTrue("expected no leftover .tmp files, found " + tempFiles, tempFiles.isEmpty());
         }
     }
 
