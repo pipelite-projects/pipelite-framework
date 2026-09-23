@@ -53,7 +53,9 @@ public class DefaultHttpHandler implements HttpHandler, ExchangeFactoryAware {
             final Optional<Consumer> consumerHolder = component.tryResolveConsumer(resource);
 
             if (consumerHolder.isEmpty()) {
-                httpServerExchange.setStatusCode(500);
+                // Not a server error (issue #129): the resource is simply unmapped, the same as
+                // any other unknown path on an HTTP server.
+                httpServerExchange.setStatusCode(404);
                 return;
             }
 

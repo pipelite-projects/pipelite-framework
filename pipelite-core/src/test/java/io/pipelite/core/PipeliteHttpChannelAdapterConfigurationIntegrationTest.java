@@ -70,6 +70,34 @@ public class PipeliteHttpChannelAdapterConfigurationIntegrationTest {
         Assert.assertEquals("hello", received.get());
     }
 
+    /**
+     * Issue #129: through the real adapter wiring, an unregistered path never even reaches
+     * {@code DefaultHttpHandler} - {@code HttpChannelAdapter#createHttpHandler()} wraps it in a
+     * {@code PathHandler}, whose own built-in default handler answers with 404 before dispatching
+     * anywhere. See {@code DefaultHttpHandlerTest} (http-channel-adapter module) for a test that
+     * actually exercises {@code DefaultHttpHandler}'s own {@code consumerHolder.isEmpty()} branch
+     * directly - the only way it's reachable.
+     */
+    @Test
+    public void givenAnUnregisteredResourceIsRequested_thenTheResponseIs404NotAServerError() throws Exception {
+
+        final int port = findFreePort();
+
+        final FlowDefinition flow = Pipelite.defineFlow("http-unregistered-resource")
+            .fromSource("http://ingress")
+            .process("noop", (exchange, contribution) -> { })
+            .build();
+
+        context = (ConfigurablePipeliteContext) Pipelite.createContext();
+        context.addChannelConfigurer((HttpChannelConfigurer) configuration -> configuration.setPort(port));
+        context.registerFlowDefinition(flow);
+        context.start();
+
+        final HttpResponse<String> response = post(port, "/never-registered", "hello");
+
+        Assert.assertEquals(404, response.statusCode());
+    }
+
     @Test
     public void givenAMaxEntitySizeIsConfigured_thenAnOversizedRequestIsRejectedNotAccepted() throws Exception {
 
