@@ -15,6 +15,7 @@
  */
 package io.pipelite.components.file;
 
+import io.pipelite.common.support.fs.PipeliteHome;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -53,11 +54,21 @@ public class DefaultFileChannelConfigurationTest {
         Assert.assertThrows(IllegalArgumentException.class, () -> subject.registerMapper("name", null));
     }
 
+    /**
+     * {@code DEFAULT_STATE_DIRECTORY} is a {@code static final} field, resolved once when {@link
+     * DefaultFileChannelConfiguration} is first loaded - too early for a test to still influence
+     * by changing {@code pipelite.home} from inside a test method. Asserting equality with a fresh
+     * {@link PipeliteHome#resolve(String)} call instead (rather than hardcoding an assumption
+     * about where that resolves to, e.g. under {@code user.home}) tests what this class actually
+     * owns - that its default state directory *is* {@code PipeliteHome}'s own subfolder
+     * resolution, not a bespoke location - without caring whether the ambient {@code
+     * pipelite.home} is a developer's real one or the build's own test-time override (see the root
+     * POM's surefire configuration); {@link PipeliteHomeTest} already covers {@code PipeliteHome}'s
+     * own default-resolution behavior in isolation.
+     */
     @Test
-    public void shouldExposeDefaultStateDirectoryUnderUserHome() {
-        final Path stateDirectory = subject.getStateDirectory();
-        Assert.assertTrue(stateDirectory.startsWith(Path.of(System.getProperty("user.home"))));
-        Assert.assertTrue(stateDirectory.toString().contains("file-channel-adapter"));
+    public void shouldExposeDefaultStateDirectoryUnderPipeliteHome() {
+        Assert.assertEquals(PipeliteHome.resolve("file-channel-adapter"), subject.getStateDirectory());
     }
 
     @Test

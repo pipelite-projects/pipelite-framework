@@ -34,7 +34,7 @@ import java.util.zip.CRC32;
  * Default local {@link DurableInbox} implementation: one append-only, segmented binary log per
  * source resource (an instance is always bound to exactly one resource — see this interface's own
  * Javadoc). All resources share one flat directory — {@code directory.resolve(namePrefix +
- * "_" + segmentSeq + ".log")} — mirroring {@code FileTailStateStore}'s own convention (one
+ * "_" + segmentSeq + ".inbox")} — mirroring {@code FileTailStateStore}'s own convention (one
  * directory, files named by a hash of the resource string) rather than nesting a subdirectory per
  * resource, which would buy nothing: contention, blast radius, and lifecycle are already scoped
  * per <em>file</em> (or file-prefix group), not per directory. Not one-file-per-entry like {@code
@@ -91,7 +91,7 @@ public final class SegmentedLogDurableInbox implements DurableInbox {
      */
     public static final long DEFAULT_MAX_SEGMENT_SIZE_BYTES = 64L * 1024 * 1024;
 
-    private static final String SEGMENT_FILE_EXTENSION = ".log";
+    private static final String SEGMENT_FILE_EXTENSION = ".inbox";
     private static final int SEGMENT_NAME_DIGITS = 20;
 
     private static final byte FRAME_TYPE_RECORD = 1;
@@ -219,7 +219,7 @@ public final class SegmentedLogDurableInbox implements DurableInbox {
     /**
      * Filters {@code directory}'s listing down to this instance's own segments — the directory is
      * shared by every resource's {@link SegmentedLogDurableInbox} (see this class's own Javadoc),
-     * so a plain extension filter isn't enough; only files named {@code <namePrefix>_<seq>.log}
+     * so a plain extension filter isn't enough; only files named {@code <namePrefix>_<seq>.inbox}
      * belong to this instance.
      */
     private List<Long> listSegmentSeqsSorted() {

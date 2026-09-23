@@ -100,6 +100,26 @@
                 </configuration>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.1.2</version>
+                <configuration>
+                    <!-- Several integration tests build a real DefaultPipeliteContext without
+                         isolating pipelite.home themselves (unlike the ones that already do, via
+                         their own TemporaryFolder) - without this, PipeliteHome's own default
+                         (~/.pipelite) sends their durable state straight into the developer's real
+                         home directory, permanently, since nothing ever cleans it up (found
+                         2026-09-23: a single `mvn test` run left 95 orphaned durable-inbox segment
+                         files there). Forcing it here, module-wide, means every test run lands
+                         under target/ instead - wiped by `mvn clean`, and never the real
+                         environment - regardless of whether a given test class remembers to
+                         isolate it on its own. -->
+                    <systemPropertyVariables>
+                        <pipelite.home>${project.build.directory}/pipelite-test-home</pipelite.home>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
                 <version>1.5.0</version>

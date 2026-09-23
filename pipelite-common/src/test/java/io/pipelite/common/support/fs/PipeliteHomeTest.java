@@ -17,12 +17,28 @@ package io.pipelite.common.support.fs;
 
 import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class PipeliteHomeTest {
+
+    /**
+     * Without this, a test asserting the "nothing configured" default would only pass by
+     * accident of JUnit's own (unspecified) method execution order within this class - e.g. only
+     * because some earlier test method's own {@link #cleanup()} already cleared the property this
+     * one never set itself. The build itself sets {@code pipelite.home} for every test JVM (so the
+     * rest of the suite never touches a developer's real {@code ~/.pipelite} - see the root POM's
+     * surefire configuration), so a genuinely clean slate has to be established explicitly here,
+     * not assumed.
+     */
+    @Before
+    public void clearAmbientOverrideBeforeEachTest() {
+        System.clearProperty("pipelite.home");
+        System.clearProperty("pipelite.application.id");
+    }
 
     @After
     public void cleanup() {

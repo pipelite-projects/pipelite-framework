@@ -44,7 +44,7 @@ public class FileDurableInboxDeadLetterWriterTest {
 
     private Path directory() {
         // Same shared directory the live inbox itself uses in production - a dead letter's file
-        // name (<hash>_dlq) can't collide with a live segment's (<hash>_<seq>.log).
+        // name (<hash>_dlq) can't collide with a live segment's (<hash>_<seq>.inbox).
         return temporaryFolder.getRoot().toPath().resolve("inbox");
     }
 
