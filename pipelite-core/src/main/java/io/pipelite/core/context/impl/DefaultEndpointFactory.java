@@ -89,10 +89,21 @@ public class DefaultEndpointFactory implements EndpointFactory {
     /**
      * Lowers a {@code fromSource(url, configurer)} callback (see {@link SourceConfigurer}'s own
      * Javadoc) into the exact same query-string shape {@code EndpointURL} already supports, so
-     * every downstream reader keeps working unchanged. A no-op for endpoints declared via the
-     * plain {@code fromSource(String)} overload ({@code getConfigurerCallback()} is {@code null}).
-     * {@code channel} is the adapter that builds the endpoint and hands out its configurer: the
-     * queue one a {@link SourceConcurrencyConfigurer}, the others their own.
+     * every downstream reader keeps working unchanged. {@code channel} is the adapter that builds
+     * the endpoint and hands out its configurer: the queue one a {@link SourceConcurrencyConfigurer},
+     * the others their own.
+     * <p>
+     * {@code channel.newSourceConfigurer()} is fetched unconditionally, even for the plain {@code
+     * fromSource(String)} overload with no callback (issue #120) - an adapter's configurer can
+     * pre-seed its own protocol-specific default (e.g. {@code TimeChannelAdapter} defaulting
+     * {@code durableInbox} to {@code false}, since a {@code time://} tick is always regenerable and
+     * never worth the durability #70 exists for) before any user callback runs, the same way {@link
+     * #rejectSourceConcurrencyParams} already calls it unconditionally just above this method's own
+     * call site. A no-op for every other adapter today: {@link SourceConfigurer#toQueryParameters()}
+     * only ever emits a property that was actually set, so an adapter that pre-seeds nothing returns
+     * an empty map here exactly as before. An adapter with no configurer at all (the {@code null}
+     * default) still resolves the endpoint unchanged when no callback was given - the "does not
+     * support a SourceConfigurer" failure is only for a caller that actually tried to use one.
      */
     private static String applySourceConfigurer(EndpointDefinition endpointDefinition, ChannelAdapter channel, String endpointURL) {
 
@@ -100,21 +111,22 @@ public class DefaultEndpointFactory implements EndpointFactory {
             return endpointURL;
         }
         final Consumer<SourceConfigurer> configurerCallback = sourceDefinition.getConfigurerCallback();
-        if (configurerCallback == null) {
-            return endpointURL;
-        }
-
         final SourceConfigurer settings = channel.newSourceConfigurer();
         if (settings == null) {
-            throw new IllegalStateException(String.format(
-                "Endpoint '%s' does not support a SourceConfigurer", endpointURL));
+            if (configurerCallback != null) {
+                throw new IllegalStateException(String.format(
+                    "Endpoint '%s' does not support a SourceConfigurer", endpointURL));
+            }
+            return endpointURL;
         }
-        try {
-            configurerCallback.accept(settings);
-        } catch (ClassCastException exception) {
-            throw new IllegalArgumentException(String.format(
-                "Wrong SourceConfigurer type supplied for endpoint '%s' - expected one accepting a %s",
-                endpointURL, settings.getClass().getSimpleName()), exception);
+        if (configurerCallback != null) {
+            try {
+                configurerCallback.accept(settings);
+            } catch (ClassCastException exception) {
+                throw new IllegalArgumentException(String.format(
+                    "Wrong SourceConfigurer type supplied for endpoint '%s' - expected one accepting a %s",
+                    endpointURL, settings.getClass().getSimpleName()), exception);
+            }
         }
 
         return mergeQueryParameters(endpointURL, settings.toQueryParameters());
