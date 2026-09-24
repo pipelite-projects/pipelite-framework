@@ -38,14 +38,6 @@ FlowDefinition flow = Pipelite.defineFlow("resilient-flow")
 <2> The delay before each attempt, counted from the previous one. `Backoff.linear(...)` grows by a constant step (2s, 4s, 6s, ...); `Backoff.exponential(...)` doubles it each time (2s, 4s, 8s, ...). Optional - with no backoff declared, a retry runs as soon as the retry channel next polls.
 <3> The exhaustion action: here, the built-in dead letter queue (see <<Custom Error Channel>>). `onExceptionHandler(handler)` invokes a supplied `ExceptionHandler` instead of routing anywhere.
 
-=== Internal mechanism
-
-. The exception is caught by `RetryChannelExceptionHandler`.
-. The `Exchange` is serialized into a `FlowExecutionDump` via `FlowExecutionDumpFactory`.
-. The dump is persisted in a `FlowExecutionDumpRepository` (see <<FlowExecutionDump>> below).
-. `RetryPollingConsumer` periodically retrieves pending dumps.
-. `RetryStrategyFilter` checks the dump's own attempt count/backoff schedule against `maxAttempts`/`backoff`, either supplying it for another attempt or routing it to its exhaustion action.
-
 == Custom Error Channel
 
 For error handling with no retry attempts - a single hand-off, not a schedule of them - use
@@ -78,22 +70,5 @@ If none of the three is configured, the exception is handled by `GlobalDefaultEx
 
 The `FlowExecutionDump` is the serialization of the `Exchange` at the time of failure.
 It contains the serialized payload, headers, and properties required for the retry.
-
-[cols="1,3"]
-|===
-|Class |Description
-
-|`FlowExecutionDump` (interface)
-|Contract for the execution dump
-
-|`SerializedFlowExecutionDump`
-|Base64-serialized implementation, the only one `save()` accepts on the default repository
-
-|`FileFlowExecutionDumpRepository`
-|Default repository: one file per pending dump under the state/retry folder of `PipeliteHome`, so a pending retry survives a process restart
-
-|`FlowExecutionDumpInMemoryRepository`
-|Zero-I/O alternative, kept for callers (e.g. short-lived tests) that don't need durability across a crash
-|===
 
 TIP: The default `FlowExecutionDumpRepository` is already durable - a pending retry is written to disk before the flow moves on, and survives a restart. Swap it via `ConfigurablePipeliteContext#setFlowExecutionDumpRepository(...)` for a different backend (e.g. a database or Redis) or to opt back into `FlowExecutionDumpInMemoryRepository`.

@@ -12,7 +12,7 @@ The *Content-Based Router* routes the message to one of the flows listed in the 
 .toRoute(route -> route.contentBased()               // <1>
     .when(new PayloadTypeCondition(OrderEvent.class), // <2>
           "queue://order-processing-flow")
-    .when(new ExpressionCondition("${header.type} == 'PAYMENT'"),
+    .when(new ExpressionCondition("Headers['type'] == 'PAYMENT'"),
           "queue://payment-flow")
     .otherwise("queue://default-flow")                        // <3>
     .build()
@@ -37,14 +37,10 @@ NOTE: A destination is a URL: `queue://<queue name>` reaches an internal flow (t
 |Evaluates a textual expression (see xref:expressions.adoc[Expressions]).
 |===
 
-To create custom conditions, implement the `Condition` interface:
-
-[source,java]
-----
-public interface Condition {
-    boolean evaluate(Exchange exchange);
-}
-----
+`Condition` is a sealed interface permitting only these two implementations - it is not a
+third-party extension point, so a custom condition cannot be added by implementing it. Anything
+`PayloadTypeCondition` and `ExpressionCondition` cannot express has to be handled as an ordinary
+`filter` or `process` step upstream of the router instead.
 
 == Recipient List
 

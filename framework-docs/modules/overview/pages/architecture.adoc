@@ -73,6 +73,15 @@ An `Endpoint` can expose:
 * A `Consumer` (event-driven or polling) to receive messages from the source.
 * A `Producer` to send messages to the destination.
 
+A source and a sink are structurally different, not just directionally opposite - a source has an
+internal queue decoupling intake from processing, a sink does not:
+
+image::endpoint-structure.svg[Source and sink endpoint internal structure,role="text-center"]
+
+The queue is what lets a source accept the *next* message while the flow is still busy with the
+previous one; a sink has nothing analogous; sending is a direct call on the thread that reached it,
+with no decoupling of its own.
+
 === FlowNode
 
 `FlowNode` instances are the nodes in the processing chain.
@@ -95,7 +104,7 @@ Available types:
 |Expression-based filtering
 
 |`WireTapProcessorNode`
-|Asynchronous forwarding to a secondary channel without interrupting the main flow
+|Forwarding a copy to a secondary channel - currently synchronous, on the main flow's own thread (issue #47)
 
 |`RouterNode`
 |Content-based routing with a routing table

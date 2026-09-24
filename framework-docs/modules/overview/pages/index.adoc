@@ -54,27 +54,5 @@ Pipelite is particularly well suited to scenarios where you need to:
 |Medium
 |===
 
-== Project Structure
-
-The Maven project is organized into separate modules by responsibility:
-
-[source]
-----
-pipelite-framework/
-├── pipelite-common          # Shared utilities
-├── pipelite-spi             # Service Provider Interface
-├── pipelite-dsl             # Domain Specific Language API
-├── pipelite-expression      # Expression evaluation engine
-├── pipelite-core            # Core execution engine
-├── pipelite-channel-adapters
-│   ├── default-channel-adapters
-│   ├── file-channel-adapter
-│   ├── http-channel-adapter
-│   ├── kafka-channel-adapter
-│   ├── queue-channel-adapter
-│   ├── slf4j-channel-adapter
-│   └── time-channel-adapter
-├── pipelite-spring-starter  # Spring Boot integration
-├── pipelite-examples        # Application examples
-└── framework-docs           # This documentation
-----
+See xref:overview:performance.adoc[Performance and Throughput] for benchmark figures on
+per-hop overhead and end-to-end throughput.

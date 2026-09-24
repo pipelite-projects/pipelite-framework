@@ -40,28 +40,6 @@ context.start();
 context.stop();
 ----
 
-=== Internal components
-
-[cols="1,3"]
-|===
-|Component |Responsibility
-
-|`FlowRegistry`
-|Maintains the registry of all active `Flow` instances, indexed by name.
-
-|`ChannelAdapterManager`
-|Resolves `ChannelAdapter` instances via classpath scan and associates them with endpoint URLs.
-
-|`EndpointFactory`
-|Creates `Endpoint` instances by delegating to the correct `ChannelAdapter` based on the URL scheme.
-
-|`ServiceManager`
-|Starts and stops all registered `Service` instances (polling consumers, HTTP server, etc.).
-
-|`ExchangeFactory`
-|Creates new `Exchange` and `Message` instances with distributed identity.
-|===
-
 == FlowDefinition
 
 The `FlowDefinition` is the immutable object produced by the DSL.
@@ -95,11 +73,8 @@ PipeliteContext.start()
   ├─ ChannelAdapterManager.initialize()
   │    └─ scan classpath → load ChannelAdapters
   │
-  ├─ For each registered FlowDefinition:
-  │    ├─ EndpointFactory.createSourceEndpoint()
-  │    ├─ EndpointFactory.createSinkEndpoint()
-  │    ├─ Build FlowNode chain (processors, transformers, routers)
-  │    └─ FlowRegistry.register(flow)
+  ├─ For each registered FlowDefinition: build its source/sink endpoints and its FlowNode chain
+  │    (processors, transformers, routers), then register the resulting flow
   │
   └─ ServiceManager.startAll()
        ├─ Start EventDrivenConsumerService (HTTP, Queue, etc.)

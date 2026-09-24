@@ -1,0 +1,64 @@
+<svg viewBox="0 0 640 720" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#334155"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="640" height="720" fill="#ffffff"/>
+
+  <!-- ============ External system (source side) ============ -->
+  <rect x="250" y="20" width="140" height="50" rx="25" fill="#f8fafc" stroke="#334155" stroke-width="1.5"/>
+  <text x="320" y="50.5" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="#0f172a">External system</text>
+
+  <line x1="320" y1="70" x2="320" y2="90" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ============ SOURCE ENDPOINT frame ============ -->
+  <path d="M 226,92 L 414,92 Q 420,92 420,98 L 420,116 L 220,116 L 220,98 Q 220,92 226,92 Z" fill="#008080"/>
+  <text x="320" y="108" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0.5" fill="#ffffff">SOURCE ENDPOINT</text>
+  <rect x="60" y="116" width="520" height="238" rx="8" fill="none" stroke="#008080" stroke-width="1.5" stroke-dasharray="7,4"/>
+
+  <rect x="120" y="140" width="400" height="50" rx="6" fill="#f8fafc" stroke="#334155" stroke-width="1.5"/>
+  <text x="320" y="165.5" text-anchor="middle" dominant-baseline="middle" font-size="14" font-family="'Cascadia Code', Consolas, monospace" fill="#0f172a">Consumer.consume(...)</text>
+
+  <line x1="320" y1="190" x2="320" y2="210" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="120" y="212" width="400" height="50" rx="6" fill="#e0f2f2" stroke="#008080" stroke-width="1.5"/>
+  <text x="320" y="237.5" text-anchor="middle" dominant-baseline="middle" font-size="14" font-weight="600" fill="#006666">internal queue</text>
+
+  <line x1="320" y1="262" x2="320" y2="282" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <rect x="120" y="284" width="400" height="50" rx="6" fill="#f8fafc" stroke="#334155" stroke-width="1.5"/>
+  <text x="320" y="309.5" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="#0f172a">dispatch thread(s)</text>
+
+  <!-- exit the source endpoint into the flow's own processor chain -->
+  <line x1="320" y1="354" x2="320" y2="386" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <circle cx="320" cy="370" r="7" fill="#008080"/>
+  <text x="336" y="374" font-size="12" fill="#006666">Exchange</text>
+
+  <!-- ============ Pipeline (outside either endpoint) ============ -->
+  <rect x="120" y="390" width="400" height="50" rx="6" fill="#f8fafc" stroke="#334155" stroke-width="1.5"/>
+  <text x="320" y="415.5" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="#0f172a">Processor</text>
+
+  <line x1="320" y1="440" x2="320" y2="472" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <circle cx="320" cy="456" r="7" fill="#008080"/>
+  <text x="336" y="460" font-size="12" fill="#006666">Exchange</text>
+
+  <!-- ============ SINK ENDPOINT frame ============ -->
+  <path d="M 226,478 L 414,478 Q 420,478 420,484 L 420,502 L 220,502 L 220,484 Q 220,478 226,478 Z" fill="#008080"/>
+  <text x="320" y="494" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="0.5" fill="#ffffff">SINK ENDPOINT</text>
+  <rect x="60" y="502" width="520" height="90" rx="8" fill="none" stroke="#008080" stroke-width="1.5" stroke-dasharray="7,4"/>
+
+  <rect x="120" y="522" width="400" height="50" rx="6" fill="#f8fafc" stroke="#334155" stroke-width="1.5"/>
+  <text x="320" y="547.5" text-anchor="middle" dominant-baseline="middle" font-size="14" font-family="'Cascadia Code', Consolas, monospace" fill="#0f172a">Producer.doProcess(...)</text>
+
+  <line x1="320" y1="592" x2="320" y2="612" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ============ External system (sink side) ============ -->
+  <rect x="250" y="614" width="140" height="50" rx="25" fill="#f8fafc" stroke="#334155" stroke-width="1.5"/>
+  <text x="320" y="644.5" text-anchor="middle" dominant-baseline="middle" font-size="14" fill="#0f172a">External system</text>
+
+  <!-- ============ Caption ============ -->
+  <text x="320" y="694" text-anchor="middle" font-size="13" fill="#64748b">A source has an internal queue between intake and the flow's</text>
+  <text x="320" y="712" text-anchor="middle" font-size="13" fill="#64748b">own processing - a sink has no equivalent.</text>
+</svg>

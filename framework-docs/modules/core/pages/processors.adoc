@@ -109,10 +109,3 @@ It is configured internally by the framework during flow construction.
 |`RouterNode` / `RecipientListRouterNode`
 |Conditional or dynamic routing (see xref:dsl:routing.adoc[Routing])
 |===
-
-NOTE: Every flow's exit is internally guarded by a routing-slip gate (`RoutingSlipGateNode`) that
-follows a `RoutingSlip` attached to the `Exchange`, replying to its return address only once the
-slip is exhausted or was never set. Neither is reachable from user code today -
-`Exchange#setRoutingSlip`/`#setReturnAddress` are disabled pending issue #86 (only the internal
-`ExchangeImpl` still exposes them) - so for an ordinary flow this gate is always inert, falling
-straight through to the flow's own exit.
