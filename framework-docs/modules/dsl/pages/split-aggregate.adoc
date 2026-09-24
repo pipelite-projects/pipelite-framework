@@ -28,7 +28,9 @@ FlowDefinition flow = Pipelite.defineFlow("order-batch-flow")
 * A segment can contain any number of `.process(...)` steps, including *zero* — in that case, each element passes through the split unchanged.
 * Headers set on the incoming message are visible to every element while it is processed inside the segment. Changes a step makes to one element's headers (e.g. adding a header) never affect the other elements or the original message.
 * The aggregated message carries the same identity, headers, and properties as the message that entered `.split(...)` — from the rest of the flow's point of view, a split step is indistinguishable from an ordinary processing step.
-* If any element fails during processing, the split step fails as a whole — there is no per-element retry or partial recovery. Combined with `.withRetryChannel()` (see xref:core:error-handling.adoc[Error Handling]), a failure causes the entire batch to be retried, not just the failed element.
+* If any element fails during processing, the split step fails as a whole — there is no per-element retry or partial recovery. Combined with `.withRetry(...)` (see xref:core:error-handling.adoc[Error Handling]), a failure causes the entire batch to be retried, not just the failed element.
+
+TIP: A split step runs synchronously and in full within a single node invocation - nothing about it is checkpointed element by element. When it fails, `.withRetry(...)` replays the *entire* split from its original input collection, not just the elements that hadn't finished yet; there is no per-element resume.
 
 == Aggregation result
 
@@ -41,7 +43,7 @@ If the desired outcome isn't a list — for example a sum, a count, or a merged 
 .split("split-items", segment -> segment
     .process("price", priceCalculator)
     .end())
-.process("sum-total", exchange -> {
+.process("sum-total", (exchange, contribution) -> {
     List<BigDecimal> prices = exchange.getInputPayloadAs(List.class);
     BigDecimal total = prices.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
     exchange.setOutputPayload(total);

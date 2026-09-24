@@ -16,22 +16,22 @@ public class HelloPipelite {
     public static void main(String[] args) {
 
         FlowDefinition flow = Pipelite.defineFlow("hello-flow")
-            .fromSource("time://ticker?period=1000")           // <1>
-            .process("log-step", (exchange) -> {               // <2>
+            .fromSource("time://ticker?period=1000")                  // <1>
+            .process("log-step", (exchange, contribution) -> {        // <2>
                 System.out.println("Tick: " + exchange.getInputPayload());
                 exchange.setOutputPayload("processed");
             })
-            .toSink("slf4j://output-logger")                   // <3>
-            .build();                                          // <4>
+            .toSink("slf4j://output-logger")                          // <3>
+            .build();                                                 // <4>
 
-        PipeliteContext context = Pipelite.createContext();    // <5>
+        PipeliteContext context = Pipelite.createContext();           // <5>
         context.registerFlowDefinition(flow);
-        context.start();                                       // <6>
+        context.start();                                              // <6>
     }
 }
 ----
 <1> The `time://` adapter generates a tick every 1000 ms.
-<2> An inline processor that receives the Exchange and processes the payload.
+<2> An inline processor that receives the `Exchange` and a `ProcessContribution` - most processors ignore the latter, it exists for the rare case one needs to call `stopExecution()` and end the flow early from inside the processor itself.
 <3> The `slf4j://` sink logs the output message via SLF4J.
 <4> `build()` returns the immutable `FlowDefinition`.
 <5> The `PipeliteContext` is the runtime container.
@@ -64,7 +64,7 @@ public class IngressFlowConfiguration {
         return Pipelite.defineFlow("ingress-flow")
             .fromSource("http://ingress")                 // <1>
             .wireTap("audit-log", "slf4j://audit")        // <2>
-            .process("validate", exchange -> {
+            .process("validate", (exchange, contribution) -> {
                 // validation logic
                 exchange.setOutputPayload(exchange.getInputPayload());
             })
@@ -73,8 +73,8 @@ public class IngressFlowConfiguration {
     }
 }
 ----
-<1> The `http://ingress` source opens an HTTP listener on port 80 at path `/ingress`.
-<2> `wireTap` sends a copy of the message to the audit channel without blocking the main flow.
+<1> The `http://ingress` source opens an HTTP listener on port 8080 at path `/ingress` (configurable - see xref:channel-adapters:http.adoc[HTTP Channel Adapter]).
+<2> `wireTap` sends a copy of the message to the audit channel, then the main flow continues - currently on the same thread, so a slow audit target delays it too (issue #47).
 
 For full details on the FlowConfiguration SPI — including dependency injection and multiple flow classes — see xref:core:flow-configuration.adoc[FlowConfiguration SPI].
 
@@ -82,18 +82,27 @@ For full details on the FlowConfiguration SPI — including dependency injection
 
 [source,java]
 ----
+import io.pipelite.dsl.definition.builder.Backoff;
+import java.time.Duration;
+
 FlowDefinition flow = Pipelite.defineFlow("resilient-flow")
     .fromSource("kafka://my-topic")
-    .process("transform", exchange -> {
+    .process("transform", (exchange, contribution) -> {
         // processing that may throw exceptions
     })
     .toSink("slf4j://output")
-    .withRetryChannel()                                        // <1>
+    .withRetry(retry -> retry                                  // <1>
+        .maxAttempts(3)                                        // <2>
+        .backoff(Backoff.exponential(Duration.ofSeconds(2)))   // <3>
+        .onErrorChannel(err -> err.toDLQ()))                   // <4>
     .build();
 ----
-<1> `withRetryChannel()` enables automatic retry on unhandled exceptions.
+<1> `withRetry(...)` resumes the flow at the step that failed, up to `maxAttempts` times.
+<2> Retries up to twice more after the original attempt (3 attempts total).
+<3> Waits between attempts, doubling each time (2s, 4s, ...) - `Backoff.linear(...)` grows by a constant step instead.
+<4> An exhaustion action is mandatory: here, the built-in dead letter queue. `err.toChannel("queue://...")` routes to a named flow or channel adapter instead; `onExceptionHandler(...)` runs custom code instead of routing anywhere.
 
-For a custom error channel use `withErrorChannel(cfg -> ...)`.
+For error handling with no retry, use `withErrorChannel(err -> ...)` directly - same exhaustion-routing options, without the attempts/backoff in between.
 For full details see xref:core:error-handling.adoc[Error Handling].
 
 == Multi-channel concurrent example

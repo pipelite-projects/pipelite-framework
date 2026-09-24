@@ -14,14 +14,14 @@ Included in `default-channel-adapters`, transitively available with `pipelite-co
 // Main flow
 Pipelite.defineFlow("main-flow")
     .fromSource("http://ingest")
-    .process("enrich", exchange -> { /* enrichment */ })
+    .process("enrich", (exchange, contribution) -> { /* enrichment */ })
     .toSink("queue://secondary")               // <1>
     .build();
 
 // Secondary flow
 Pipelite.defineFlow("secondary-flow")
     .fromSource("queue://secondary")           // <2>
-    .process("finalize", exchange -> { /* ... */ })
+    .process("finalize", (exchange, contribution) -> { /* ... */ })
     .toSink("slf4j://output")
     .build();
 ----
@@ -59,7 +59,7 @@ A flow is always addressed by URL, and `queue://<queue name>` is the URL of an i
 
 * *One queue, one flow, N consumers.* A queue is read by exactly one flow. To process its Exchanges concurrently, declare `concurrency` on the source (`?concurrency=N`, or `fromSource("queue://orders", (SourceConcurrencyConfigurer c) -> c.concurrency(N))`): the N consumers of the queue all run that flow. It is the only source that can declare `concurrency` - see xref:dsl:flow-definition.adoc[Flow Definition].
 * The sender *enqueues and moves on*: the receiving flow runs on the consumer threads of its own queue, not on the sender's thread. If the queue is full the sender waits (backpressure), so a slow flow slows its senders down instead of letting the queue grow without limit.
-* The queue holds the `Exchange` itself: the receiving flow gets the very instance the sender handed over, not a copy. With the durable inbox on (the default, `durableInbox=false` opts a source out) a serialized copy is also written to disk before the Exchange is enqueued, so it survives a restart.
+* The queue holds the `Exchange` itself: the receiving flow gets the very instance the sender handed over, not a copy. With the durable inbox on (the default for every source except `time://` - `durableInbox=false` opts one out, see xref:time.adoc[Time Channel Adapter] for why `time://` inverts that default) a serialized copy is also written to disk before the Exchange is enqueued, so it survives a restart.
 * The queue lives in memory, inside one `PipeliteContext`: it is not a broker and does not reach another process. To leave the process, use a channel adapter such as `kafka://`.
 * Useful for splitting complex pipelines into modular, reusable flows.
 

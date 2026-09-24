@@ -16,22 +16,25 @@ FlowOperations
                                  ├─ .filter(...)
                                  ├─ .wireTap(...)
                                  ├─ .split(...)
-                                 ├─ .toRoute(...)        ──► BuildOperations
-                                 └─ .toSink(url)         ──► SinkOperations
-                                                               extends BuildOperations
-                                                                 ├─ .withRetryChannel()
-                                                                 ├─ .withErrorChannel(...)
-                                                                 └─ .build()
+                                 ├─ .toRoute(...)   ──► BuildOperations
+                                 └─ .toSink(url)    ──► SinkOperations
+                                                          extends BuildOperations
+
+BuildOperations (mutually exclusive - each returns EndOperations, only .build() next)
+  ├─ .withRetry(...)
+  ├─ .withErrorChannel(...)
+  ├─ .withExceptionHandler(...)
+  └─ .build()
 ----
 
-The interface hierarchy ensures that the Java compiler enforces the correct sequence: source → processors → sink → error handling → build.
+The interface hierarchy ensures that the Java compiler enforces the correct sequence: source → processors → (optional route or sink) → at most one error-handling mode → build.
 
 [cols="1,3"]
 |===
 |Page |Content
 
 |xref:flow-definition.adoc[Flow Definition]
-|All builder operations: `fromSource`, `process`, `transformPayload`, `filter`, `wireTap`, `toSink`, `withRetryChannel`, `withErrorChannel`, `build`.
+|All builder operations: `fromSource`, `process`, `transformPayload`, `filter`, `wireTap`, `toSink`, `withRetry`, `withErrorChannel`, `withExceptionHandler`, `build`.
 
 |xref:routing.adoc[Routing]
 |Content-based routing, recipient list, and routing slip.

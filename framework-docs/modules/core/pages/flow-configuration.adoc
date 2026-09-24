@@ -64,7 +64,7 @@ public class AcquireFlowConfiguration {
     public FlowDefinition acquireFlow(OrderService orderService) {    // <1>
         return Pipelite.defineFlow("acquire-flow")
             .fromSource("http://api/orders")
-            .process("handle", exchange ->
+            .process("handle", (exchange, contribution) ->
                 orderService.handle(exchange.getInputPayloadAs(Order.class)))
             .toSink("slf4j://orders")
             .build();
@@ -133,7 +133,7 @@ public class AcquireFlowConfiguration {
     public FlowDefinition acquireFlow() {
         return Pipelite.defineFlow("acquire-flow")
             .fromSource("http://api/orders")
-            .process("handle", exchange ->
+            .process("handle", (exchange, contribution) ->
                 orderService.handle(exchange.getInputPayloadAs(Order.class)))
             .toSink("slf4j://orders")
             .build();
@@ -153,7 +153,7 @@ public class AcquireFlowConfiguration {
     public FlowDefinition acquireFlow(OrderService orderService) {    // <1>
         return Pipelite.defineFlow("acquire-flow")
             .fromSource("http://api/orders")
-            .process("handle", exchange ->
+            .process("handle", (exchange, contribution) ->
                 orderService.handle(exchange.getInputPayloadAs(Order.class)))
             .toSink("slf4j://orders")
             .build();
@@ -190,6 +190,9 @@ public class AcquireFlowConfiguration {
 
 |`DuplicateFlowDefinitionException`
 |A flow with the same name has already been registered in the `PipeliteContext`.
+
+|`ContextValidationException`
+|`PipeliteContext.start()` runs a validator chain before starting anything, and throws this listing every problem found: an orphaned `queue://` reference, two flows reading the same queue (see xref:channel-adapters:queue.adoc[Queue Channel Adapter]), or a flow using the `retry-channel` name reserved internally for the built-in retry mechanism.
 |===
 
 == Migration from the old pattern

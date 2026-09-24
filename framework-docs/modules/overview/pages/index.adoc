@@ -8,7 +8,7 @@ Its primary goal is to enable developers to connect heterogeneous systems throug
 
 * *Fluent DSL* — Pipeline definition through a type-safe, readable Java API.
 * *Asynchronous engine* — Non-blocking execution based on configurable thread pools.
-* *Extensible Channel Adapters* — Native integration with HTTP, Apache Kafka, scheduled timers, SLF4J, and chained pipelines through queues.
+* *Extensible Channel Adapters* — Native integration with HTTP, Apache Kafka, the filesystem, scheduled timers, SLF4J, and chained pipelines through queues.
 * *Declarative Error Handling* — Error channel and retry channel configurable directly in the flow definition.
 * *Spring Boot Starter* — Complete autoconfiguration for Spring Boot applications.
 * *Open SPI* — `ChannelAdapter` and `Endpoint` interfaces for implementing custom adapters.
@@ -68,6 +68,7 @@ pipelite-framework/
 ├── pipelite-core            # Core execution engine
 ├── pipelite-channel-adapters
 │   ├── default-channel-adapters
+│   ├── file-channel-adapter
 │   ├── http-channel-adapter
 │   ├── kafka-channel-adapter
 │   ├── queue-channel-adapter

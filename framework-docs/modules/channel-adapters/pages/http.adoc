@@ -20,7 +20,7 @@ The `http-channel-adapter` module implements an inbound HTTP server based on *Un
 ----
 Pipelite.defineFlow("http-inbound")
     .fromSource("http://ingress")     // <1>
-    .process("handle", exchange -> {
+    .process("handle", (exchange, contribution) -> {
         String body = exchange.getInputPayloadAs(String.class);
         exchange.setOutputPayload("OK");
     })
@@ -29,11 +29,19 @@ Pipelite.defineFlow("http-inbound")
 ----
 <1> Opens an HTTP listener on port 8080 (default) at path `/ingress`.
 
+The same `method` restriction can be applied through the typed `HttpSourceConfigurer` instead of a
+query string (see xref:custom.adoc[Custom Channel Adapters] for the general mechanism):
+
+[source,java]
+----
+.fromSource("http://orders", (HttpSourceConfigurer c) -> c.method("POST"))
+----
+
 === URL format
 
 [source]
 ----
-http://<path>
+http://<path>[?method=<HTTP method>]
 ----
 
 [cols="1,1,3"]
@@ -43,6 +51,10 @@ http://<path>
 |path
 |(required)
 |The HTTP path on which the server listens (e.g. `/api/v1/events`)
+
+|method
+|(unset - any method accepted)
+|Restricts this resource to a single HTTP method (e.g. `POST`). A request with a different method receives a `405`; a request to an unmapped path entirely receives a `404`.
 |===
 
 The Undertow server is started automatically by `HttpChannelAdapter.onContextStarted()` upon the first registration of an HTTP consumer.
@@ -61,6 +73,10 @@ context.addChannelConfigurer((HttpChannelConfigurer) configuration -> {
     configuration.setMaxEntitySize(1024 * 1024); // bytes
 });
 ----
+
+With Spring Boot, register it from a bean implementing `PipeliteContextInitializer` instead - see
+xref:spring-integration:configuration-properties.adoc[Configuration Properties]. A plain `@Bean`
+returning an `HttpChannelConfigurer` is *not* picked up automatically.
 
 [cols="1,1,3"]
 |===
@@ -87,14 +103,9 @@ reaches this adapter.
 
 == Usage as sink (outbound)
 
-The module includes an `HttpProducer` for sending messages to external HTTP endpoints.
-
-[source,java]
-----
-.toSink("http://target-service/api/notify")
-----
-
-The `HttpProducer` sends the payload as the body of an HTTP POST request.
+Not implemented yet: `HttpEndpoint#createProducer()` throws `UnsupportedOperationException`
+unconditionally, so `.toSink("http://...")`/`.toChannel("http://...")` fail at flow-registration
+time. `http-channel-adapter` is inbound-only today.
 
 == Multiple path registration
 

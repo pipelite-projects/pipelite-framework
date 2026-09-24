@@ -20,7 +20,7 @@ The `file-channel-adapter` module provides a filesystem-based adapter: a tail-po
 ----
 Pipelite.defineFlow("file-tail")
     .fromSource("file:///var/log/app.log?startPosition=beginning&period=500")   // <1>
-    .process("handle", exchange -> {
+    .process("handle", (exchange, contribution) -> {
         String line = exchange.getInputPayloadAs(String.class);
         // process one line at a time
     })
@@ -30,6 +30,16 @@ Pipelite.defineFlow("file-tail")
 <1> Polls `/var/log/app.log` every 500 ms, starting from the beginning of the file.
 
 The `FileTailPollingConsumer` polls the file on a dedicated per-endpoint thread via `FileTailConsumerService` (one `ScheduledExecutorService` per endpoint, not shared across the adapter). On each poll it reads only the bytes appended since the last known offset, maps them into records via the configured `FileRecordMapper`, and emits one `Exchange` per record.
+
+The same settings can be applied through the typed `FileSourceConfigurer` instead of a query
+string (see xref:custom.adoc[Custom Channel Adapters] for the general mechanism):
+
+[source,java]
+----
+.fromSource("file:///var/log/app.log", (FileSourceConfigurer c) -> c
+    .startPosition("beginning")
+    .period(500))
+----
 
 === URL format
 
@@ -171,7 +181,9 @@ FileChannelConfigurer configurer = configuration -> {
 context.addChannelConfigurer(configurer);
 ----
 
-With Spring Boot, the configurer can be defined as a `@Bean`.
+With Spring Boot, register it from a bean implementing `PipeliteContextInitializer` instead - see
+xref:spring-integration:configuration-properties.adoc[Configuration Properties]. A plain `@Bean`
+returning a `FileChannelConfigurer` is *not* picked up automatically.
 
 WARNING: Only the *first* `FileChannelConfigurer` registered on a context is applied; any additional ones are silently ignored. Fold every setting (state directory, all `registerMapper` calls) into a single configurer instance rather than calling `addChannelConfigurer` more than once for this adapter.
 

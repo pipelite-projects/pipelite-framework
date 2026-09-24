@@ -1,41 +1,99 @@
 = Expressions
 :description: Expression engine syntax for Pipelite filter and conditional routing
 
-The `pipelite-expression` module provides a textual expression evaluation engine used by `filter` and `ExpressionCondition`.
+The `pipelite-expression` module provides a textual expression evaluation engine used by `filter` and `ExpressionCondition`. It is a small, purpose-built expression language, not Java or SpEL - only the operators and functions listed below are available, no arbitrary method calls.
 
 == Syntax
 
-Expressions are Java strings evaluated at runtime.
-The central placeholder is `${body}`, which refers to the current payload of the Exchange.
-
-=== Available placeholders
+Expressions are plain strings, evaluated at runtime with no wrapping delimiter - this is a
+different mechanism from the `#{...}` text-interpolation syntax used inside dynamic destination
+strings (see xref:channel-adapters:queue.adoc[Queue Channel Adapter]'s own note on it). Two
+variables are bound automatically before every evaluation:
 
 [cols="1,3"]
 |===
-|Placeholder |Resolves to
+|Variable |Resolves to
 
-|`${body}`
+|`Payload`
 |The input payload of the `Exchange` (equivalent to `exchange.getInputPayload()`)
 
-|`${header.<name>}`
-|The value of the header with the specified name
+|`Headers`
+|The headers of the `Exchange`, indexable by name: `Headers['name']`
 |===
+
+=== Operators
+
+[cols="1,3"]
+|===
+|Operator |Aliases
+
+|`==`
+|`=`, `eq`
+
+|`!=`
+|`<>`, `neq`
+
+|`&&`
+|`&`, `and`
+
+|`\|\|`
+|`\|`, `or`
+
+|`>`
+|`gt`
+
+|`>=`
+|`gte`
+
+|`<`
+|`lt`
+
+|`\<=`
+|`lte`
+
+|`+` `-` `*` `/` `%` `^`
+|arithmetic (addition/subtraction also work as unary `+`/`-`)
+|===
+
+=== Functions
+
+[cols="1,3"]
+|===
+|Function |Description
+
+|`NOT(x)`
+|Boolean negation
+
+|`IF(cond, a, b)`
+|`a` if `cond` is true, otherwise `b`
+
+|`SQRT(x)`
+|Square root
+
+|`ROUND(x)`, `ROUND(x, precision)`
+|Rounds a number using the engine's configured `MathContext`
+
+|`beanProperty(bean, 'path')`
+|Reads a property off `bean` by name - the only way to reach into the fields of `Payload`, since there is no `.property` dot-access syntax. Aliased as `bp`, `property`, `prop`, `jsonPath`.
+|===
+
+String literals use single quotes (`'ORDER'`), not double.
 
 === Expression examples
 
 [source]
 ----
-// Filter: continue only if body is not null
-${body} != null
+// Filter: continue only if the payload is not null
+Payload != null
 
-// Filter on non-empty string
-${body} != null && !${body}.isEmpty()
+// Filter on a header value
+Headers['type'] == 'ORDER'
 
-// Conditional routing on header
-${header.type} == 'ORDER'
+// Numeric comparison on a header
+Headers['priority'] > 5
 
-// Numeric comparison
-${header.priority} > 5
+// Reading a field off the payload object
+beanProperty(Payload, 'totalAmount') > 100
 ----
 
 == Usage in DSL
@@ -44,7 +102,7 @@ ${header.priority} > 5
 
 [source,java]
 ----
-.filter("only-valid", "${body} != null && !${body}.isEmpty()")
+.filter("only-orders", "Headers['type'] == 'ORDER'")
 ----
 
 The `ExpressionFilterNode` evaluates the expression on each `Exchange`.
@@ -55,7 +113,7 @@ If the evaluation returns `false`, message processing stops.
 [source,java]
 ----
 .toRoute(route -> route.contentBased()
-    .when(new ExpressionCondition("${header.type} == 'PAYMENT'"), "queue://payment-flow")
+    .when(new ExpressionCondition("Headers['type'] == 'PAYMENT'"), "queue://payment-flow")
     .otherwise("queue://default-flow")
     .build()
 )
@@ -63,10 +121,14 @@ If the evaluation returns `false`, message processing stops.
 
 == Implementation
 
-The expression engine is implemented in `TextExpressionEvaluator` (module `pipelite-core`).
-It resolves placeholders on the `ExpressionVariables` populated from the current `Exchange`.
+Both `filter` (`ExpressionFilterNode`) and `ExpressionCondition` (`ExpressionConditionEvaluator`) go
+through the same `ExpressionParser` (module `pipelite-expression`), binding `Payload`/`Headers`
+before every evaluation. This is a *different* mechanism from the `#{...}` text interpolation that
+`TextExpressionEvaluator` provides (used for dynamic strings like a routing target, e.g.
+`"queue://#{Headers['region']}-orders"`) - `filter`/`ExpressionCondition` expressions are evaluated
+as a whole, with no delimiter, and must evaluate to a boolean.
 
 The `ExpressionUtils` (package `io.pipelite.core.support.expression`) provides helper methods for programmatic expression evaluation.
 
-NOTE: The expression engine is intentionally simple.
-For complex conditional logic, prefer using a `Processor` with standard Java code.
+NOTE: The expression engine is intentionally simple - no arbitrary method calls, no user-defined functions.
+For anything beyond what the operators/functions above express, use a `Processor` with plain Java code instead.

@@ -122,10 +122,11 @@ Available types:
 
 == Threading Model
 
-* *Event-driven consumers* (e.g. HTTP) react to events on the server thread.
-* *Polling consumers* (e.g. Kafka, Time) run on dedicated threads managed by `ScheduledPollingConsumerService`.
+* *Event-driven consumers* built directly on external I/O callbacks (HTTP) react on whatever thread the underlying server (Undertow) hands the request to - no dedicated thread of their own.
+* *Kafka* is also event-driven, but with its own dedicated poll-loop thread that continuously reads from the Kafka client and feeds results into the same dispatch mechanism HTTP uses.
+* *Polling consumers* (File, Time) are driven externally, on a schedule, by `ScheduledPollingConsumerService`.
 * *Concurrent sources* (`fromSource("queue://...?concurrency=N")`, see xref:dsl:flow-definition.adoc[Flow Definition]) dispatch to one shared, bounded worker pool instead of allocating dedicated threads per source, so overall thread usage stays bounded no matter how many flows opt in.
-* *WireTap* nodes forward to a separate channel in a *non-blocking* manner.
+* *WireTap* nodes forward to a separate channel synchronously, on the same thread as the main flow, before it continues (issue #47).
 * The `RetryService` handles retries on a separate thread with access to the `FlowExecutionDumpRepository`.
 * Every framework-owned thread is named `pipelite-<role>-<flow-name>` (e.g. `pipelite-kafka-order-ingest`, `pipelite-pool-3`), so a thread dump shows at a glance what each thread belongs to.
 
@@ -140,4 +141,4 @@ public interface ChannelAdapter {
 }
 ----
 
-The adapter is automatically discovered via classpath scan (file `META-INF/pipelite/adapters`).
+The adapter is automatically discovered via classpath scan (file `META-INF/pipelite.factories`, one `protocol=fully.qualified.ClassName` entry per adapter - see xref:channel-adapters:custom.adoc[Custom Channel Adapters]).
