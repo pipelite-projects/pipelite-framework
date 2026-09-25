@@ -116,10 +116,10 @@ See xref:routing.adoc[Routing] for complete documentation.
 
 [source,java]
 ----
-.toRoute(route -> route.contentBased()
-    .when(new PayloadTypeCondition(OrderEvent.class), "queue://order-flow")
+.toRoute(route -> route.dynamic()
+    .when("Headers['type'] == 'ORDER'").then("queue://order-flow")
     .otherwise("queue://default-flow")
-    .build()
+    .end()
 )
 ----
 

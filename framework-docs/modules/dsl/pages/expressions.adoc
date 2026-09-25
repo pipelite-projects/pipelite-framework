@@ -1,7 +1,7 @@
 = Expressions
 :description: Expression engine syntax for Pipelite filter and conditional routing
 
-The `pipelite-expression` module provides a textual expression evaluation engine used by `filter` and `ExpressionCondition`. It is a small, purpose-built expression language, not Java or SpEL - only the operators and functions listed below are available, no arbitrary method calls.
+The `pipelite-expression` module provides a textual expression evaluation engine used by `filter` and by the `when(...)` of `toRoute(...)`. It is a small, purpose-built expression language, not Java or SpEL - only the operators and functions listed below are available, no arbitrary method calls.
 
 == Syntax
 
@@ -108,27 +108,24 @@ beanProperty(Payload, 'totalAmount') > 100
 The `ExpressionFilterNode` evaluates the expression on each `Exchange`.
 If the evaluation returns `false`, message processing stops.
 
-=== In ExpressionCondition
+=== In toRoute
 
 [source,java]
 ----
-.toRoute(route -> route.contentBased()
-    .when(new ExpressionCondition("Headers['type'] == 'PAYMENT'"), "queue://payment-flow")
+.toRoute(route -> route.dynamic()
+    .when("Headers['type'] == 'PAYMENT'").then("queue://payment-flow")
     .otherwise("queue://default-flow")
-    .build()
+    .end()
 )
 ----
 
 == Implementation
 
-Both `filter` (`ExpressionFilterNode`) and `ExpressionCondition` (`ExpressionConditionEvaluator`) go
-through the same `ExpressionParser` (module `pipelite-expression`), binding `Payload`/`Headers`
-before every evaluation. This is a *different* mechanism from the `#{...}` text interpolation that
-`TextExpressionEvaluator` provides (used for dynamic strings like a routing target, e.g.
-`"queue://#{Headers['region']}-orders"`) - `filter`/`ExpressionCondition` expressions are evaluated
-as a whole, with no delimiter, and must evaluate to a boolean.
-
-The `ExpressionUtils` (package `io.pipelite.core.support.expression`) provides helper methods for programmatic expression evaluation.
+Both `filter` and the `when(...)` of `toRoute(...)` evaluate their expression as a whole, with
+`Payload` and `Headers` bound to the current `Exchange`, and it must evaluate to a boolean. This is a
+*different* mechanism from the `#{...}` text interpolation used inside dynamic strings such as a
+routing target, e.g. `"queue://#{Headers['region']}-orders"`, which is evaluated inside the string
+and can produce any text.
 
 NOTE: The expression engine is intentionally simple - no arbitrary method calls, no user-defined functions.
 For anything beyond what the operators/functions above express, use a `Processor` with plain Java code instead.

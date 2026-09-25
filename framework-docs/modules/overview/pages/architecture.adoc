@@ -7,22 +7,7 @@ Pipelite is based on a message-oriented pipeline architecture.
 Each *flow* represents a processing path that starts from a *source*, passes through one or more *processors*, and ends at a *sink*.
 Communication between nodes occurs through `Exchange` objects that encapsulate the in-transit message.
 
-[source]
-----
-Source Endpoint
-      │
-      ▼
-[Exchange: input Message + Headers + Properties]
-      │
-      ▼
-Processor Node 1  ──── WireTap ──► Side Channel
-      │
-      ▼
-Processor Node 2 (transform / filter / route)
-      │
-      ▼
-Sink Endpoint
-----
+image::img_.pipeline_structure_01.svg[Pipeline structure,role="text-center"]
 
 == Core Components
 
@@ -55,28 +40,34 @@ Each flow is associated with a source `Endpoint` that produces `Exchange` object
 The `Exchange` is the message transport container along the flow.
 It contains:
 
-* `input` — The incoming `Message` with payload and headers.
-* `output` — The response `Message` (optional).
-* `headers` — Shared metadata across nodes (`Headers`).
-* `properties` — Context properties.
+* `input` — The `Message` holding the incoming payload.
+* `output` — The `Message` holding the payload produced by the current step.
+* `headers` — Metadata that travels along the flow, independent of the payload (`Headers`).
 
 === Message
 
-A `Message` carries the application payload with its own headers.
+A `Message` is the container of the application payload. It carries no headers: those belong to
+the `Exchange`.
 The payload can be any serializable Java type.
 
 === Endpoint
 
-Each `ChannelAdapter` produces `Endpoint` instances.
-An `Endpoint` can expose:
+A `ChannelAdapter` creates an `Endpoint` for each URL used in a flow definition. The role of that
+`Endpoint` depends on where the URL appears:
 
-* A `Consumer` (event-driven or polling) to receive messages from the source.
-* A `Producer` to send messages to the destination.
+* A URL given to `fromSource(...)` makes it a *source endpoint*: the framework asks it for a
+`Consumer` (event-driven or polling), which receives messages from the external system and starts
+the flow.
+* A URL given to `toSink(...)` makes it a *sink endpoint*: the framework asks it for a `Producer`,
+which sends the flow's messages to the external system.
+
+The same adapter serves both roles - for instance `kafka://orders` can be read by one flow and
+written by another - but each `Endpoint` instance plays only one of them.
 
 A source and a sink are structurally different, not just directionally opposite - a source has an
 internal queue decoupling intake from processing, a sink does not:
 
-image::endpoint-structure.svg[Source and sink endpoint internal structure,role="text-center"]
+image::img_.endpoint_structure_01.svg[Source and sink endpoint internal structure,role="text-center"]
 
 The queue is what lets a source accept the *next* message while the flow is still busy with the
 previous one; a sink has nothing analogous; sending is a direct call on the thread that reached it,

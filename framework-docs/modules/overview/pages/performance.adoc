@@ -53,6 +53,8 @@ Measured on a synthetic 3-step pipeline (cheap, non-blocking processors) fed thr
 |~560-575k msg/s (plateau, bounded by the machine's core count)
 |===
 
+image::img_.throughput_concurrency_01.svg[Throughput as a function of concurrency,role="text-left"]
+
 The dip in the middle is real, not noise: dispatching a message to a worker thread has a fixed
 cost (acquiring a permit, submitting to the shared pool) that a *cheap* processor's own work does
 not amortize until concurrency is high enough to keep pool threads consistently busy rather than

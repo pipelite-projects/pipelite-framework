@@ -56,9 +56,9 @@ Both travel through the flow together, but for different reasons:
 
 * Use *headers* for information *about* the message that a downstream step needs to decide *what
 to do*, without caring what the message actually contains - e.g. a `priority` or `region` header
-that a `filter`/`ExpressionCondition` uses to send an order down a different path depending on
+that a `filter` or `toRoute(...)` uses to send an order down a different path depending on
 where it came from, regardless of what is inside the order itself. They are cheap to read
-(`Headers['name']`) and are exactly what `filter` and `ExpressionCondition` are built around (see
+(`Headers['name']`) and are exactly what `filter` and `toRoute(...)` are built around (see
 xref:dsl:expressions.adoc[Expressions]).
 * Use the *payload* for the actual content being processed - e.g. the `Order` object itself, with
 its line items and total, that each `Processor` reads, transforms or replaces. It is what the

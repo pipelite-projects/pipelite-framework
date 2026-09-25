@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="640px" height="340px" viewBox="0 0 640 340" style="background-color: rgb(255, 255, 255);" font-family="Tahoma, Verdana, sans-serif">
+  <!-- y axis: 0..600k msg/s over 240px (0.4px per 1k); plot area x 70..610, y 30..270 -->
+  <g stroke="#cfe3e3" stroke-width="1" stroke-dasharray="4 4">
+    <line x1="70" y1="30" x2="610" y2="30"/>
+    <line x1="70" y1="70" x2="610" y2="70"/>
+    <line x1="70" y1="110" x2="610" y2="110"/>
+    <line x1="70" y1="150" x2="610" y2="150"/>
+    <line x1="70" y1="190" x2="610" y2="190"/>
+    <line x1="70" y1="230" x2="610" y2="230"/>
+  </g>
+
+  <g fill="#143642" font-size="11" text-anchor="end">
+    <text x="62" y="274">0</text>
+    <text x="62" y="234">100k</text>
+    <text x="62" y="194">200k</text>
+    <text x="62" y="154">300k</text>
+    <text x="62" y="114">400k</text>
+    <text x="62" y="74">500k</text>
+    <text x="62" y="34">600k</text>
+  </g>
+
+  <line x1="70" y1="270" x2="610" y2="270" stroke="#143642" stroke-width="2"/>
+  <line x1="70" y1="30" x2="70" y2="270" stroke="#143642" stroke-width="2"/>
+
+  <!-- baseline: default concurrency (~372k) -->
+  <line x1="70" y1="121.2" x2="610" y2="121.2" stroke="#2d7600" stroke-width="1.5" stroke-dasharray="6 6"/>
+  <text x="606" y="114" fill="#2d7600" font-size="11" text-anchor="end">baseline (concurrency = 1)</text>
+
+  <!-- 2-6 dip: dashed, it is a lower bound not a single value -->
+  <polyline points="124,121.2 232,234 340,72" fill="none" stroke="#808080" stroke-width="2" stroke-dasharray="6 6"/>
+  <polyline points="340,72 448,48 556,42.8" fill="none" stroke="#0f8b8d" stroke-width="2.5"/>
+
+  <!-- range bars -->
+  <g stroke="#0f8b8d" stroke-width="2">
+    <line x1="124" y1="116" x2="124" y2="126"/>
+    <line x1="118" y1="116" x2="130" y2="116"/>
+    <line x1="118" y1="126" x2="130" y2="126"/>
+    <line x1="556" y1="40" x2="556" y2="46"/>
+    <line x1="550" y1="40" x2="562" y2="40"/>
+    <line x1="550" y1="46" x2="562" y2="46"/>
+  </g>
+
+  <!-- points -->
+  <g stroke="#0f8b8d" stroke-width="2" fill="#c0f5a9">
+    <circle cx="124" cy="121.2" r="6"/>
+    <circle cx="340" cy="72" r="6"/>
+    <circle cx="448" cy="48" r="6"/>
+    <circle cx="556" cy="42.8" r="6"/>
+  </g>
+  <circle cx="232" cy="234" r="6" fill="#f5d29e" stroke="#143642" stroke-width="2"/>
+
+  <!-- value labels -->
+  <g fill="#143642" font-size="11" text-anchor="middle">
+    <text x="124" y="102">~360-385k</text>
+    <text x="232" y="256">as low as ~90k</text>
+    <text x="340" y="58">~495k</text>
+    <text x="448" y="34">~555k</text>
+    <text x="556" y="28">~560-575k</text>
+  </g>
+
+  <!-- x axis -->
+  <g fill="#143642" font-size="12" text-anchor="middle">
+    <text x="124" y="290">1 (default)</text>
+    <text x="232" y="290">2-6</text>
+    <text x="340" y="290">8</text>
+    <text x="448" y="290">16</text>
+    <text x="556" y="290">32 and above</text>
+  </g>
+  <line x1="124" y1="270" x2="124" y2="275" stroke="#143642" stroke-width="2"/>
+  <line x1="232" y1="270" x2="232" y2="275" stroke="#143642" stroke-width="2"/>
+  <line x1="340" y1="270" x2="340" y2="275" stroke="#143642" stroke-width="2"/>
+  <line x1="448" y1="270" x2="448" y2="275" stroke="#143642" stroke-width="2"/>
+  <line x1="556" y1="270" x2="556" y2="275" stroke="#143642" stroke-width="2"/>
+
+  <text x="340" y="318" fill="#143642" font-size="13" font-weight="bold" text-anchor="middle">concurrency</text>
+  <text transform="translate(16 150) rotate(-90)" fill="#143642" font-size="13" font-weight="bold" text-anchor="middle">Throughput (msg/s)</text>
+</svg>

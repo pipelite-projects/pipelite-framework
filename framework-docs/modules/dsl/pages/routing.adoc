@@ -1,61 +1,60 @@
 = Routing
 :description: Routing patterns available in the Pipelite DSL
 
-Pipelite supports three routing types, accessible via the `.toRoute()` method of the DSL.
+A flow can end by handing its `Exchange` on to other flows or channels chosen at runtime, instead of
+a fixed `toSink(...)`. Two constructs do this: `toRoute(...)`, which picks destinations with
+expressions, and `toRecipientList(...)`, which is deprecated.
 
-== Content-Based Router
+== Expression-based routing
 
-The *Content-Based Router* routes the message to one of the flows listed in the routing table based on content.
-
-[source,java]
-----
-.toRoute(route -> route.contentBased()               // <1>
-    .when(new PayloadTypeCondition(OrderEvent.class), // <2>
-          "queue://order-processing-flow")
-    .when(new ExpressionCondition("Headers['type'] == 'PAYMENT'"),
-          "queue://payment-flow")
-    .otherwise("queue://default-flow")                        // <3>
-    .build()
-)
-----
-<1> Selects content-based mode.
-<2> Each `.when(condition, flowName)` adds an entry to the routing table.
-<3> `.otherwise` defines the fallback flow if no condition is satisfied.
-
-NOTE: A destination is a URL: `queue://<queue name>` reaches an internal flow (the queue its `fromSource("queue://...")` reads), any other channel adapter protocol reaches an external system. A bare name is rejected when the flow is defined.
-
-=== Available conditions
-
-[cols="1,3"]
-|===
-|Class |Description
-
-|`PayloadTypeCondition`
-|Checks that the payload is an instance of the specified type.
-
-|`ExpressionCondition`
-|Evaluates a textual expression (see xref:expressions.adoc[Expressions]).
-|===
-
-`Condition` is a sealed interface permitting only these two implementations - it is not a
-third-party extension point, so a custom condition cannot be added by implementing it. Anything
-`PayloadTypeCondition` and `ExpressionCondition` cannot express has to be handled as an ordinary
-`filter` or `process` step upstream of the router instead.
-
-== Recipient List
-
-The *Recipient List* pattern sends the message to *multiple flows* simultaneously.
+`toRoute(...)` evaluates a list of expressions in order and sends the message to the destinations of
+the *first* one that is true.
 
 [source,java]
 ----
 .toRoute(route -> route.dynamic()
-    .toRecipientList(list -> {
-        list.addRecipient("flow-a");
-        list.addRecipient("flow-b");
-        return list;
-    })
+    .when("Headers['type'] == 'PAYMENT'").then("queue://payment-flow")               // <1>
+    .when("Headers['type'] == 'REFUND'").then("queue://refund-flow", "slf4j://audit") // <2>
+    .otherwise("queue://default-flow")                                                // <3>
+    .end()                                                                            // <4>
+)
+----
+<1> `.when(expression)` is a boolean expression (see xref:expressions.adoc[Expressions]) and `.then(...)` the destination reached when it is true.
+<2> `.then(...)` accepts several destinations: the message is sent to all of them, each receiving its own copy of the `Exchange`.
+<3> `.otherwise(...)` is the fallback when no expression is true. Without it, a message that matches nothing fails like a failed step, and is handled by the flow's error handling.
+<4> `.end()` closes the routing table.
+
+A destination is a URL: `queue://<queue name>` reaches an internal flow (the queue its `fromSource("queue://...")` reads), any other channel adapter protocol reaches an external system. A bare name is rejected when the flow is defined.
+
+=== Destinations computed per message
+
+A destination may contain a `#{...}` expression, evaluated against each message with `Payload` and `Headers` available:
+
+[source,java]
+----
+.toRoute(route -> route.dynamic()
+    .when("Payload != null").then("queue://#{Headers['region']}-orders")
+    .end()
 )
 ----
 
-NOTE: The `toRecipientList` API via `ProcessOperations` is deprecated.
-Prefer the variant via `toRoute(route -> route.dynamic())`.
+NOTE: `#{...}` is resolved for each message when it is routed. The `${...}` property placeholders of the Spring integration are *not* resolved in routing destinations - see xref:spring-integration:endpoint-url-properties.adoc[Endpoint URL Property Placeholders].
+
+== Recipient List
+
+The *Recipient List* pattern sends the message to *several destinations* at once.
+For a fixed set of destinations, or a set chosen by an expression, `toRoute(...)` above already does this: pass several destinations to `.then(...)`.
+
+The dedicated `toRecipientList(...)` construct is deprecated:
+
+[source,java]
+----
+.toRecipientList(list -> list
+    .toRecipients("queue://flow-a", "queue://flow-b")            // <1>
+    .when("Headers['audit'] == 'true'").toRecipient("slf4j://audit-logger")  // <2>
+    .end())
+----
+<1> Recipients that always receive the message.
+<2> A recipient added only when the expression is true.
+
+Prefer `toRoute(route -> route.dynamic()...)` for new flows.

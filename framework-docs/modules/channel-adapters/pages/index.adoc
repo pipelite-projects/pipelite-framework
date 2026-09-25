@@ -47,11 +47,18 @@ Adapters are registered via the file:
 
 [source]
 ----
-META-INF/pipelite/adapters
+META-INF/pipelite.factories
 ----
 
-Each line contains the fully qualified name of a class implementing `ChannelAdapter`.
-The `FactoryComponentClasspathScanner` loads the classes at context startup.
+Each line maps a protocol to the fully qualified name of a class implementing `ChannelAdapter`:
+
+[source,properties]
+----
+queue=io.pipelite.components.queue.QueueChannelAdapter
+time=io.pipelite.components.time.TimeChannelAdapter
+----
+
+Every such file on the classpath is scanned at context startup.
 
 == Creating a custom adapter
 
