@@ -47,9 +47,22 @@ jobs:
               ...(previousRelease ? { previous_tag_name: previousRelease.tag_name } : {}),
             });
 
+            // Keep what a maintainer wrote above the marker (an introduction). The placeholder
+            // that deploy-release.yml puts in the draft is not one. Running this again only
+            // replaces what comes after the marker, so it never stacks the notes twice.
+            const MARKER = '<!-- generated-release-notes -->';
+            let intro = release.body || '';
+            const markerAt = intro.indexOf(MARKER);
+            if (markerAt >= 0) {
+              intro = intro.slice(0, markerAt);
+            } else if (intro.trim().startsWith('Draft release for ')) {
+              intro = '';
+            }
+            intro = intro.trim();
+
             await github.rest.repos.updateRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
               release_id: release.id,
-              body: generated.body,
+              body: (intro ? intro + '\n\n' : '') + MARKER + '\n' + generated.body,
             });
