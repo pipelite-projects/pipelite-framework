@@ -43,10 +43,6 @@
             <id>central-snapshots</id>
             <url>https://central.sonatype.com/repository/maven-snapshots/</url>
         </snapshotRepository>
-        <repository>
-            <id>ossrh</id>
-            <url>https://s01.oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
     </distributionManagement>
 
     <properties>
@@ -252,6 +248,28 @@
                                 </configuration>
                             </execution>
                         </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <!-- Release publishing to the Central Portal (OSSRH was retired). Used together with
+             "deploy" by deploy-release.yml only: with its extension the plugin takes over the
+             deploy phase, which would also replace the working snapshot deploy. The bundle is
+             validated by the Portal and then waits for a manual "Publish" there. -->
+        <profile>
+            <id>central-release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.11.0</version>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>false</autoPublish>
+                            <waitUntil>validated</waitUntil>
+                        </configuration>
                     </plugin>
                 </plugins>
             </build>
