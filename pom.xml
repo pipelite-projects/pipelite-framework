@@ -269,6 +269,15 @@
                             <publishingServerId>central</publishingServerId>
                             <autoPublish>false</autoPublish>
                             <waitUntil>validated</waitUntil>
+                            <!-- Not libraries: the plugin does not honour maven.deploy.skip, so these
+                                 are excluded from the bundle explicitly. -->
+                            <excludeArtifacts>
+                                <artifact>framework-docs</artifact>
+                                <artifact>pipelite-examples</artifact>
+                                <artifact>pipelite-simple-application</artifact>
+                                <artifact>pipelite-springboot-application</artifact>
+                                <artifact>pipelite-fooddelivery-application</artifact>
+                            </excludeArtifacts>
                         </configuration>
                     </plugin>
                 </plugins>
