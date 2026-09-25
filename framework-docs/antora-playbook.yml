@@ -5,6 +5,10 @@ site:
   keys:
     repo_url: https://github.com/pipelite-projects/pipelite-framework
 
+antora:
+  extensions:
+  - ./lib/project-version-extension.js
+
 content:
   sources:
   - url: ..
