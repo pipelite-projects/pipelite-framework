@@ -3,6 +3,10 @@ name: Deploy-Release
 on:
   push:
     tags: [ 'v*' ]
+  # Rehearsal: run it on a branch whose version is already a release one. The bundle goes to the
+  # Central Portal and is validated, but nothing is published without a manual click there, and
+  # no GitHub Release is created (that step runs on tags only).
+  workflow_dispatch:
 
 jobs:
   build:
@@ -22,36 +26,47 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-          server-id: ossrh
+          server-id: central
           server-username: MAVEN_USERNAME
           server-password: MAVEN_PASSWORD
           gpg-private-key: ${{ secrets.MAVEN_GPG_PRIVATE_KEY }}
-          gpg-passphrase: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
+          # The NAME of the environment variable that holds the passphrase, not its value: the
+          # value is supplied to the deploy step below.
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
 
       - name: Add execution permission to Maven Wrapper script
         run: chmod +x ./mvnw
 
+      - name: Refuse a SNAPSHOT version
+        run: |
+          CURRENT_VERSION=$(grep -m1 '<revision>' pom.xml | sed -E 's/.*<revision>(.*)<\/revision>.*/\1/')
+          echo "Current POM version: $CURRENT_VERSION"
+          if [[ "$CURRENT_VERSION" == *"-SNAPSHOT"* ]]; then
+            echo "::error::The Central Portal does not accept SNAPSHOT versions for a release. Set <revision> to the release version first."
+            exit 1
+          fi
+
       - name: Build and Test
         run: ./mvnw -B clean package
 
-      - name: Release and Deploy to OSSRH (Maven Central)
+      - name: Upload the bundle to the Central Portal
         run: |
           git config --global user.email "builds@pipelite.io"
           git config --global user.name "pipelite-builds"
-          # Esegue il deploy usando il profilo di release configurato nel tuo pom.xml
-          ./mvnw -B -DskipTests -Pdeploy deploy
+          ./mvnw -B -DskipTests -Pdeploy,central-release deploy
         env:
-          MAVEN_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.OSSRH_TOKEN }}
+          MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.MAVEN_GPG_PASSPHRASE }}
 
       - name: Create draft GitHub Release
+        if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: Pipelite Release ${{ github.ref_name }}
           draft: true
-          prerelease: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
           body: "Draft release for ${{ github.ref_name }}. Categorized release notes are generated automatically when this release is published."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
