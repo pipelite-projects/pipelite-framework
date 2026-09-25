@@ -46,7 +46,7 @@ public class OrderFlowConfiguration {
     public FlowDefinition orderFlow() {
         return Pipelite.defineFlow("order-flow")
             .fromSource("kafka://orders")
-            .process("handle", exchange ->
+            .process("handle", (exchange, contribution) ->
                 orderService.handle(exchange.getInputPayloadAs(Order.class)))
             .toSink("slf4j://orders-log")
             .build();
@@ -85,9 +85,9 @@ For the complete `@FlowConfiguration` / `@DefineFlow` reference, including plain
 |Active
 |Implements `SmartLifecycle` to start and stop the context in sync with Spring.
 
-|`PipeliteContextInitializer`
+|`PipeliteContextInitializerBeanPostProcessor`
 |Active
-|Initializes the context with internal factories.
+|Invokes `initializeContext(PipeliteContext)` on every bean implementing `PipeliteContextInitializer` - a public extension point, not an internal-only one, for anything that needs the context before it starts (e.g. registering a `ChannelConfigurer` - see xref:configuration-properties.adoc[Configuration Properties]).
 
 |`FlowDefinitionRegistrar`
 |Deprecated

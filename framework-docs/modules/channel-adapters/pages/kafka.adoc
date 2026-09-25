@@ -20,7 +20,7 @@ The `kafka-channel-adapter` module provides integration with *Apache Kafka 3.6.x
 ----
 Pipelite.defineFlow("kafka-consumer")
     .fromSource("kafka://my-topic")
-    .process("handle", exchange -> {
+    .process("handle", (exchange, contribution) -> {
         String record = exchange.getInputPayloadAs(String.class);
         // process the Kafka record
     })
@@ -28,14 +28,26 @@ Pipelite.defineFlow("kafka-consumer")
     .build();
 ----
 
-The `KafkaPollingConsumer` polls on a dedicated thread via `KafkaConsumerService`.
+`KafkaConsumerService` runs its own poll loop against the Kafka client on a dedicated thread, then hands each record to the flow through the same durable-inbox/dispatch machinery every event-driven source uses.
+
+The same settings can be applied through the typed `KafkaSourceConfigurer` instead of a query
+string (see xref:custom.adoc[Custom Channel Adapters] for the general mechanism):
+
+[source,java]
+----
+.fromSource("kafka://my-topic", (KafkaSourceConfigurer c) -> c
+    .groupId("my-consumer-group")
+    .autoOffsetReset("earliest"))
+----
 
 === URL format
 
 [source]
 ----
-kafka://<topic-name>[?<params>]
+kafka://<topic-name>[?group.id=<id>&auto.offset.reset=<policy>]
 ----
+
+NOTE: The query-string keys are Kafka's own native `ConsumerConfig` property names (`group.id`, `auto.offset.reset`) - the `KafkaSourceConfigurer` methods above are camelCase Java, but lower into these same native keys underneath, so `KafkaConsumerService` reads one consistent shape regardless of which style built the URL.
 
 == Usage as sink (producer)
 
@@ -48,18 +60,20 @@ The `DefaultKafkaProducer` sends the serialized payload as the Kafka record valu
 
 == Configuration
 
-Kafka configuration is provided via `KafkaChannelConfigurer`:
+Kafka configuration is provided via `KafkaChannelConfigurer`, registered on the context:
 
 [source,java]
 ----
-KafkaChannelConfigurer configurer = (config) -> {
+context.addChannelConfigurer((KafkaChannelConfigurer) config -> {
     config.setBootstrapServers("localhost:9092");
     config.setGroupId("pipelite-consumer-group");
     config.setAutoOffsetReset("earliest");
-};
+});
 ----
 
-With Spring Boot, the configurer can be defined as a `@Bean`.
+With Spring Boot, register it from a bean implementing `PipeliteContextInitializer` instead - see
+xref:spring-integration:configuration-properties.adoc[Configuration Properties]. A plain `@Bean`
+returning a `KafkaChannelConfigurer` is *not* picked up automatically.
 
 === Available KafkaChannelConfiguration properties
 

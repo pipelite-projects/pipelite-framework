@@ -1,11 +1,11 @@
 = Endpoint URL Property Placeholders
 :description: Resolving Spring property placeholders in Pipelite endpoint URLs
 
-The `pipelite-spring-starter` module resolves `${property.key}` placeholders embedded in endpoint URLs, using the Spring `Environment` as the value source at context startup time.
+The `pipelite-spring-starter` module resolves `${property.key}` placeholders embedded in the URL of a flow's source (`fromSource(...)`) and sink (`toSink(...)`), using the Spring `Environment` as the value source at context startup time.
 
 == Overview
 
-Endpoint URLs in Pipelite flows are plain strings such as `kafka://orders` or `files://inbox`.
+Endpoint URLs in Pipelite flows are plain strings such as `kafka://orders` or `queue://orders`.
 In production deployments the target resource names often vary between environments (dev, staging, production) and must be externalised to configuration files or environment variables.
 
 By embedding standard Spring property placeholders directly in the URL string, you can keep flow definitions deployment-agnostic:
@@ -29,7 +29,7 @@ public FlowDefinition orderFlow() {
 app.kafka.topic.orders=orders-v2
 ----
 
-At startup the context sees `kafka://orders-v2`.
+At startup the context sees `kafka://orders-v2`. The same works in `toSink(...)`.
 
 All standard Spring `Environment` sources are supported: `application.properties`, `application.yml`, OS environment variables, JVM system properties, and any custom `PropertySource`.
 
@@ -43,7 +43,17 @@ This means that routing and lookups (e.g. `PipeliteContext.supplyExchange("queue
 
 If a placeholder cannot be resolved — because the property is absent from every `Environment` source — Pipelite propagates the failure immediately during startup with an `IllegalArgumentException`.
 The application context will not start with an unresolved placeholder.
-There is no fallback to a literal `${key}` value.
+There is no fallback to a literal `$\{key}` value.
+
+== Where placeholders are not resolved
+
+Only the URLs of `fromSource(...)` and `toSink(...)` are resolved. A `${...}` placeholder written anywhere else in a flow definition is left as it is, and the first time a message is delivered there it fails with `Malformed endpoint url '${...}'`:
+
+* the URL of a `wireTap(...)`;
+* the destinations of `toRoute(...)` and `toRecipientList(...)`;
+* the target of an error channel, `err.toChannel(...)`.
+
+For these, write the URL literally. A routing destination that depends on the message can use a `#{...}` expression instead (see xref:dsl:routing.adoc[Routing]).
 
 == Plain-Java usage
 

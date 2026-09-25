@@ -14,7 +14,7 @@ Included in `default-channel-adapters`, transitively available with `pipelite-co
 ----
 Pipelite.defineFlow("scheduled-flow")
     .fromSource("time://ticker?period=5000")   // <1>
-    .process("check", exchange -> {
+    .process("check", (exchange, contribution) -> {
         // logic executed every 5 seconds
     })
     .toSink("slf4j://log")
@@ -22,11 +22,21 @@ Pipelite.defineFlow("scheduled-flow")
 ----
 <1> Generates a tick every 5000 ms.
 
+The same settings can be applied through the typed `TimeSourceConfigurer` instead of a query
+string (see xref:custom.adoc[Custom Channel Adapters] for the general mechanism):
+
+[source,java]
+----
+.fromSource("time://ticker", (TimeSourceConfigurer c) -> c
+    .period(5000)
+    .timeUnit(TimeUnit.MILLISECONDS))
+----
+
 == URL format
 
 [source]
 ----
-time://<name>[?period=<ms>]
+time://<name>[?period=<ms>&initialDelay=<ms>&timeUnit=<unit>&batchSize=<n>&durableInbox=<bool>]
 ----
 
 [cols="1,1,3"]
@@ -40,6 +50,22 @@ time://<name>[?period=<ms>]
 |`period`
 |`1000`
 |Tick period in milliseconds
+
+|`initialDelay`
+|`0`
+|Delay before the first tick
+
+|`timeUnit`
+|`MILLISECONDS`
+|Unit for `period`/`initialDelay`
+
+|`batchSize`
+|`1`
+|Ticks drained per poll
+
+|`durableInbox`
+|`false`
+|Unlike every other source adapter, `time://` defaults the durable inbox *off*: a tick's payload is `LocalDateTime.now()` at the instant it fires, regenerated on the adapter's own schedule regardless of what a crash destroys - there is never anything external or irreplaceable at risk the way there is for a source whose messages arrive from outside (HTTP, Kafka, a tailed file). Opt back in with `durableInbox=true` (or `c.durableInbox(true)` on the configurer) if something downstream actually needs every tick tracked durably.
 |===
 
 == Internal mechanism

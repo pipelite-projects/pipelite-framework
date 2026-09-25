@@ -40,60 +40,100 @@ public class MyCustomEndpoint extends DefaultEndpoint {
 
     @Override
     public Consumer createConsumer() {
-        return new MyCustomConsumer(this);    // for use as source
+        return new MyCustomConsumerService(this);    // for use as source
     }
 
     @Override
     public Producer createProducer() {
-        return new MyCustomProducer(this);    // for use as sink
+        return new MyCustomProducer(this);           // for use as sink
     }
 }
 ----
+
+The defaults `DefaultEndpoint` itself uses (when neither is overridden) are `new EventDrivenConsumerService(new EventDrivenConsumer(this))` and `new DefaultProducer(this)` - override only the side(s) a custom adapter actually needs something different for.
 
 == Implementing Consumer (source)
 
-For *event-driven* consumers:
+NOTE: `AbstractConsumer`/`AbstractProducer` are sealed to the framework's own default
+implementations (pre-1.0.0 API audit, issue #79 Tier 4) - a custom adapter extends
+`DefaultPollingConsumer`/`EventDrivenConsumerService`/`DefaultProducer` instead, all `non-sealed`
+and the actual, intended extension points.
+
+For *event-driven* consumers, wrap an `EventDrivenConsumer` (which owns the dispatch queue and
+concurrency) in a `Service` subclass that subscribes to the external system on `doStart()`:
 
 [source,java]
 ----
-public class MyCustomConsumer extends AbstractConsumer
-    implements EventDrivenConsumer {
+public class MyCustomConsumerService extends EventDrivenConsumerService {
 
-    public void onMessage(Object data) {
-        ExchangeImpl exchange = exchangeFactory.createExchange(data);
-        process(exchange);
+    public MyCustomConsumerService(Endpoint endpoint) {
+        super(new EventDrivenConsumer(endpoint), "my-adapter");   // <1>
     }
-}
-----
-
-For *polling* consumers:
-
-[source,java]
-----
-public class MyCustomPollingConsumer extends DefaultPollingConsumer {
 
     @Override
-    protected ExchangeImpl poll() {
-        Object data = mySystem.fetchNext();
-        if (data == null) return null;
-        return exchangeFactory.createExchange(data);
+    public void doStart() {
+        super.doStart();                                          // <2>
+        mySystem.onMessage(data -> consume(exchangeFactory.createExchange(data)));   // <3>
+    }
+
+    @Override
+    public void doStop() {
+        // unsubscribe from the external system
+        super.doStop();
     }
 }
 ----
+<1> The role name (`"my-adapter"`) distinguishes this adapter's threads from another's in a thread dump - see `KafkaConsumerService` for a real example.
+<2> Starts the dispatch strategy first, so it is ready before the first message can arrive.
+<3> `exchangeFactory` is inherited (`protected`), wired automatically before `doStart()` runs. `consume(...)` is the public entry point for handing in a new `Exchange` - never call `process(...)` directly, its meaning differs by consumer type.
+
+For *polling* consumers, override `receive()` on `DefaultPollingConsumer` - see
+`TimePollingConsumer`/`FileTailPollingConsumer` for real examples:
+
+[source,java]
+----
+public class MyCustomPollingConsumer extends DefaultPollingConsumer
+    implements ExchangeFactoryAware {
+
+    private ExchangeFactory exchangeFactory;
+
+    public MyCustomPollingConsumer(Endpoint endpoint) {
+        super(endpoint);
+    }
+
+    @Override
+    public void setExchangeFactory(ExchangeFactory exchangeFactory) {
+        this.exchangeFactory = exchangeFactory;
+    }
+
+    @Override
+    public ExchangeImpl receive() {
+        Object data = mySystem.fetchNext();
+        return data != null ? exchangeFactory.createExchange(data) : null;
+    }
+}
+----
+
+`ScheduledPollingConsumerService` calls `receive()` on its own schedule (`period`/`initialDelay`/`timeUnit`/`batchSize`, see xref:file.adoc[File]/xref:time.adoc[Time]) and dispatches whatever it returns; a `null` means nothing was available this tick.
 
 == Implementing Producer (sink)
 
 [source,java]
 ----
-public class MyCustomProducer extends AbstractProducer {
+public class MyCustomProducer extends DefaultProducer {
+
+    public MyCustomProducer(Endpoint endpoint) {
+        super(endpoint);
+    }
 
     @Override
-    public void produce(ExchangeImpl exchange) throws Exception {
+    public void doProcess(ExchangeImpl exchange) {                 // <1>
         Object payload = exchange.getInputPayload();
         mySystem.send(payload);
     }
 }
 ----
+<1> Not `process(...)` - `DefaultProducer` already implements it (`final`) to call `doProcess(...)` inside a try/catch that routes any `RuntimeException` through the flow's own exception handler (issue #89), the same failure handling a processor step already gets. A producer failure used to always propagate uncaught before that.
 
 == Registration via classpath scan
 
@@ -101,17 +141,21 @@ Create the registration file in the `resources` directory of your module:
 
 [source]
 ----
-src/main/resources/META-INF/pipelite/adapters
+src/main/resources/META-INF/pipelite.factories
 ----
 
-File content (one class per line):
+File content: a standard `java.util.Properties` file, one `<protocol>=<fully-qualified-class-name>`
+entry per adapter (the same shape as `MyCustomChannelAdapter` itself declares nothing about its own
+protocol - the key here is what defines it):
 
 [source]
 ----
-com.example.adapters.MyCustomChannelAdapter
+my-adapter=com.example.adapters.MyCustomChannelAdapter
 ----
 
-The `FactoryComponentClasspathScanner` automatically loads all classes registered in this file at `PipeliteContext` startup.
+`ChannelAdapterDiscovery` scans every `META-INF/pipelite.factories` on the classpath and instantiates
+one adapter per entry at `PipeliteContext` startup, failing fast with a
+`DuplicateChannelAdapterProtocolException` if two different classes claim the same protocol name.
 
 == Integration with the context lifecycle
 

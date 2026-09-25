@@ -1,68 +1,82 @@
 = Configuration Properties
-:description: Spring Boot configuration properties for the pipelite-spring-starter module
+:description: Configuring channel adapters in a pipelite-spring-starter application
 
-The `pipelite-spring-starter` module supports configuration via `application.properties` or `application.yml`.
-
-NOTE: External configuration properties via `application.properties` are under active development for version `0.2.0`.
-Current configuration is primarily done through Spring beans and the `ChannelConfigurer` SPI.
-
-== Planned properties
-
-The following properties are planned for upcoming releases:
-
-[cols="1,1,3"]
-|===
-|Property |Default |Description
-
-|`pipelite.enabled`
-|`true`
-|Enables or disables Pipelite autoconfiguration.
-
-|`pipelite.context.auto-start`
-|`true`
-|Automatically starts the `PipeliteContext` at Spring bootstrap.
-
-|`pipelite.adapters.http.port`
-|`80`
-|Port for the Undertow HTTP server.
-
-|`pipelite.adapters.http.host`
-|`0.0.0.0`
-|Bind address for the HTTP server.
-
-|`pipelite.adapters.kafka.bootstrap-servers`
-|`localhost:9092`
-|Kafka bootstrap servers.
-
-|`pipelite.adapters.kafka.group-id`
-|`pipelite-default`
-|Kafka consumer group ID.
-|===
-
-== Current configuration via beans
-
-Until external properties are available, use `@Configuration` beans:
-
-=== HTTP
+`pipelite-spring-starter` has no `application.properties`/`application.yml`-based configuration
+today. A plain `@Bean` returning a `ChannelConfigurer` is *not* picked up automatically - nothing
+in `pipelite-spring-starter` scans for that type. Every adapter setting shared across a context (an
+HTTP server's port, Kafka's bootstrap servers, a file adapter's state directory) is registered
+explicitly, from a bean implementing `PipeliteContextInitializer`, which the autoconfiguration
+*does* detect and invoke for you once the context exists (see
+xref:autoconfiguration.adoc[Autoconfiguration]):
 
 [source,java]
 ----
-// Currently the port is fixed at 80.
-// External configuration support is planned.
-----
+import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.spring.context.PipeliteContextInitializer;
 
-=== Kafka
+@Component
+public class ChannelAdapterConfiguration implements PipeliteContextInitializer {
 
-[source,java]
-----
-@Bean
-public KafkaChannelConfigurer kafkaConfigurer() {
-    return config -> {
-        config.setBootstrapServers("kafka-broker:9092");
-        config.setGroupId("my-app-group");
-        config.setAutoOffsetReset("earliest");
-    };
+    @Override
+    public void initializeContext(PipeliteContext context) {
+        context.addChannelConfigurer((HttpChannelConfigurer) configuration -> {
+            configuration.setPort(8443);
+            configuration.setHost("127.0.0.1");
+            configuration.setMaxEntitySize(1024 * 1024); // bytes
+        });
+    }
 }
 ----
 
-The `KafkaChannelConfigurer` bean is automatically detected by the autoconfiguration and applied to the `KafkaChannelAdapter`.
+Register as many `addChannelConfigurer(...)` calls as needed - one per adapter type - inside the
+same `initializeContext(...)` method, or across several `PipeliteContextInitializer` beans; every
+one of them runs before the context starts.
+
+Per-source settings (a Kafka `groupId`, an HTTP `method` restriction) are set per
+`fromSource(...)` call instead, not through a configurer at all - see each adapter's own
+xref:channel-adapters:index.adoc[Channel Adapters] page for its typed `SourceConfigurer`.
+
+== HTTP
+
+[source,java]
+----
+context.addChannelConfigurer((HttpChannelConfigurer) configuration -> {
+    configuration.setPort(8443);
+    configuration.setHost("127.0.0.1");
+    configuration.setMaxEntitySize(1024 * 1024); // bytes
+});
+----
+
+See xref:channel-adapters:http.adoc[HTTP Channel Adapter] for the full list of settings and their
+defaults.
+
+== Kafka
+
+[source,java]
+----
+context.addChannelConfigurer((KafkaChannelConfigurer) configuration -> {
+    configuration.setBootstrapServers("kafka-broker:9092");
+    configuration.setGroupId("my-app-group");
+    configuration.setAutoOffsetReset("earliest");
+});
+----
+
+See xref:channel-adapters:kafka.adoc[Kafka Channel Adapter] for the full list of settings and their
+defaults.
+
+== File
+
+[source,java]
+----
+context.addChannelConfigurer((FileChannelConfigurer) configuration -> {
+    configuration.setStateDirectory(Path.of("/var/lib/myapp/pipelite-file-state"));
+    configuration.setAllowedWriteDirectory(Path.of("/var/lib/myapp/outbox"));
+});
+----
+
+See xref:channel-adapters:file.adoc[File Channel Adapter] for the full list of settings, including
+registering a custom `FileRecordMapper`.
+
+WARNING: Only the *first* `ChannelConfigurer` registered for a given adapter type is applied;
+calling `addChannelConfigurer` more than once for the same adapter has no effect beyond the first.
+Fold every setting for one adapter into a single call.

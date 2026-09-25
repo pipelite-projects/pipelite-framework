@@ -1,3 +1,4 @@
 * xref:overview:index.adoc[Overview]
 ** xref:overview:index.adoc[Introduction]
 ** xref:overview:architecture.adoc[Architecture]
+** xref:overview:performance.adoc[Performance and Throughput]

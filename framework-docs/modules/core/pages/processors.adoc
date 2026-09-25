@@ -10,9 +10,8 @@ The `Processor` interface represents generic application logic.
 
 [source,java]
 ----
-@FunctionalInterface
 public interface Processor {
-    void process(Exchange exchange) throws Exception;
+    void process(Exchange exchange, ProcessContribution contribution);
 }
 ----
 
@@ -20,13 +19,15 @@ Usage in DSL:
 
 [source,java]
 ----
-.process("step-name", exchange -> {
+.process("step-name", (exchange, contribution) -> {
     String payload = exchange.getInputPayloadAs(String.class);
     exchange.setOutputPayload(payload.toUpperCase());
 })
 ----
 
-The `Processor` receives an `Exchange` that exposes full access to input, output, and headers.
+The `Processor` receives an `Exchange` that exposes full access to input, output, and headers, plus
+a `ProcessContribution` - most processors ignore it, it exists for the rare case one needs to call
+`stopExecution()` and end the flow early from inside the processor itself.
 
 == PayloadTransformer
 
@@ -34,9 +35,8 @@ The `Processor` receives an `Exchange` that exposes full access to input, output
 
 [source,java]
 ----
-@FunctionalInterface
-public interface PayloadTransformer<I, O> {
-    O transform(PayloadHolder<I> payload);
+public interface PayloadTransformer {
+    Object transform(PayloadHolder inputPayload);
 }
 ----
 
@@ -57,22 +57,26 @@ The `filter` node stops the flow from proceeding if the expression evaluates to 
 
 [source,java]
 ----
-.filter("only-non-empty", "${body} != null && !${body}.isEmpty()")
+.filter("only-orders", "Headers['type'] == 'ORDER'")
 ----
 
-The expression uses the engine from the `pipelite-expression` module.
-The `${body}` placeholder refers to the current payload.
+The expression uses the engine from the `pipelite-expression` module - see xref:dsl:expressions.adoc[Expressions] for the full syntax reference.
+`Payload` and `Headers` are bound automatically to the current Exchange's input payload and headers.
 
 == WireTap
 
-The WireTap sends a *copy* of the current message to a secondary endpoint in a non-blocking manner, without interrupting the main flow.
+The WireTap sends a *copy* of the current message to a secondary endpoint, then the main flow
+continues with the original message.
 
 [source,java]
 ----
 .wireTap("audit-log", "slf4j://audit-logger")
 ----
 
-The message continues to flow normally along the main flow while the copy is sent to the channel identified by the URL.
+CAUTION: Despite "tap" suggesting a fire-and-forget side channel, `wireTap(...)` currently runs the
+secondary delivery synchronously, on the same thread as the main flow, before continuing - a slow
+or blocking tap target delays the main flow by exactly as much (tracked as a known limitation,
+issue #47).
 
 == Message Translator
 
@@ -99,9 +103,9 @@ It is configured internally by the framework during flow construction.
 
 |`.wireTap(name, url)`
 |`WireTapProcessorNode`
-|Non-blocking fork to a secondary endpoint
+|Synchronous fork to a secondary endpoint (currently blocks the main flow - issue #47)
 
 |`.toRoute(configurator)`
-|`RouterNode` / `RecipientListRouterNode` / `RoutingSlipRouterNode`
+|`RouterNode` / `RecipientListRouterNode`
 |Conditional or dynamic routing (see xref:dsl:routing.adoc[Routing])
 |===

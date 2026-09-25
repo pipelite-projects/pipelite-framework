@@ -64,4 +64,4 @@ What differs between test styles is only *what* you pass to `when(...)`:
 |Exercise a complete pipeline — one or more linked flows — from source to sink, including intermediate steps.
 |===
 
-The `Expectation`s available in `then(...)` depend on which mode produced the result (see the xref:appendix.adoc[Appendix] for the full breakdown), but the shape of the test — `given` → `when` → `then` — never changes.
+The `Expectation` types available in `then(...)` depend on which mode produced the result (see the xref:appendix.adoc[Appendix] for the full breakdown), but the shape of the test — `given` → `when` → `then` — never changes.

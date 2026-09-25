@@ -1,0 +1,74 @@
+= Performance and Throughput
+:description: Framework overhead and end-to-end throughput benchmarks for Pipelite
+
+Figures below come from the framework's own internal benchmarks - a single-machine measurement
+(8-core, JDK 25), not a certified reference number for every workload. They are meant to convey
+*order of magnitude* and, more importantly, *when concurrency actually helps*, not an exact
+figure to expect on your own hardware.
+
+== Per-hop overhead (JMH microbenchmark)
+
+The cost of the framework's own bookkeeping around a single `Exchange`, independent of anything a
+flow's `Processor` itself does:
+
+[cols="2,1"]
+|===
+|Operation |Average cost
+
+|`Headers`/property read or write
+|~2-11 ns
+
+|Advancing to the next node (`nextExchange`)
+|~253 ns
+
+|Creating or copying an `Exchange`
+|~500-505 ns
+|===
+
+For context: a flow with 3 processor steps pays roughly 1-1.5 µs of pure framework overhead per
+message, before any of the step's own logic runs.
+
+== End-to-end throughput and `concurrency`
+
+Measured on a synthetic 3-step pipeline (cheap, non-blocking processors) fed through
+`fromSource("queue://...?concurrency=N")`:
+
+[cols="1,2"]
+|===
+|`concurrency` |Throughput
+
+|`1` (default)
+|~360-385k msg/s (baseline)
+
+|`2`-`6`
+|*Worse than the default* - as low as ~90k msg/s
+
+|`8`
+|~495k msg/s - the first value to clear the baseline in this measurement
+
+|`16`
+|~555k msg/s
+
+|`32` and above
+|~560-575k msg/s (plateau, bounded by the machine's core count)
+|===
+
+image::img_.throughput_concurrency_01.svg[Throughput as a function of concurrency,role="text-left"]
+
+The dip in the middle is real, not noise: dispatching a message to a worker thread has a fixed
+cost (acquiring a permit, submitting to the shared pool) that a *cheap* processor's own work does
+not amortize until concurrency is high enough to keep pool threads consistently busy rather than
+repeatedly parking and waking up.
+
+*Practical guidance:*
+
+* *The processor waits on something external* (an HTTP call, a query, another queue) -
+`concurrency > 1` almost always helps, even at high values: a thread blocked on I/O costs no CPU,
+so others can run on the same cores.
+* *The processor genuinely computes* (a heavy transformation, crypto, parsing) - it helps up to
+roughly the number of available cores; beyond that, oversubscription costs more than it gives back.
+* *The processor is cheap* (a field mapping, a trivial check) - leave `concurrency` at its default
+of `1` unless you have measured a genuine gain; the fixed per-message dispatch cost otherwise
+outweighs the work itself, exactly as in the table above.
+* *A downstream bottleneck* (a database's connection pool, an API's own rate limit) caps
+throughput regardless of `concurrency` - raising it past that point just moves the queue elsewhere.

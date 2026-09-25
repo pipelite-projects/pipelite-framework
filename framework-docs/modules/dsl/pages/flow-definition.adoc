@@ -40,13 +40,15 @@ Adds a generic processing node.
 
 [source,java]
 ----
-.process("step-name", exchange -> {
+.process("step-name", (exchange, contribution) -> {
     String input = exchange.getInputPayloadAs(String.class);
     exchange.setOutputPayload(input.trim());
 })
 ----
 
-The second argument is a `Processor` (functional interface).
+The second argument is a `Processor` (functional interface) - it receives the `Exchange` and a
+`ProcessContribution`, which most processors ignore (it exists for the rare case one needs to call
+`stopExecution()` and end the flow early from inside the processor).
 The name (`"step-name"`) is used for logging and tracing.
 
 == transformPayload
@@ -94,7 +96,7 @@ See xref:split-aggregate.adoc[Split / Aggregate] for complete documentation.
 == toSink
 
 Defines the destination endpoint of the flow.
-After `toSink`, only `withRetryChannel`, `withErrorChannel`, and `build` are available.
+After `toSink`, only `withRetry`, `withErrorChannel`, `withExceptionHandler`, and `build` are available.
 
 [source,java]
 ----
@@ -114,33 +116,60 @@ See xref:routing.adoc[Routing] for complete documentation.
 
 [source,java]
 ----
-.toRoute(route -> route.contentBased()
-    .when(new PayloadTypeCondition(OrderEvent.class), "queue://order-flow")
+.toRoute(route -> route.dynamic()
+    .when("Headers['type'] == 'ORDER'").then("queue://order-flow")
     .otherwise("queue://default-flow")
-    .build()
+    .end()
 )
 ----
 
-== withRetryChannel
+== withRetry
 
-Enables automatic retry on exception.
-Available after `toSink` or as an alternative termination after a processor.
+Enables automatic retry on exception, resuming the flow at the step that failed rather than
+replaying it from the source. Available after `toSink` or as an alternative termination after a
+processor - mutually exclusive with `withErrorChannel`/`withExceptionHandler`.
+
+An exhaustion action is mandatory: the lambda only type-checks once it ends in
+`onErrorChannel(...)` or `onExceptionHandler(...)`.
 
 [source,java]
 ----
-.withRetryChannel()
+.withRetry(retry -> retry
+    .maxAttempts(3)
+    .backoff(Backoff.exponential(Duration.ofSeconds(2)))
+    .onErrorChannel(err -> err.toDLQ()))
 .build()
 ----
 
+`maxAttempts` and `backoff` are both optional. See xref:core:error-handling.adoc[Error Handling]
+for the full reference, including `Backoff.linear`/`Backoff.exponential` and `onExceptionHandler`.
+
 == withErrorChannel
 
-Configures a custom error channel.
+Configures a custom error channel - a single hand-off with no retry attempts, unlike the
+`onErrorChannel(...)` that `withRetry` uses as its own exhaustion action, which reaches the same
+target only after attempts are exhausted.
 
 [source,java]
 ----
-.withErrorChannel(builder ->
-    builder.toSink("slf4j://dead-letter").build()
-)
+.withErrorChannel(err -> err.toChannel("queue://dead-letter"))
+.build()
+----
+
+The target is a URL, like every destination in the DSL: `queue://<name>` for an internal flow, or a
+registered channel adapter's protocol (`kafka://...`) for an external system. `err.toDLQ()` targets
+the framework's built-in dead letter queue instead, with no flow to write.
+
+== withExceptionHandler
+
+Hands the exception straight to a user-supplied `ExceptionHandler`, with no dump, no retry, and no
+routing of any kind.
+
+[source,java]
+----
+.withExceptionHandler((exception, exchange) -> {
+    // fully custom handling
+})
 .build()
 ----
 

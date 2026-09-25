@@ -1,44 +1,53 @@
 = Error Handling
-:description: Error management, retry channel, and flow execution dump in Pipelite
+:description: Error management, retry, and flow execution dump in Pipelite
 
-Pipelite offers two error handling modes at the flow level: the *retry channel* and the *custom error channel*.
-Both are configured via the DSL at the end of the flow definition.
+Pipelite offers three mutually-exclusive error handling modes at the flow level: *retry*, a
+*custom error channel*, and a fully custom *exception handler*. Exactly one is configured via the
+DSL at the end of the flow definition - each returns a terminal builder step, so none can be
+chained with another (a custom `ExceptionHandler` configured alongside a retry or an error channel
+is a compile error, not a silently-ignored combination).
 
-== Retry Channel
+== Retry
 
-The retry channel is the simplest mode.
-When an exception propagates through the flow, the framework serializes the `Exchange` into a `FlowExecutionDump` and re-queues it for a subsequent attempt.
+When an exception propagates through the flow, the framework serializes the `Exchange` into a
+`FlowExecutionDump` and re-queues it for a subsequent attempt, resuming at the step that failed
+rather than replaying the flow from its source.
+
+An exhaustion action is mandatory: the `withRetry(...)` lambda only type-checks once it ends in
+`onErrorChannel(...)` or `onExceptionHandler(...)` - a retry with no defined outcome once attempts
+run out cannot be expressed.
 
 [source,java]
 ----
+import io.pipelite.dsl.definition.builder.Backoff;
+import java.time.Duration;
+
 FlowDefinition flow = Pipelite.defineFlow("resilient-flow")
     .fromSource("kafka://my-topic")
-    .process("parse", exchange -> {
+    .process("parse", (exchange, contribution) -> {
         // may throw exceptions
     })
     .toSink("slf4j://output")
-    .withRetryChannel()    // <1>
+    .withRetry(retry -> retry
+        .maxAttempts(3)                                          // <1>
+        .backoff(Backoff.exponential(Duration.ofSeconds(2)))     // <2>
+        .onErrorChannel(err -> err.toDLQ()))                     // <3>
     .build();
 ----
-<1> Enables automatic retry with the default strategy.
-
-=== Internal mechanism
-
-. The exception is caught by `RetryChannelExceptionHandler`.
-. The `Exchange` is serialized into a `FlowExecutionDump` via `FlowExecutionDumpFactory`.
-. The dump is persisted in `FlowExecutionDumpRepository` (default in-memory implementation: `FlowExecutionDumpInMemoryRepository`).
-. The `RetryPollingConsumer` periodically retrieves the dumps and retries execution.
-. `RetryStrategyFilter` determines whether the attempt should be made based on the configured strategy.
+<1> Up to 3 attempts total (the original send plus 2 retries). Optional - with no `maxAttempts`, only the framework's own retry-channel polling cadence paces attempts.
+<2> The delay before each attempt, counted from the previous one. `Backoff.linear(...)` grows by a constant step (2s, 4s, 6s, ...); `Backoff.exponential(...)` doubles it each time (2s, 4s, 8s, ...). Optional - with no backoff declared, a retry runs as soon as the retry channel next polls.
+<3> The exhaustion action: here, the built-in dead letter queue (see <<Custom Error Channel>>). `onExceptionHandler(handler)` invokes a supplied `ExceptionHandler` instead of routing anywhere.
 
 == Custom Error Channel
 
-For more flexible error handling, use `withErrorChannel`:
+For error handling with no retry attempts - a single hand-off, not a schedule of them - use
+`withErrorChannel`, or `onErrorChannel(...)` as a retry's own exhaustion action (above):
 
 [source,java]
 ----
 FlowDefinition flow = Pipelite.defineFlow("flow-with-error-channel")
     .fromSource("http://api/v1/ingest")
-    .process("process", exchange -> { /* ... */ })
+    .process("process", (exchange, contribution) -> { /* ... */ })
     .toSink("slf4j://output")
     .withErrorChannel(err -> err.toChannel("queue://ingest-dead-letter"))   // <1>
     .build();
@@ -47,30 +56,19 @@ FlowDefinition flow = Pipelite.defineFlow("flow-with-error-channel")
 
 `err.toDLQ()` targets the framework's built-in dead letter queue instead, with no flow to write.
 
+== Custom Exception Handler
+
+For anything the two options above don't cover, `withExceptionHandler(handler)` hands the
+exception straight to a user-supplied `ExceptionHandler`, with no dump, no retry, and no routing
+of any kind - the handler decides everything.
+
 == Default handler
 
-If no error channel is configured, the exception is handled by `GlobalDefaultExceptionHandler`, which logs the error and stops processing without propagating the exception to the caller.
+If none of the three is configured, the exception is handled by `GlobalDefaultExceptionHandler`, which logs the error and stops processing without propagating the exception to the caller.
 
 == FlowExecutionDump
 
 The `FlowExecutionDump` is the serialization of the `Exchange` at the time of failure.
 It contains the serialized payload, headers, and properties required for the retry.
 
-[cols="1,3"]
-|===
-|Class |Description
-
-|`FlowExecutionDump` (interface)
-|Contract for the execution dump
-
-|`DefaultFlowExecutionDump`
-|Standard in-memory implementation
-
-|`SerializedFlowExecutionDump`
-|Base64-serialized version for persistence
-
-|`FlowExecutionDumpInMemoryRepository`
-|In-memory repository (not persistent across restarts)
-|===
-
-TIP: For production environments with durability requirements, `FlowExecutionDumpRepository` can be implemented with a persistent backend (e.g. database, Redis).
+TIP: The default `FlowExecutionDumpRepository` is already durable - a pending retry is written to disk before the flow moves on, and survives a restart. Swap it via `ConfigurablePipeliteContext#setFlowExecutionDumpRepository(...)` for a different backend (e.g. a database or Redis) or to opt back into `FlowExecutionDumpInMemoryRepository`.
