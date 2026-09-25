@@ -101,6 +101,18 @@ jobs:
             -o ui-bundle.zip
         working-directory: framework-docs
 
+      # A tag build publishes the same site as the build after a snapshot: main plus every release
+      # tag. The tag checkout above is only used to verify the versions; left as the playbook's
+      # local source it would make Antora see the tag twice (once here, once from the `tags: v*`
+      # source) and stop with "Duplicate nav". main must already be back on the development
+      # version (`version: main` in framework-docs/antora.yml), or the same error appears here.
+      - name: Build from main plus the release tags
+        if: github.event_name == 'push'
+        working-directory: .
+        run: |
+          git fetch --depth=1 origin main
+          git checkout --force FETCH_HEAD
+
       - name: Build Antora Site
         run: |
           npx antora \

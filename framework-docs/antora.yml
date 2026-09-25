@@ -1,6 +1,6 @@
 name: pipelite
-version: '1.0.0-M1'
-display_version: '1.0.0-M1'
+version: 'main'
+display_version: 'Next (SNAPSHOT)'
 prerelease: true
 title: Pipelite Framework
 start_page: ROOT:index.adoc
