@@ -116,7 +116,7 @@ jobs:
       - name: Build Antora Site
         run: |
           npx antora \
-            --attribute project-version=${{ steps.pom-version.outputs.version }} \
+            --attribute project-version@=${{ steps.pom-version.outputs.version }} \
             --attribute spring-boot-version=${{ steps.pom-version.outputs.spring-boot-version }} \
             --attribute java-version=${{ steps.pom-version.outputs.java-version }} \
             antora-playbook.yml
