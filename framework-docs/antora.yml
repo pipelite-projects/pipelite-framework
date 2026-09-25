@@ -1,5 +1,5 @@
 name: pipelite
-version: 'main'
+version: '1.0.0-M1'
 display_version: '1.0.0-M1'
 prerelease: true
 title: Pipelite Framework
