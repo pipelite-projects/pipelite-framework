@@ -1,8 +1,9 @@
 name: PR Type Labeler
 
-# Every PR must carry one changelog label: .github/release.yml sorts the release notes by it, and a
-# PR without one lands in "Other Changes". The label is deduced from the title when possible; the
-# "Type label" check fails when the PR ends up with none, and turns green once one is added.
+# Every PR must carry exactly one changelog label: .github/release.yml sorts the release notes by it,
+# and a PR without one lands in "Other Changes". The label is deduced from the title when possible; the
+# "Type label" check fails when the PR ends up with none or with more than one, and turns green once
+# exactly one is left.
 on:
   pull_request_target:
     types: [opened, edited, reopened, labeled, unlabeled]
@@ -82,8 +83,8 @@ jobs:
               return data.map(l => l.name);
             }
 
-            // Adding or removing a label is the author acting: only check, never change it. A title
-            // change of the title or a new PR re-deduces the label, and replaces a category label that no longer
+            // Adding or removing a label is the author acting: only check, never change it. A new PR
+            // or a change of the title re-deduces the label, and replaces a category label that no longer
             // matches the title, but only when the title says something.
             const titleChanged = context.payload.action === 'edited' && context.payload.changes && context.payload.changes.title;
             if (['opened', 'reopened'].includes(context.payload.action) || titleChanged) {
@@ -102,11 +103,18 @@ jobs:
             }
 
             const labels = await currentLabels();
-            if (!labels.some(l => ACCEPTED.includes(l))) {
+            const accepted = labels.filter(l => ACCEPTED.includes(l));
+            if (accepted.length === 0) {
               core.setFailed(
                 'This PR has no changelog label, so it would land in "Other Changes" of the release notes.\n' +
                 'Add one of: ' + ACCEPTED.join(', ') + '.\n' +
                 'It is deduced from the title when it starts with "[Docs]", "[Release]", "[Feature]", "[CI]", "[Test]", ' +
                 'or, after an optional "[Area]" prefix, with Feature, Fix, Add, Breaking, chore, refactor, ci, build, test or ops.'
+              );
+            } else if (accepted.length > 1) {
+              core.setFailed(
+                'This PR has more than one changelog label (' + accepted.join(', ') + '), and the release notes ' +
+                'can place it in one category only.\n' +
+                'Keep exactly one of: ' + ACCEPTED.join(', ') + '.'
               );
             }
