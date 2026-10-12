@@ -147,7 +147,7 @@ public class FileSourceToSinkTest {
             final Object record = exchange.getInputPayload();
             transferred.add(record);
             exchange.setInputPayload(record + "\n");
-            producer.process(exchange);
+            producer.produce(exchange);
         }
         return transferred;
     }

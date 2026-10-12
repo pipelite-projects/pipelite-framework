@@ -13,39 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.spi.endpoint;
+package io.pipelite.core.flow.internal;
 
 import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.context.IOKeys;
+import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.SimpleMessage;
 import org.junit.Assert;
 import org.junit.Test;
 
 /**
- * Regression coverage for issue #89: every concrete producer previously overrode {@code
- * process(Exchange)} directly, so none of them ever consulted {@code exceptionHandler} - a
- * producer's own failure always propagated uncaught, bypassing retry/dead-letter channels
- * entirely, unlike a processor step's failure. {@code process(Exchange)} is now {@code final} on
- * {@link DefaultProducer}, wrapping the new {@link DefaultProducer#doProcess(ExchangeImpl)} hook in
- * the same try/catch shape {@code AbstractProcessorNode} already had.
+ * Regression coverage for issue #89, kept when the old producer base class went away (issue #159):
+ * every concrete producer previously overrode {@code process(Exchange)} directly, so none of them
+ * ever consulted {@code exceptionHandler} - a producer's own failure always propagated uncaught,
+ * bypassing retry/dead-letter channels entirely, unlike a processor step's failure. The node that
+ * wraps a {@link Producer} now applies the flow's error handling around {@link Producer#produce}.
  */
-public class DefaultProducerTest {
-
-    private static final class FailingProducer extends DefaultProducer {
-        private final RuntimeException failure;
-
-        FailingProducer(Endpoint endpoint, RuntimeException failure) {
-            super(endpoint);
-            this.failure = failure;
-        }
-
-        @Override
-        public void doProcess(ExchangeImpl exchange) {
-            throw failure;
-        }
-    }
+public class ProducerNodeTest {
 
     private static final class CapturingExceptionHandler implements ExceptionHandler {
         private Throwable capturedException;
@@ -58,9 +44,11 @@ public class DefaultProducerTest {
         }
     }
 
-    private static FailingProducer newFailingProducer(RuntimeException failure) {
-        final Endpoint endpoint = new DefaultEndpoint(EndpointURL.parse("out-endpoint"));
-        return new FailingProducer(endpoint, failure);
+    private static ProducerNode newFailingNode(RuntimeException failure) {
+        final Producer failing = exchange -> {
+            throw failure;
+        };
+        return new ProducerNode(failing);
     }
 
     private static ExchangeImpl newExchange() {
@@ -68,12 +56,12 @@ public class DefaultProducerTest {
     }
 
     @Test
-    public void givenNoExceptionHandler_whenDoProcessThrows_thenTheExceptionPropagates() {
+    public void givenNoExceptionHandler_whenProduceThrows_thenTheExceptionPropagates() {
         final RuntimeException failure = new RuntimeException("simulated producer failure");
-        final FailingProducer producer = newFailingProducer(failure);
+        final ProducerNode node = newFailingNode(failure);
 
         try {
-            producer.process(newExchange());
+            node.process(newExchange());
             Assert.fail("expected the exception to propagate when no exceptionHandler is set");
         } catch (RuntimeException caught) {
             Assert.assertSame(failure, caught);
@@ -81,19 +69,34 @@ public class DefaultProducerTest {
     }
 
     @Test
-    public void givenAnExceptionHandler_whenDoProcessThrows_thenTheHandlerIsInvokedInsteadOfPropagating() {
+    public void givenAnExceptionHandler_whenProduceThrows_thenTheHandlerIsInvokedInsteadOfPropagating() {
         final RuntimeException failure = new RuntimeException("simulated producer failure");
-        final FailingProducer producer = newFailingProducer(failure);
+        final ProducerNode node = newFailingNode(failure);
         final CapturingExceptionHandler handler = new CapturingExceptionHandler();
-        producer.setExceptionHandler(handler);
-        producer.setProcessorName("out-endpoint");
-
+        node.setExceptionHandler(handler);
+        node.setProcessorName("out-endpoint");
         final ExchangeImpl exchange = newExchange();
-        producer.process(exchange); // must not throw - the handler resolves it instead
+
+        node.process(exchange); // must not throw - the handler resolves it instead
 
         Assert.assertSame(failure, handler.capturedException);
         Assert.assertSame(exchange, handler.capturedExchange);
         Assert.assertEquals("out-endpoint", exchange.getProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, String.class));
     }
 
+    @Test
+    public void givenAProducerThatSucceeds_thenTheExchangeIsHandedToIt() {
+        final ExchangeImpl[] received = new ExchangeImpl[1];
+        final ProducerNode node = new ProducerNode(exchange -> received[0] = (ExchangeImpl) exchange);
+        final ExchangeImpl exchange = newExchange();
+
+        node.process(exchange);
+
+        Assert.assertSame(exchange, received[0]);
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void givenAProducerNode_thenItCannotHaveANextNode() {
+        new ProducerNode(exchange -> { }).setNext(null);
+    }
 }

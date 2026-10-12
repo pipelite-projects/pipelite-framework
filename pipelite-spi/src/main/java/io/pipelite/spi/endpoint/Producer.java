@@ -15,18 +15,26 @@
  */
 package io.pipelite.spi.endpoint;
 
-import io.pipelite.spi.flow.exchange.FlowNode;
+import io.pipelite.dsl.Exchange;
 
-public interface Producer extends FlowNode {
+/**
+ * What an adapter implements to write an exchange to its destination (a {@code toSink(...)} or a route
+ * destination). The framework wraps it in its own node of the flow, which applies the flow's error
+ * handling around {@link #produce(Exchange)}: a runtime exception thrown here is a failure of the
+ * step, handled like the failure of any processor (retry, dead letter).
+ * <p>
+ * A producer that holds a resource (a connection, a client) releases it in {@link #close()}, which the
+ * framework calls once the producer is no longer needed: when the context stops for a producer that
+ * ends a flow, right after the exchange for one created to deliver a single exchange.
+ */
+@FunctionalInterface
+public interface Producer extends AutoCloseable {
 
-    Endpoint getEndpoint();
+    void produce(Exchange exchange);
 
+    /** Releases what the producer holds. Does nothing by default. */
     @Override
-    default void setNext(FlowNode next) {
+    default void close() {
     }
 
-    @Override
-    default boolean hasNext() {
-        return false;
-    }
 }

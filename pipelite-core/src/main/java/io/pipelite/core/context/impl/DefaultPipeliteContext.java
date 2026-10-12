@@ -81,6 +81,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -132,6 +133,8 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
     private final FlowRegistry flowRegistry;
     private final ServiceManager serviceManager;
+    /** The producers adapters created for the flows (not the ones created to supply a single exchange). */
+    private final List<AutoCloseable> producers = new CopyOnWriteArrayList<>();
     private final ChannelAdapterManager channelAdapterManager;
 
     // Whether the built-in retry channel has been created yet, tracked here rather than asked of
@@ -198,7 +201,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
         channelAdapterManager = new DefaultChannelAdapterManager(exchangeFactory);
 
         endpointFactory = new DefaultEndpointFactory(channelAdapterManager, new NoOpEndpointURLPropertyResolver());
-        flowFactory = new FlowFactory(this);
+        flowFactory = new FlowFactory(this, producers::add);
 
         executionDumpFactory = new FlowExecutionDumpFactory(new DistributedIdentityGeneratorImpl(), new Base64ObjectSerializer());
         // Durable by default (issue #68): a retry-channel dump is a redelivery guarantee, and an
@@ -431,6 +434,10 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
             }
         }
 
+        // release the producers that end the flows: after the consumers and the worker pool have stopped,
+        // so that no exchange still in flight finds its producer closed
+        closeProducers();
+
         // notify context-stopped event
         channelAdapterManager.notifyContextStopped();
 
@@ -515,11 +522,26 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
         // create producer and produce exchange
         final ChannelAdapter channel = channelHolder.get();
         final Endpoint endpoint = channel.createEndpoint(channelURL.getEndpointURL());
-        final Producer producer = endpoint.createProducer();
-        producer.process(exchange);
+        // Created to deliver this one exchange, so released as soon as it is delivered.
+        try (Producer producer = endpoint.createProducer()) {
+            producer.produce(exchange);
+        }
     }
 
 
+
+    private void closeProducers() {
+        for (AutoCloseable producer : producers) {
+            try {
+                producer.close();
+            } catch (Exception exception) {
+                if (sysLogger.isWarnEnabled()) {
+                    sysLogger.warn("Unable to close a producer", exception);
+                }
+            }
+        }
+        producers.clear();
+    }
 
     private void registerFlows() {
 

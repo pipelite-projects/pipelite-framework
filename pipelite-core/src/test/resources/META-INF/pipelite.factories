@@ -1,1 +1,2 @@
 queue=io.pipelite.components.queue.QueueChannelAdapter
+producer-lifecycle=io.pipelite.core.ProducerLifecycleChannelAdapter

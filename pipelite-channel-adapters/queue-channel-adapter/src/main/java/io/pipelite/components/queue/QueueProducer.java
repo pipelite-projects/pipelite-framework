@@ -16,23 +16,26 @@
 package io.pipelite.components.queue;
 
 import io.pipelite.spi.endpoint.Consumer;
-import io.pipelite.spi.endpoint.DefaultProducer;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
+import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class QueueProducer extends DefaultProducer {
+public class QueueProducer implements Producer {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
+    private final Endpoint endpoint;
+
     public QueueProducer(Endpoint endpoint) {
-        super(endpoint);
+        this.endpoint = endpoint;
     }
 
     @Override
-    public void doProcess(ExchangeImpl exchange) {
+    public void produce(Exchange exchange) {
 
         final QueueChannelAdapter component = endpoint.getChannelAdapter(QueueChannelAdapter.class);
         final EndpointURL endpointURL = endpoint.getEndpointURL();
@@ -47,6 +50,6 @@ public class QueueProducer extends DefaultProducer {
         if(sysLogger.isDebugEnabled()){
             sysLogger.debug("Putting exchange on queue '{}'", endpointURL.getResource());
         }
-        consumer.consume(exchange);
+        consumer.consume((ExchangeImpl) exchange);
     }
 }

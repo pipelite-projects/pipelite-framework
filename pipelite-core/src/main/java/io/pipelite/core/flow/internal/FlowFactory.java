@@ -48,9 +48,18 @@ public class FlowFactory {
     private final PipeliteContext context;
     private final EndpointFactory endpointFactory;
 
+    /** Called with every producer an adapter creates for a flow, so the context can close it when it stops. */
+    private final java.util.function.Consumer<AutoCloseable> producerRegistrar;
+
     public FlowFactory(PipeliteContext context){
+        this(context, producer -> { });
+    }
+
+    public FlowFactory(PipeliteContext context, java.util.function.Consumer<AutoCloseable> producerRegistrar){
         Objects.requireNonNull(context, "context is required and cannot be null");
+        Objects.requireNonNull(producerRegistrar, "producerRegistrar is required and cannot be null");
         this.context = context;
+        this.producerRegistrar = producerRegistrar;
         endpointFactory = context.getEndpointFactory();
     }
 
@@ -122,7 +131,10 @@ public class FlowFactory {
             final Endpoint toEndpoint = endpointFactory.createEndpoint(endpointDefinition);
             final EndpointURL toEndpointURL = toEndpoint.getEndpointURL();
 
-            final Producer producer = toEndpoint.createProducer();
+            // The adapter's Producer knows nothing of flows: it is wrapped in the node that ends the chain.
+            final Producer adapterProducer = toEndpoint.createProducer();
+            producerRegistrar.accept(adapterProducer);
+            final ProducerNode producer = new ProducerNode(adapterProducer);
 
             producer.setFlowName(flowName);
             producer.setSourceEndpointResource(sourceEndpointURL.getResource());

@@ -17,17 +17,14 @@ package io.pipelite.channels.kafka;
 
 import io.pipelite.channels.kafka.config.KafkaChannelConfiguration;
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.spi.context.ContextEventListener;
 import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
 
-public class KafkaEndpoint extends DefaultEndpoint implements ContextEventListener {
+public class KafkaEndpoint extends DefaultEndpoint {
 
     private final KafkaChannelConfiguration configuration;
-
-    private DefaultKafkaProducer producer;
 
     public KafkaEndpoint(EndpointURL endpointURL, KafkaChannelAdapter channel, KafkaChannelConfiguration configuration) {
         super(endpointURL, channel);
@@ -42,21 +39,6 @@ public class KafkaEndpoint extends DefaultEndpoint implements ContextEventListen
 
     @Override
     public Producer createProducer() {
-        producer = new DefaultKafkaProducer(this, configuration);
-        return producer;
-    }
-
-    @Override
-    public void onContextStarted() {
-        if(producer != null){
-            producer.onContextStarted();
-        }
-    }
-
-    @Override
-    public void onContextStopped() {
-        if(producer != null){
-            producer.onContextStopped();
-        }
+        return new DefaultKafkaProducer(this, configuration);
     }
 }
