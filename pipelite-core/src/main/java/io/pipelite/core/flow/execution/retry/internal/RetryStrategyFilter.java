@@ -32,8 +32,8 @@ import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.dsl.process.ProcessContribution;
 import io.pipelite.dsl.process.Processor;
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

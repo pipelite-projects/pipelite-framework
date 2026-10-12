@@ -28,8 +28,8 @@ import io.pipelite.dsl.route.RecipientList;
 import io.pipelite.dsl.route.RouteEntry;
 import io.pipelite.dsl.route.RoutingTable;
 import io.pipelite.core.flow.internal.AbstractFlowNode;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

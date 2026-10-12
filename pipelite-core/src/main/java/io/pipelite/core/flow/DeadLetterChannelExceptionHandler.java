@@ -24,8 +24,8 @@ import io.pipelite.core.context.internal.DeclaredDestination;
 import io.pipelite.core.context.internal.DeclaresDestinations;
 import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ExceptionHandler;
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;

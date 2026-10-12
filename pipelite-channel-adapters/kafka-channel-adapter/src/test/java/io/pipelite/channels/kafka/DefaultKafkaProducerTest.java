@@ -20,8 +20,6 @@ import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.channels.kafka.config.KafkaChannelConfiguration;
 import io.pipelite.channels.kafka.support.KafkaConstants;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.junit.Assert;
@@ -53,8 +51,8 @@ public class DefaultKafkaProducerTest {
             mock(KafkaChannelConfiguration.class), kafkaProducer);
     }
 
-    private static ExchangeImpl exchangeWith(Object payload, Object key) {
-        final ExchangeImpl exchange = new ExchangeImpl(new SimpleMessage("test-id"));
+    private static StubExchange exchangeWith(Object payload, Object key) {
+        final StubExchange exchange = new StubExchange();
         exchange.setInputPayload(payload);
         if (key != null) {
             exchange.putHeader(KafkaConstants.KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME, key);

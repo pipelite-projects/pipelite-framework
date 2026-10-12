@@ -18,7 +18,7 @@ package io.pipelite.core;
 import io.pipelite.core.context.internal.InternalPipeliteContext;
 
 import io.pipelite.core.context.PipeliteContext;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;

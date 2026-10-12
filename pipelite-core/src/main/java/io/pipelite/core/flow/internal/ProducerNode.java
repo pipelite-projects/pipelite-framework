@@ -18,7 +18,7 @@ package io.pipelite.core.flow.internal;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.core.flow.internal.AbstractFlowNode;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.core.flow.internal.FlowNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

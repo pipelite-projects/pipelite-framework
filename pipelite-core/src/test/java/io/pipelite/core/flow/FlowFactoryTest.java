@@ -24,7 +24,7 @@ import io.pipelite.core.flow.internal.FlowFactory;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.core.context.internal.Service;
 import io.pipelite.core.flow.internal.Flow;
-import io.pipelite.spi.flow.exchange.*;
+import io.pipelite.core.exchange.internal.*;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Assert;
@@ -35,6 +35,9 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.HeadersImpl;
+import io.pipelite.core.exchange.internal.SimpleMessage;
 
 public class FlowFactoryTest {
 

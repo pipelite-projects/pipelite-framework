@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.flow.execution.inbox;
 
-import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
+import io.pipelite.core.exchange.internal.DistributedIdentityGeneratorImpl;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;

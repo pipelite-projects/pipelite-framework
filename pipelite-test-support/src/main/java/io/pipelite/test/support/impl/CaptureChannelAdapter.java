@@ -20,7 +20,7 @@ import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.test.PipeliteTestFixture;
 
 import java.lang.ref.WeakReference;

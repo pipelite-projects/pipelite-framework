@@ -20,10 +20,10 @@ import io.pipelite.core.flow.execution.inbox.DurableInbox;
 /**
  * Implemented by consumers that durably record an in-flight {@code Exchange} before enqueueing it
  * and acknowledge it once it reaches a terminal state (issue #70) — {@link EventDrivenConsumer}
- * and {@link DefaultPollingConsumer}. Mirrors {@link io.pipelite.spi.flow.concurrent.
- * SourceWorkerPoolAware}: the concrete {@code DurableInbox} instance for a given source is
- * resolved in {@code pipelite-core} (via a {@code DurableInboxProvider}, itself wired from {@code
- * PipeliteContext}) and injected through this SPI-level marker interface at flow-build time.
+ * and {@link DefaultPollingConsumer}. Mirrors {@link
+ * io.pipelite.core.concurrent.internal.SourceWorkerPoolAware}: the concrete {@code DurableInbox} instance
+ * for a given source is resolved from a {@code DurableInboxProvider}, itself wired from the context, and
+ * injected through this marker interface at flow-build time.
  */
 public interface DurableInboxAware {
 

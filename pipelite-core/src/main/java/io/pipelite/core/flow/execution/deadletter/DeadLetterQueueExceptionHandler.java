@@ -18,7 +18,7 @@ package io.pipelite.core.flow.execution.deadletter;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ExceptionHandler;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 
 /**
  * Used when a flow declares {@code .withErrorChannel(err -> err.toDLQ())} without also declaring

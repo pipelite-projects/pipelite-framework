@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.flow.internal;
 
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 
 public interface ExchangePostProcessor {
 

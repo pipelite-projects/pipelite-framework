@@ -21,7 +21,7 @@ import io.pipelite.core.Pipelite;
 import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.junit.Test;
 
 /**

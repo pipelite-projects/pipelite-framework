@@ -16,7 +16,7 @@
 package io.pipelite.core.flow.execution.dump;
 
 import io.pipelite.core.flow.execution.FlowExecutionDump;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 
 import java.time.LocalDateTime;
 

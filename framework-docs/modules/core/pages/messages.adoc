@@ -3,7 +3,7 @@
 
 == Message
 
-A `Message` (package `io.pipelite.spi.flow.exchange`) is the container for the application
+A `Message` (package `io.pipelite.core.exchange.internal`) is the container for the application
 payload - one for the input of the `Exchange`, and, once produced, one for its output. It carries
 the payload itself, its type and a correlation id, nothing else - it has no metadata of its own,
 that role belongs to `Headers`, which lives on the `Exchange` rather than on either `Message` (see

@@ -16,8 +16,6 @@
 package io.pipelite.components.time;
 
 import io.pipelite.dsl.Exchange;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
 import io.pipelite.spi.source.SourceContext;
 import org.junit.Assert;
 import org.junit.Before;
@@ -47,7 +45,7 @@ public class TimeSourceTest {
 
             @Override
             public Exchange newExchange(Object payload) {
-                final ExchangeImpl exchange = new ExchangeImpl(new SimpleMessage(UUID.randomUUID().toString()));
+                final StubExchange exchange = new StubExchange();
                 exchange.setInputPayload(payload);
                 return exchange;
             }

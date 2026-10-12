@@ -17,9 +17,9 @@ package io.pipelite.core.flow.execution.deadletter;
 
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.common.support.serialization.ObjectSerializer;
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.IdentityGenerator;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.IdentityGenerator;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;

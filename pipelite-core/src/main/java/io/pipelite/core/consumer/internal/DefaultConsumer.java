@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.consumer.internal;
 
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import io.pipelite.spi.endpoint.Endpoint;

@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.flow.split;
 
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.core.flow.internal.FlowNode;
 import io.pipelite.core.flow.internal.ExchangePostProcessor;
 import io.pipelite.core.flow.internal.ExchangePreProcessor;

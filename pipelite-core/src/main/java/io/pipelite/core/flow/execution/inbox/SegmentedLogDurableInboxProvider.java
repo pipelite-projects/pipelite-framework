@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.flow.execution.inbox;
 
-import io.pipelite.spi.flow.exchange.IdentityGenerator;
+import io.pipelite.core.exchange.internal.IdentityGenerator;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;

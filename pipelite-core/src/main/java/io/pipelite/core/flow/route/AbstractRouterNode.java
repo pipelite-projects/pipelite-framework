@@ -15,9 +15,9 @@
  */
 package io.pipelite.core.flow.route;
 
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactoryAware;
 import io.pipelite.core.flow.internal.FlowNode;
 
 @Deprecated

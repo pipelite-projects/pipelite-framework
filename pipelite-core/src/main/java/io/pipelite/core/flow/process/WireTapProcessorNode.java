@@ -25,8 +25,8 @@ import io.pipelite.core.context.internal.DeclaresDestinations;
 import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ProcessContribution;
 import io.pipelite.dsl.process.Processor;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 
 import java.util.Collection;
 import java.util.List;

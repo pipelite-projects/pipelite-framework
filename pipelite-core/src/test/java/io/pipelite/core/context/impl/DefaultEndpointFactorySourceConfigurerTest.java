@@ -32,7 +32,7 @@ import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.dsl.definition.SourceConcurrencyConfigurer;
-import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
+import io.pipelite.core.exchange.internal.DistributedIdentityGeneratorImpl;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

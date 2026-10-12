@@ -19,7 +19,7 @@ import io.pipelite.core.channel.queue.QueueChannelAdapter;
 import io.pipelite.components.time.TimeChannelAdapter;
 import io.pipelite.core.components.DuplicateChannelAdapterProtocolException;
 import io.pipelite.core.context.ChannelAdapterManager;
-import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
+import io.pipelite.core.exchange.internal.DistributedIdentityGeneratorImpl;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

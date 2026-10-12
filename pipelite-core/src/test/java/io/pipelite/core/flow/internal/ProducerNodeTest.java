@@ -17,10 +17,10 @@ package io.pipelite.core.flow.internal;
 
 import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ExceptionHandler;
-import io.pipelite.spi.context.IOKeys;
+import io.pipelite.core.context.internal.IOKeys;
 import io.pipelite.spi.endpoint.Producer;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.SimpleMessage;
 import org.junit.Assert;
 import org.junit.Test;
 

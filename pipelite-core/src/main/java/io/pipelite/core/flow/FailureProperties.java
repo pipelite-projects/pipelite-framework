@@ -15,8 +15,8 @@
  */
 package io.pipelite.core.flow;
 
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 
 /**
  * What the framework records on an exchange when a step fails, before it hands it to a retry channel or a

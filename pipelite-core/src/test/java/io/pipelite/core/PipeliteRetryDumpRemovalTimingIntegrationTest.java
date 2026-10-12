@@ -24,7 +24,7 @@ import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
 import io.pipelite.core.flow.execution.deadletter.DeadLetteredExchange;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.awaitility.Awaitility;
 import org.junit.Assert;
 import org.junit.Before;

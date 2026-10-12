@@ -15,9 +15,9 @@
  */
 package io.pipelite.core.consumer.internal;
 
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.Message;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.Message;
+import io.pipelite.core.exchange.internal.SimpleMessage;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Assert;

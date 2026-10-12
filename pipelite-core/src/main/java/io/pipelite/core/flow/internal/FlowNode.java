@@ -18,7 +18,7 @@ package io.pipelite.core.flow.internal;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.core.flow.internal.ExchangePostProcessor;
 import io.pipelite.core.flow.internal.ExchangePreProcessor;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 
 public interface FlowNode {
 

@@ -13,17 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.spi.flow.exchange;
+package io.pipelite.core.exchange.internal;
 
-import io.pipelite.dsl.Headers;
+import java.util.Optional;
 
-public interface ExchangeFactory {
+public interface Message {
 
-    ExchangeImpl createExchange();
-    ExchangeImpl createExchange(Headers headers);
-    ExchangeImpl createExchange(Headers headers, Object inputPayload);
-    ExchangeImpl createExchange(Object inputPayload);
-    ExchangeImpl copyExchange(ExchangeImpl exchange);
-    ExchangeImpl nextExchange(ExchangeImpl current);
+    String getId();
+    String getCorrelationId();
+    void setCorrelationId(String correlationId);
+    boolean hasPayload();
+    <T> Optional<T> tryGetPayloadAs(Class<T> expcetedType);
+    Class<?> getPayloadType();
+    <T> T getPayloadAs(Class<T> expcetedType);
+    Object getPayload();
+    void setPayload(Object payload);
 
 }

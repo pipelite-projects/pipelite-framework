@@ -40,7 +40,7 @@ import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.spi.source.Source;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.core.flow.internal.Flow;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import io.pipelite.core.flow.internal.FlowNode;
 import io.pipelite.core.flow.execution.inbox.DurableInbox;
 import io.pipelite.core.flow.execution.inbox.DurableInboxProperties;

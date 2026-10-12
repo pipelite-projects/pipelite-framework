@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.consumer.internal;
 
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.core.flow.internal.FlowNode;
 
 /**

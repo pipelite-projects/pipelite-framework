@@ -17,7 +17,6 @@ package io.pipelite.components.file;
 
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -53,7 +52,7 @@ public class FileTailSourceTest {
 
         final PollingSourceHarness subject = newConsumer(file, "");
 
-        final ExchangeImpl exchange = subject.receive(0);
+        final StubExchange exchange = subject.receive(0);
         Assert.assertNull(exchange);
     }
 
@@ -64,13 +63,13 @@ public class FileTailSourceTest {
 
         final PollingSourceHarness subject = newConsumer(file, "?startPosition=beginning");
 
-        final ExchangeImpl first = subject.receive(0);
+        final StubExchange first = subject.receive(0);
         Assert.assertNotNull(first);
         Assert.assertEquals("first", first.getInputPayload());
         Assert.assertEquals("app.log", first.getHeaders().tryGetHeader(FileConstants.FILE_NAME_EXCHANGE_HEADER_NAME).orElse(null));
         Assert.assertEquals(file.toAbsolutePath().toString(), first.getHeaders().tryGetHeader(FileConstants.FILE_PATH_EXCHANGE_HEADER_NAME).orElse(null));
 
-        final ExchangeImpl second = subject.receive(0);
+        final StubExchange second = subject.receive(0);
         Assert.assertNotNull(second);
         Assert.assertEquals("second", second.getInputPayload());
 
@@ -87,7 +86,7 @@ public class FileTailSourceTest {
 
         Files.writeString(file, "new-line\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
 
-        final ExchangeImpl exchange = subject.receive(0);
+        final StubExchange exchange = subject.receive(0);
         Assert.assertNotNull(exchange);
         Assert.assertEquals("new-line", exchange.getInputPayload());
     }
@@ -106,13 +105,13 @@ public class FileTailSourceTest {
         Files.writeString(file, "aaaaaaaaaa\n", StandardCharsets.UTF_8);
 
         final PollingSourceHarness subject = newConsumer(file, "?startPosition=beginning");
-        final ExchangeImpl first = subject.receive(0);
+        final StubExchange first = subject.receive(0);
         Assert.assertEquals("aaaaaaaaaa", first.getInputPayload());
 
         // Truncate the file to simulate rotation/shrink, then write a fresh shorter line.
         Files.writeString(file, "b\n", StandardCharsets.UTF_8);
 
-        final ExchangeImpl afterShrink = subject.receive(0);
+        final StubExchange afterShrink = subject.receive(0);
         Assert.assertNotNull(afterShrink);
         Assert.assertEquals("b", afterShrink.getInputPayload());
     }
@@ -130,7 +129,7 @@ public class FileTailSourceTest {
         // A brand new consumer instance (simulating a restart) must resume from the persisted offset,
         // not re-read "first" nor re-apply startPosition semantics.
         final PollingSourceHarness afterRestart = newConsumer(file, "?startPosition=beginning");
-        final ExchangeImpl exchange = afterRestart.receive(0);
+        final StubExchange exchange = afterRestart.receive(0);
         Assert.assertNotNull(exchange);
         Assert.assertEquals("second", exchange.getInputPayload());
     }
@@ -142,11 +141,11 @@ public class FileTailSourceTest {
 
         final PollingSourceHarness subject = newConsumer(file, "?startPosition=beginning&skipLines=2");
 
-        final ExchangeImpl first = subject.receive(0);
+        final StubExchange first = subject.receive(0);
         Assert.assertNotNull(first);
         Assert.assertEquals("1,alice", first.getInputPayload());
 
-        final ExchangeImpl second = subject.receive(0);
+        final StubExchange second = subject.receive(0);
         Assert.assertNotNull(second);
         Assert.assertEquals("2,bob", second.getInputPayload());
 
@@ -165,7 +164,7 @@ public class FileTailSourceTest {
 
         Files.writeString(file, "1,alice\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
 
-        final ExchangeImpl exchange = subject.receive(0);
+        final StubExchange exchange = subject.receive(0);
         Assert.assertNotNull(exchange);
         Assert.assertEquals("1,alice", exchange.getInputPayload());
     }
@@ -194,7 +193,7 @@ public class FileTailSourceTest {
         Files.writeString(file, "comment\n1,alice\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
         final PollingSourceHarness afterRestart = newConsumer(file, "?startPosition=beginning&skipLines=2");
 
-        final ExchangeImpl exchange = afterRestart.receive(0);
+        final StubExchange exchange = afterRestart.receive(0);
         Assert.assertNotNull(exchange);
         Assert.assertEquals("1,alice", exchange.getInputPayload());
         Assert.assertNull(afterRestart.receive(0));

@@ -15,8 +15,8 @@
  */
 package io.pipelite.test.support.matchers;
 
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.Message;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.Message;
 import io.pipelite.test.ExecutionTarget;
 import io.pipelite.test.TestProcessContribution;
 import io.pipelite.test.ThenOperations;

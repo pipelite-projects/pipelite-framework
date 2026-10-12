@@ -21,9 +21,8 @@ import java.util.concurrent.ExecutorService;
  * Implemented by {@code Consumer}s that can dispatch work to the shared, application-wide
  * source worker pool (see the {@code fromSource} {@code concurrency} parameter) instead of
  * processing inline on their own dedicated thread. Mirrors {@link
- * io.pipelite.spi.flow.exchange.ExchangeFactoryAware}: {@code pipelite-spi} has no dependency
- * on {@code pipelite-core}, so the pool itself (owned by {@code PipeliteContext}) is injected
- * through this SPI-level marker interface rather than referenced directly.
+ * io.pipelite.core.exchange.internal.ExchangeFactoryAware}: the pool itself (owned by the context) is
+ * injected through this marker interface rather than referenced directly.
  */
 public interface SourceWorkerPoolAware {
 

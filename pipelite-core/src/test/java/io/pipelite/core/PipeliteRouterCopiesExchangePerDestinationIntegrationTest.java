@@ -20,7 +20,7 @@ import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.awaitility.Awaitility;
 import org.junit.Before;
 import org.junit.Test;

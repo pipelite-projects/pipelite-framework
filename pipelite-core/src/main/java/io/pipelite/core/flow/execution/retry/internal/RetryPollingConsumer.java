@@ -20,9 +20,9 @@ import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.core.consumer.internal.DefaultPollingConsumer;
 import io.pipelite.spi.endpoint.Endpoint;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactoryAware;
 
 import java.util.Optional;
 

@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.spi.flow.exchange;
+package io.pipelite.core.exchange.internal;
 
 import io.pipelite.dsl.Headers;
 import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.route.RoutingSlip;
-import io.pipelite.spi.context.IOKeys;
+import io.pipelite.core.context.internal.IOKeys;
 
 import java.io.Serializable;
 import java.util.*;

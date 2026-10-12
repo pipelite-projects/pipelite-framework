@@ -15,10 +15,10 @@
  */
 package io.pipelite.core.context.impl;
 
-import io.pipelite.spi.flow.exchange.IdentityGenerator;
-import io.pipelite.spi.flow.exchange.Message;
-import io.pipelite.spi.flow.exchange.MessageFactory;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
+import io.pipelite.core.exchange.internal.IdentityGenerator;
+import io.pipelite.core.exchange.internal.Message;
+import io.pipelite.core.exchange.internal.MessageFactory;
+import io.pipelite.core.exchange.internal.SimpleMessage;
 
 import java.util.Objects;
 

@@ -17,7 +17,7 @@ package io.pipelite.core.flow.internal;
 
 import io.pipelite.core.consumer.internal.Consumer;
 import io.pipelite.spi.endpoint.Endpoint;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 
 import java.util.Objects;
 

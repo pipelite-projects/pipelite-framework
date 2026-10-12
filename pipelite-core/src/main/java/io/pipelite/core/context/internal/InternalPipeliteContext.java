@@ -19,7 +19,7 @@ import io.pipelite.core.context.EndpointFactory;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.core.flow.internal.Flow;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import io.pipelite.core.flow.execution.inbox.DurableInboxProvider;
 
 import java.util.Optional;

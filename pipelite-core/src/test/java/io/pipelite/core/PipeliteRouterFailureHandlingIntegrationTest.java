@@ -18,9 +18,9 @@ package io.pipelite.core;
 import io.pipelite.core.context.internal.InternalPipeliteContext;
 
 import io.pipelite.core.context.ConfigurablePipeliteContext;
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.HeadersImpl;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.HeadersImpl;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Assert;

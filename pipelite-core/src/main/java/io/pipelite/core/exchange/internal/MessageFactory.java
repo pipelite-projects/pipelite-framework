@@ -13,15 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.spi.flow.exchange;
+package io.pipelite.core.exchange.internal;
 
-public interface IdentityGenerator {
+public interface MessageFactory {
 
-    long nextId();
-    String nextIdAsText();
-
-    default String nextIdAsText(int maxLenght){
-        throw new UnsupportedOperationException();
-    }
+    Message createMessage();
+    Message copyMessage(Message message);
 
 }

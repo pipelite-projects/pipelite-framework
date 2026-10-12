@@ -15,10 +15,10 @@
  */
 package io.pipelite.core.consumer.internal;
 
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.core.flow.internal.FlowNode;
-import io.pipelite.spi.flow.exchange.Message;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
+import io.pipelite.core.exchange.internal.Message;
+import io.pipelite.core.exchange.internal.SimpleMessage;
 import io.pipelite.core.flow.internal.ExchangePostProcessor;
 import io.pipelite.core.flow.internal.ExchangePreProcessor;
 import org.awaitility.Awaitility;

@@ -16,7 +16,7 @@
 package io.pipelite.core.source.internal;
 
 import io.pipelite.dsl.Exchange;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 
 /** The exchanges a source hands over are the ones its context created. */
 final class SourceExchanges {

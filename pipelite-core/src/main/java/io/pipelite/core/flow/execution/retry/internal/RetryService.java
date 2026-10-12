@@ -19,8 +19,8 @@ import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.core.consumer.internal.ScheduledPollingConsumerService;
 import io.pipelite.core.concurrent.internal.DefaultThreadFactory;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactoryAware;
 
 import java.util.concurrent.Executors;
 

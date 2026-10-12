@@ -17,8 +17,6 @@ package io.pipelite.components.file;
 
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -163,8 +161,8 @@ public class FileProducerTest {
         return new FileProducer(endpoint, configuration);
     }
 
-    private static ExchangeImpl exchangeWithPayload(Object payload) {
-        final ExchangeImpl exchange = new ExchangeImpl(new SimpleMessage("test-id"));
+    private static StubExchange exchangeWithPayload(Object payload) {
+        final StubExchange exchange = new StubExchange();
         exchange.setInputPayload(payload);
         return exchange;
     }

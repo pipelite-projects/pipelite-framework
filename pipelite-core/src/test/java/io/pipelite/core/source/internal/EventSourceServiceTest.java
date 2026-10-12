@@ -19,11 +19,11 @@ import io.pipelite.spi.endpoint.Endpoint;
 
 import io.pipelite.dsl.Headers;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.DistributedIdentityGeneratorImpl;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.core.flow.internal.FlowNode;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
+import io.pipelite.core.exchange.internal.SimpleMessage;
 import io.pipelite.core.flow.internal.ExchangePostProcessor;
 import io.pipelite.core.flow.internal.ExchangePreProcessor;
 import io.pipelite.core.flow.execution.inbox.SegmentedLogDurableInbox;

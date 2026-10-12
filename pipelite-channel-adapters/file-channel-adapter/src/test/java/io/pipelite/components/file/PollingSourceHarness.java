@@ -16,8 +16,6 @@
 package io.pipelite.components.file;
 
 import io.pipelite.dsl.Exchange;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
 import io.pipelite.spi.source.PollingSource;
 import io.pipelite.spi.source.SourceContext;
 
@@ -35,26 +33,26 @@ import java.util.concurrent.ThreadFactory;
 final class PollingSourceHarness implements SourceContext {
 
     private final PollingSource source;
-    private final Deque<ExchangeImpl> queue = new ArrayDeque<>();
+    private final Deque<StubExchange> queue = new ArrayDeque<>();
 
     PollingSourceHarness(PollingSource source) {
         this.source = source;
         source.start(this);
     }
 
-    ExchangeImpl receive(long timeout) {
-        final ExchangeImpl queued = queue.poll();
+    StubExchange receive(long timeout) {
+        final StubExchange queued = queue.poll();
         if (queued != null) {
             return queued;
         }
         final Exchange polled = source.poll();
         if (polled != null) {
-            return (ExchangeImpl) polled;
+            return (StubExchange) polled;
         }
         return queue.poll();
     }
 
-    ExchangeImpl receive() {
+    StubExchange receive() {
         return receive(0);
     }
 
@@ -65,7 +63,7 @@ final class PollingSourceHarness implements SourceContext {
 
     @Override
     public Exchange newExchange(Object payload) {
-        final ExchangeImpl exchange = new ExchangeImpl(new SimpleMessage(UUID.randomUUID().toString()));
+        final StubExchange exchange = new StubExchange();
         if (payload != null) {
             exchange.setInputPayload(payload);
         }
@@ -74,7 +72,7 @@ final class PollingSourceHarness implements SourceContext {
 
     @Override
     public void accept(Exchange exchange) {
-        queue.add((ExchangeImpl) exchange);
+        queue.add((StubExchange) exchange);
     }
 
     @Override

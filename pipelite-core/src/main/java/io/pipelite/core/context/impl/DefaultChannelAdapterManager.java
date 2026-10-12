@@ -24,8 +24,8 @@ import io.pipelite.spi.channel.ChannelConfigurer;
 import io.pipelite.core.context.internal.FlowRegistrationListener;
 import io.pipelite.spi.context.ContextEventListener;
 import io.pipelite.core.flow.internal.Flow;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactoryAware;
 
 import java.util.ArrayList;
 import java.util.Collection;

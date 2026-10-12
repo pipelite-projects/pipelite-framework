@@ -17,7 +17,6 @@ package io.pipelite.components.file;
 
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -137,7 +136,7 @@ public class FileSourceToSinkTest {
      */
     private List<Object> drainWithLineBreaks(PollingSourceHarness consumer, FileProducer producer) {
         final List<Object> transferred = new ArrayList<>();
-        ExchangeImpl exchange;
+        StubExchange exchange;
         while ((exchange = consumer.receive(0)) != null) {
             final Object record = exchange.getInputPayload();
             transferred.add(record);

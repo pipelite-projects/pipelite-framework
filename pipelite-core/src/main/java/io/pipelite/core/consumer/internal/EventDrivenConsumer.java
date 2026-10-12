@@ -16,9 +16,9 @@
 package io.pipelite.core.consumer.internal;
 
 import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
-import io.pipelite.spi.context.IOKeys;
+import io.pipelite.core.context.internal.IOKeys;
 import io.pipelite.core.concurrent.internal.QueuePressureGate;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.core.flow.execution.inbox.DurableInbox;
 import io.pipelite.core.flow.execution.inbox.NoOpDurableInbox;
 import org.slf4j.Logger;
