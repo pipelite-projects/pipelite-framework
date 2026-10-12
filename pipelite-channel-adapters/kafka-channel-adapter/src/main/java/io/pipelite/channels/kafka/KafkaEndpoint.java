@@ -17,10 +17,10 @@ package io.pipelite.channels.kafka;
 
 import io.pipelite.channels.kafka.config.KafkaChannelConfiguration;
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
+import io.pipelite.spi.source.Source;
 
 public class KafkaEndpoint extends DefaultEndpoint {
 
@@ -33,8 +33,8 @@ public class KafkaEndpoint extends DefaultEndpoint {
     }
 
     @Override
-    public Consumer createConsumer() {
-        return new KafkaConsumerService(configuration, this);
+    public Source createSource() {
+        return new KafkaSource(configuration, this);
     }
 
     @Override

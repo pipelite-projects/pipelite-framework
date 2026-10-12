@@ -15,7 +15,7 @@
  */
 package io.pipelite.channels.kafka;
 
-public class KafkaConsumerServiceIT {
+public class KafkaSourceIT {
 
 
 }

@@ -23,15 +23,11 @@ import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelConfigurer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 
 
-public class KafkaChannelAdapter implements ChannelAdapter, ExchangeFactoryAware {
+public class KafkaChannelAdapter implements ChannelAdapter {
 
     private final KafkaChannelConfiguration configuration;
-
-    private ExchangeFactory exchangeFactory;
 
     public KafkaChannelAdapter(){
         configuration = new DefaultKafkaChannelConfiguration();
@@ -55,10 +51,5 @@ public class KafkaChannelAdapter implements ChannelAdapter, ExchangeFactoryAware
     @Override
     public SourceConfigurer newSourceConfigurer() {
         return new KafkaSourceConfigurer();
-    }
-
-    @Override
-    public void setExchangeFactory(ExchangeFactory exchangeFactory) {
-        this.exchangeFactory = exchangeFactory;
     }
 }
