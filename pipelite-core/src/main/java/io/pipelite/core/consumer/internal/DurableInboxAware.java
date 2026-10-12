@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.consumer.internal;
 
-import io.pipelite.spi.inbox.DurableInbox;
+import io.pipelite.core.flow.execution.inbox.DurableInbox;
 
 /**
  * Implemented by consumers that durably record an in-flight {@code Exchange} before enqueueing it

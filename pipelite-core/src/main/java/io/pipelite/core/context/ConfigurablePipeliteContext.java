@@ -19,7 +19,7 @@ import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
 import io.pipelite.core.flow.execution.inbox.DurableInboxDeadLetterWriter;
-import io.pipelite.spi.inbox.DurableInboxProvider;
+import io.pipelite.core.flow.execution.inbox.DurableInboxProvider;
 
 /**
  * Extension of {@link PipeliteContext} that exposes configuration hooks for

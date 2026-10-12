@@ -17,9 +17,9 @@ package io.pipelite.core.flow.execution.inbox;
 
 import io.pipelite.common.support.serialization.BaseEncoding;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.inbox.DurableInbox;
-import io.pipelite.spi.inbox.InboxEntry;
-import io.pipelite.spi.inbox.SegmentedLogDurableInbox;
+import io.pipelite.core.flow.execution.inbox.DurableInbox;
+import io.pipelite.core.flow.execution.inbox.InboxEntry;
+import io.pipelite.core.flow.execution.inbox.SegmentedLogDurableInbox;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;

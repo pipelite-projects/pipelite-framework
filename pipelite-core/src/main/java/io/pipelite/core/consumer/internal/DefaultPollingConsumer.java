@@ -19,8 +19,8 @@ import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.core.concurrent.internal.QueuePressureGate;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.inbox.DurableInbox;
-import io.pipelite.spi.inbox.NoOpDurableInbox;
+import io.pipelite.core.flow.execution.inbox.DurableInbox;
+import io.pipelite.core.flow.execution.inbox.NoOpDurableInbox;
 
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;

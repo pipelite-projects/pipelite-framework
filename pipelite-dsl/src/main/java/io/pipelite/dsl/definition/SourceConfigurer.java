@@ -48,7 +48,7 @@ import java.util.Map;
  */
 public abstract class SourceConfigurer {
 
-    // Must match io.pipelite.spi.inbox.DurableInboxProperties.DURABLE_INBOX exactly - duplicated
+    // Must match io.pipelite.core.flow.execution.inbox.DurableInboxProperties.DURABLE_INBOX exactly - duplicated
     // as a literal rather than referenced, since pipelite-dsl cannot depend on pipelite-spi.
     private static final String DURABLE_INBOX_PROPERTY_NAME = "durableInbox";
 

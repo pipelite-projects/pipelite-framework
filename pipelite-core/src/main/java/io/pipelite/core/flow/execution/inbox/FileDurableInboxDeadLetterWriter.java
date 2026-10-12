@@ -18,7 +18,7 @@ package io.pipelite.core.flow.execution.inbox;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.common.support.fs.LockedFileStore;
 import io.pipelite.common.support.serialization.BaseEncoding;
-import io.pipelite.spi.inbox.InboxEntry;
+import io.pipelite.core.flow.execution.inbox.InboxEntry;
 
 import java.io.IOException;
 import java.io.StringWriter;

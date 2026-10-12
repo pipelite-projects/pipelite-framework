@@ -42,9 +42,9 @@ import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.core.flow.internal.Flow;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.core.flow.internal.FlowNode;
-import io.pipelite.spi.inbox.DurableInbox;
-import io.pipelite.spi.inbox.DurableInboxProperties;
-import io.pipelite.spi.inbox.NoOpDurableInbox;
+import io.pipelite.core.flow.execution.inbox.DurableInbox;
+import io.pipelite.core.flow.execution.inbox.DurableInboxProperties;
+import io.pipelite.core.flow.execution.inbox.NoOpDurableInbox;
 
 import java.util.Iterator;
 import java.util.Objects;

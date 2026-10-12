@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.flow.execution.inbox;
 
-import io.pipelite.spi.inbox.InboxEntry;
+import io.pipelite.core.flow.execution.inbox.InboxEntry;
 
 /**
  * Last-resort sink for a durable-inbox {@link InboxEntry} whose payload could not be turned back

@@ -26,7 +26,7 @@ import io.pipelite.core.flow.internal.FlowNode;
 import io.pipelite.spi.flow.exchange.SimpleMessage;
 import io.pipelite.core.flow.internal.ExchangePostProcessor;
 import io.pipelite.core.flow.internal.ExchangePreProcessor;
-import io.pipelite.spi.inbox.SegmentedLogDurableInbox;
+import io.pipelite.core.flow.execution.inbox.SegmentedLogDurableInbox;
 import io.pipelite.spi.source.EventSource;
 import io.pipelite.spi.source.SourceContext;
 import org.awaitility.Awaitility;

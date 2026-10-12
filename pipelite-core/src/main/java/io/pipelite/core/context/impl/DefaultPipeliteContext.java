@@ -71,10 +71,10 @@ import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.MessageFactory;
-import io.pipelite.spi.inbox.DurableInbox;
-import io.pipelite.spi.inbox.DurableInboxProvider;
-import io.pipelite.spi.inbox.InboxEntry;
-import io.pipelite.spi.inbox.SegmentedLogDurableInboxProvider;
+import io.pipelite.core.flow.execution.inbox.DurableInbox;
+import io.pipelite.core.flow.execution.inbox.DurableInboxProvider;
+import io.pipelite.core.flow.execution.inbox.InboxEntry;
+import io.pipelite.core.flow.execution.inbox.SegmentedLogDurableInboxProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

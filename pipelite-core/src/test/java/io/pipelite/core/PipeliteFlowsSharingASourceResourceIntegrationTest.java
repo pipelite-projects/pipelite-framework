@@ -24,7 +24,7 @@ import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.SimpleMessage;
-import io.pipelite.spi.inbox.SegmentedLogDurableInboxProvider;
+import io.pipelite.core.flow.execution.inbox.SegmentedLogDurableInboxProvider;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Assert;

@@ -28,7 +28,7 @@ import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.pipelite.core.flow.internal.FlowNode;
 import io.pipelite.core.flow.internal.ExchangePostProcessor;
 import io.pipelite.core.flow.internal.ExchangePreProcessor;
-import io.pipelite.spi.inbox.DurableInbox;
+import io.pipelite.core.flow.execution.inbox.DurableInbox;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
