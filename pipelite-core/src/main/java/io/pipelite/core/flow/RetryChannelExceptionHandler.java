@@ -128,8 +128,7 @@ public class RetryChannelExceptionHandler implements ExceptionHandler, DeclaresD
         // internal use and always invoked with a real Exchange (see issue #91).
         final ExchangeImpl exchangeImpl = (ExchangeImpl) exchange;
 
-        exchangeImpl.putHeader(IOKeys.FAILURE_EXCEPTION_TYPE_HEADER_NAME, failureException.getClass());
-        exchangeImpl.putHeader(IOKeys.FAILURE_EXCEPTION_MESSAGE_HEADER_NAME, failureException.getMessage());
+        FailureProperties.record(exchangeImpl, failureException);
 
         // executionDumpFactory.create(...) already reads FLOW_EXECUTION_ATTEMPT_NUMBER_PROPERTY_NAME
         // off the exchange and sets attemptNumber+1 on the dump it returns — a previous version of

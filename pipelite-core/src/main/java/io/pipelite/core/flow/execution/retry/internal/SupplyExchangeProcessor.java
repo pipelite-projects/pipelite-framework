@@ -15,8 +15,10 @@
  */
 package io.pipelite.core.flow.execution.retry.internal;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.flow.FlowNodeLocator;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
@@ -97,7 +99,7 @@ class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContex
     private final ByteArrayToObjectConverter converter;
     private final FlowExecutionDumpRepository dumpRepository;
 
-    private PipeliteContext pipeliteContext;
+    private InternalPipeliteContext pipeliteContext;
 
     SupplyExchangeProcessor(FlowExecutionDumpRepository dumpRepository) {
         Preconditions.notNull(dumpRepository, "dumpRepository is required and cannot be null");
@@ -201,7 +203,7 @@ class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContex
     }
 
     @Override
-    public void setPipeliteContext(PipeliteContext pipeliteContext) {
+    public void setPipeliteContext(InternalPipeliteContext pipeliteContext) {
         this.pipeliteContext = pipeliteContext;
     }
 }

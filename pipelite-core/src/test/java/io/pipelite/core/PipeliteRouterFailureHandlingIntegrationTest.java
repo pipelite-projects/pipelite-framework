@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
@@ -67,7 +69,7 @@ public class PipeliteRouterFailureHandlingIntegrationTest {
     private void supplyRoutedTo(String source, String destination) {
         final HeadersImpl headers = new HeadersImpl();
         headers.putHeader("destination", destination);
-        pipeliteContext.supplyExchange("queue://" + source, pipeliteContext.getExchangeFactory().createExchange(headers, "payload"));
+        pipeliteContext.supplyExchange("queue://" + source, ((InternalPipeliteContext) pipeliteContext).getExchangeFactory().createExchange(headers, "payload"));
     }
 
     @Test

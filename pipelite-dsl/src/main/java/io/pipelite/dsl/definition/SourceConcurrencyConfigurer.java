@@ -13,11 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.spi.endpoint;
+package io.pipelite.dsl.definition;
 
-import io.pipelite.dsl.definition.SourceConfigurer;
-import io.pipelite.spi.flow.concurrent.ExecutorType;
-import io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties;
 
 import java.util.Map;
 
@@ -39,6 +36,11 @@ import java.util.Map;
  */
 public final class SourceConcurrencyConfigurer extends SourceConfigurer {
 
+    // Must match io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties exactly: the DSL cannot depend on the
+    // module that holds the consumer machinery, so the two names are written twice, and a test keeps them aligned.
+    static final String CONCURRENCY = "concurrency";
+    static final String EXECUTOR_TYPE = "executorType";
+
     private Integer concurrency;
     private ExecutorType executorType;
 
@@ -55,10 +57,10 @@ public final class SourceConcurrencyConfigurer extends SourceConfigurer {
     @Override
     protected void contributeQueryParameters(Map<String, String> parameters) {
         if (concurrency != null) {
-            parameters.put(SourceConcurrencyProperties.CONCURRENCY, String.valueOf(concurrency));
+            parameters.put(CONCURRENCY, String.valueOf(concurrency));
         }
         if (executorType != null) {
-            parameters.put(SourceConcurrencyProperties.EXECUTOR_TYPE, executorType.name());
+            parameters.put(EXECUTOR_TYPE, executorType.name());
         }
     }
 

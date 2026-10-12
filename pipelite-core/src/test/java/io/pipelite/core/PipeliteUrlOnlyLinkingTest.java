@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.junit.After;
@@ -100,7 +102,7 @@ public class PipeliteUrlOnlyLinkingTest {
             .build());
         pipeliteContext.start();
 
-        pipeliteContext.supplyExchange("queue://no-sink-in", pipeliteContext.getExchangeFactory().createExchange("done-1"));
+        pipeliteContext.supplyExchange("queue://no-sink-in", pipeliteContext.createExchange("done-1"));
 
         org.awaitility.Awaitility.await().atMost(10, java.util.concurrent.TimeUnit.SECONDS).until(() -> seen.size() == 1);
         Assert.assertEquals(java.util.List.of("done-1"), seen);
@@ -181,7 +183,7 @@ public class PipeliteUrlOnlyLinkingTest {
 
     @Test
     public void givenABareName_whenSupplyExchangeIsCalled_thenRejectedSayingWhatToWrite() {
-        final ExchangeImpl exchange = pipeliteContext.getExchangeFactory().createExchange("payload");
+        final ExchangeImpl exchange = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory().createExchange("payload");
         try {
             pipeliteContext.supplyExchange("kitchen-start", exchange);
             Assert.fail("expected the bare name to be rejected");
@@ -199,7 +201,7 @@ public class PipeliteUrlOnlyLinkingTest {
     @Test
     public void givenAQueueURLNoFlowReads_whenSupplyExchangeIsCalled_thenItFailsInsteadOfDiscarding() {
         pipeliteContext.start();
-        final ExchangeImpl exchange = pipeliteContext.getExchangeFactory().createExchange("payload");
+        final ExchangeImpl exchange = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory().createExchange("payload");
         try {
             pipeliteContext.supplyExchange("queue://nobody-declares-this", exchange);
             Assert.fail("expected the orphan queue:// target to fail");

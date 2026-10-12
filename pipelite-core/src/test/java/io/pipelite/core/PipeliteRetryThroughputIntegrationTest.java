@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
@@ -63,7 +65,7 @@ public class PipeliteRetryThroughputIntegrationTest {
         pipeliteContext.registerFlowDefinition(testFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         for (int i = 0; i < messageCount; i++) {
             pipeliteContext.supplyExchange("queue://retry-throughput-in", exchangeFactory.createExchange("message-" + i));
         }

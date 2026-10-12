@@ -84,7 +84,7 @@ public class EventDrivenConsumerServiceTest {
 
     @Before
     public void setup(){
-        final Endpoint endpoint = new DefaultEndpoint(EndpointURL.parse("start-endpoint"));
+        final Endpoint endpoint = (Endpoint) () -> EndpointURL.parse("start-endpoint");
         final EventDrivenConsumer consumer = new EventDrivenConsumer(endpoint);
         subject = new EventDrivenConsumerService(consumer);
         subject.setFlowName("test-flow");
@@ -182,7 +182,7 @@ public class EventDrivenConsumerServiceTest {
     @Test
     public void shouldDispatchConcurrentlyOnSharedPoolWhenConcurrencyGreaterThanOne() {
 
-        final Endpoint endpoint = new DefaultEndpoint(EndpointURL.parse("start-endpoint?concurrency=4"));
+        final Endpoint endpoint = (Endpoint) () -> EndpointURL.parse("start-endpoint?concurrency=4");
         final EventDrivenConsumer consumer = new EventDrivenConsumer(endpoint);
         final EventDrivenConsumerService concurrentSubject = new EventDrivenConsumerService(consumer);
         concurrentSubject.setFlowName("test-flow");
@@ -263,7 +263,7 @@ public class EventDrivenConsumerServiceTest {
     @Test
     public void shouldTerminateDispatchThreadWithinTimeoutOnStop() {
 
-        final Endpoint endpoint = new DefaultEndpoint(EndpointURL.parse("start-endpoint?concurrency=2"));
+        final Endpoint endpoint = (Endpoint) () -> EndpointURL.parse("start-endpoint?concurrency=2");
         final EventDrivenConsumer consumer = new EventDrivenConsumer(endpoint);
         final EventDrivenConsumerService concurrentSubject = new EventDrivenConsumerService(consumer);
         concurrentSubject.setFlowName("test-flow");
@@ -323,8 +323,8 @@ public class EventDrivenConsumerServiceTest {
     @Test
     public void shouldStartExactlyOneUnsuffixedDispatcherThreadWhenConcurrencyIsAtOrBelowThePerDispatcherMinimum() {
 
-        final Endpoint endpoint = new DefaultEndpoint(EndpointURL.parse(
-            "start-endpoint?concurrency=" + EventDrivenConsumerService.MIN_PERMITS_PER_DISPATCHER));
+        final Endpoint endpoint = (Endpoint) () -> EndpointURL.parse(
+            "start-endpoint?concurrency=" + EventDrivenConsumerService.MIN_PERMITS_PER_DISPATCHER);
         final EventDrivenConsumer consumer = new EventDrivenConsumer(endpoint);
         final EventDrivenConsumerService concurrentSubject = new EventDrivenConsumerService(consumer);
         concurrentSubject.setFlowName("one-dispatcher-flow");
@@ -366,7 +366,7 @@ public class EventDrivenConsumerServiceTest {
         final int concurrency = cores * EventDrivenConsumerService.MIN_PERMITS_PER_DISPATCHER * 10;
         final int expectedDispatchers = EventDrivenConsumerService.dispatcherCountFor(concurrency);
 
-        final Endpoint endpoint = new DefaultEndpoint(EndpointURL.parse("start-endpoint?concurrency=" + concurrency));
+        final Endpoint endpoint = (Endpoint) () -> EndpointURL.parse("start-endpoint?concurrency=" + concurrency);
         final EventDrivenConsumer consumer = new EventDrivenConsumer(endpoint);
         final EventDrivenConsumerService concurrentSubject = new EventDrivenConsumerService(consumer);
         concurrentSubject.setFlowName("multi-dispatch-flow");
@@ -399,7 +399,7 @@ public class EventDrivenConsumerServiceTest {
     @Test
     public void shouldReleaseDispatchPermitWhenNextThrows() {
 
-        final Endpoint endpoint = new DefaultEndpoint(EndpointURL.parse("start-endpoint?concurrency=2"));
+        final Endpoint endpoint = (Endpoint) () -> EndpointURL.parse("start-endpoint?concurrency=2");
         final EventDrivenConsumer consumer = new EventDrivenConsumer(endpoint);
         final EventDrivenConsumerService concurrentSubject = new EventDrivenConsumerService(consumer);
         concurrentSubject.setFlowName("test-flow");

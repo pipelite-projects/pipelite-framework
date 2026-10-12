@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.flow.split;
 
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.impl.DefaultExchangeFactory;
 import io.pipelite.core.context.impl.DefaultMessageFactory;
 import io.pipelite.dsl.split.SplitSegment;
@@ -38,7 +38,7 @@ import static org.junit.Assert.fail;
 
 public class SplitterNodeTest {
 
-    private PipeliteContext pipeliteContext;
+    private InternalPipeliteContext pipeliteContext;
     private ExchangeFactory exchangeFactory;
     private AggregateRepository aggregateRepository;
 
@@ -51,9 +51,9 @@ public class SplitterNodeTest {
         // SplitterNode.setPipeliteContext(...) reads getExchangeFactory()/getAggregateRepository()
         // eagerly, unlike RouterNode which just stores the context - both must be stubbed
         // BEFORE setPipeliteContext(...) is called below, or the node's fields stay null.
-        pipeliteContext = Mockito.mock(PipeliteContext.class);
-        Mockito.when(pipeliteContext.getExchangeFactory()).thenReturn(exchangeFactory);
-        Mockito.when(pipeliteContext.getAggregateRepository()).thenReturn(aggregateRepository);
+        pipeliteContext = Mockito.mock(InternalPipeliteContext.class);
+        Mockito.when(((InternalPipeliteContext) pipeliteContext).getExchangeFactory()).thenReturn(exchangeFactory);
+        Mockito.when(((InternalPipeliteContext) pipeliteContext).getAggregateRepository()).thenReturn(aggregateRepository);
     }
 
     private SplitterNode wired(SplitSegment segment) {

@@ -17,7 +17,6 @@ package io.pipelite.core.channel.queue;
 
 import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.dsl.Exchange;
-import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
@@ -28,21 +27,20 @@ public class QueueProducer implements Producer {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
-    private final Endpoint endpoint;
+    private final QueueChannelAdapter channel;
+    private final EndpointURL endpointURL;
 
-    public QueueProducer(Endpoint endpoint) {
-        this.endpoint = endpoint;
+    public QueueProducer(QueueChannelAdapter channel, EndpointURL endpointURL) {
+        this.channel = channel;
+        this.endpointURL = endpointURL;
     }
 
     @Override
     public void produce(Exchange exchange) {
 
-        final QueueChannelAdapter component = endpoint.getChannelAdapter(QueueChannelAdapter.class);
-        final EndpointURL endpointURL = endpoint.getEndpointURL();
-
         // Fails instead of dropping the exchange when no flow reads the queue: it used to be
         // discarded in silence (issue #100). The failure goes through the flow's exception handler like any failed producer (#92).
-        final Consumer consumer = component.tryResolveConsumer(endpointURL.getResource())
+        final Consumer consumer = channel.tryResolveConsumer(endpointURL.getResource())
             .orElseThrow(() -> new IllegalArgumentException(String.format(
                 "Unrecognized destination 'queue://%s', unable to supply exchange - " +
                     "no registered flow declares fromSource('queue://%s')", endpointURL.getResource(), endpointURL.getResource())));

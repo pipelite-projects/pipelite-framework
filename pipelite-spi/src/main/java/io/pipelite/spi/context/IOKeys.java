@@ -17,12 +17,16 @@ package io.pipelite.spi.context;
 
 public class IOKeys {
 
-    public static final String RETURN_ADDRESS_HEADER_NAME = "X-Return-Address";
+    // What the framework keeps on an exchange for its own use. They are exchange properties, not headers:
+    // a header belongs to the user (a processor reads, writes and removes any of them, a route tests
+    // them in an expression), and none of these is for user code to read or to be able to break.
+    // Issues #152 and #159: the return address and the failure information used to be headers.
+    public static final String RETURN_ADDRESS_PROPERTY_NAME = "X-Return-Address";
     public static final String ROUTING_SLIP_PROPERTY_NAME = "X-Routing-Slip";
 
-    public static final String FAILURE_EXCEPTION_TYPE_HEADER_NAME = "X-Failure-Exception-Type";
-    public static final String FAILURE_EXCEPTION_MESSAGE_HEADER_NAME = "X-Failure-Exception-Message";
-    public static final String FAILURE_STACK_TRACE_HEADER_NAME = "X-Failure-Stack-Trace";
+    public static final String FAILURE_EXCEPTION_TYPE_PROPERTY_NAME = "X-Failure-Exception-Type";
+    public static final String FAILURE_EXCEPTION_MESSAGE_PROPERTY_NAME = "X-Failure-Exception-Message";
+    public static final String FAILURE_STACK_TRACE_PROPERTY_NAME = "X-Failure-Stack-Trace";
 
     public static final String FLOW_EXECUTION_DUMP_ID_PROPERTY_NAME = "X-FlowExecution-Dump-Id";
     public static final String FLOW_EXECUTION_LAST_EXECUTED_FLOW_PROPERTY_NAME = "X-FlowExecution-Last-Executed-Flow";

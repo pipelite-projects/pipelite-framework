@@ -15,9 +15,10 @@
  */
 package io.pipelite.channels.kafka;
 
+import io.pipelite.spi.endpoint.Endpoint;
+
 import io.pipelite.channels.kafka.config.KafkaChannelConfiguration;
 import io.pipelite.channels.kafka.support.KafkaConstants;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.SimpleMessage;
@@ -48,7 +49,7 @@ public class DefaultKafkaProducerTest {
     @Before
     public void setup() {
         kafkaProducer = mock(KafkaProducer.class);
-        subject = new DefaultKafkaProducer(new DefaultEndpoint(EndpointURL.parse("orders")),
+        subject = new DefaultKafkaProducer((Endpoint) () -> EndpointURL.parse("orders"),
             mock(KafkaChannelConfiguration.class), kafkaProducer);
     }
 

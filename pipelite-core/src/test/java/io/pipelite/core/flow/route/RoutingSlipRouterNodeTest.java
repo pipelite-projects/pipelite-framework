@@ -15,6 +15,8 @@
  */
 package io.pipelite.core.flow.route;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.Pipelite;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.dsl.ChannelProtocols;

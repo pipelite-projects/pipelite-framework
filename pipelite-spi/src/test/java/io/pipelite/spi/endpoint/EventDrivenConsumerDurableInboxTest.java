@@ -79,13 +79,13 @@ public class EventDrivenConsumerDurableInboxTest {
         final DurableInbox originInbox = new SegmentedLogDurableInbox(sharedDirectory, "origin", identityGenerator);
         final DurableInbox destinationInbox = new SegmentedLogDurableInbox(sharedDirectory, "destination", identityGenerator);
 
-        final EventDrivenConsumer destination = new EventDrivenConsumer(new DefaultEndpoint(EndpointURL.parse("destination-endpoint")));
+        final EventDrivenConsumer destination = new EventDrivenConsumer((Endpoint) () -> EndpointURL.parse("destination-endpoint"));
         destination.setFlowName("destination-flow");
         destination.setProcessorName("destination-endpoint");
         destination.setNext(NO_OP_NEXT);
         destination.setDurableInbox(destinationInbox);
 
-        final EventDrivenConsumer origin = new EventDrivenConsumer(new DefaultEndpoint(EndpointURL.parse("origin-endpoint")));
+        final EventDrivenConsumer origin = new EventDrivenConsumer((Endpoint) () -> EndpointURL.parse("origin-endpoint"));
         origin.setFlowName("origin-flow");
         origin.setProcessorName("origin-endpoint");
         // Simulates QueueProducer.process(): hands the SAME Exchange instance straight to another
@@ -121,7 +121,7 @@ public class EventDrivenConsumerDurableInboxTest {
         final DurableInbox inbox = new SegmentedLogDurableInbox(
             temporaryFolder.getRoot().toPath(), "origin", new DistributedIdentityGeneratorImpl());
 
-        final EventDrivenConsumer consumer = new EventDrivenConsumer(new DefaultEndpoint(EndpointURL.parse("origin-endpoint")));
+        final EventDrivenConsumer consumer = new EventDrivenConsumer((Endpoint) () -> EndpointURL.parse("origin-endpoint"));
         consumer.setFlowName("origin-flow");
         consumer.setProcessorName("origin-endpoint");
         consumer.setNext(NO_OP_NEXT);

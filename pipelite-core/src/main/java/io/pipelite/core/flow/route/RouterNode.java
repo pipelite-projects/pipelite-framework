@@ -15,8 +15,10 @@
  */
 package io.pipelite.core.flow.route;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.context.internal.DeclaredDestination;
 import io.pipelite.core.context.internal.DeclaresDestinations;
@@ -50,7 +52,7 @@ class RouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowE
     private final RoutingTable<?> routingTable;
     private final TextExpressionEvaluator textExpressionEvaluator;
 
-    private PipeliteContext pipeliteContext;
+    private InternalPipeliteContext pipeliteContext;
 
     private ExchangeFactory exchangeFactory;
 
@@ -129,7 +131,7 @@ class RouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowE
     }
 
     @Override
-    public void setPipeliteContext(PipeliteContext pipeliteContext) {
+    public void setPipeliteContext(InternalPipeliteContext pipeliteContext) {
         this.pipeliteContext = pipeliteContext;
         this.exchangeFactory = pipeliteContext.getExchangeFactory();
     }

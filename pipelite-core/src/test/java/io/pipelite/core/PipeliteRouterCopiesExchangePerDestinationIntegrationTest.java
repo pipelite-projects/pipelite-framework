@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
@@ -84,7 +86,7 @@ public class PipeliteRouterCopiesExchangePerDestinationIntegrationTest {
         context.registerFlowDefinition(flowB);
         context.start();
 
-        final ExchangeFactory exchangeFactory = context.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) context).getExchangeFactory();
         final var exchange = exchangeFactory.createExchange("order-1");
         exchange.putHeader("x", "y");
         context.supplyExchange("queue://router-in", exchange);

@@ -15,10 +15,12 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.UnsupportedSourceConcurrencyException;
-import io.pipelite.spi.endpoint.SourceConcurrencyConfigurer;
+import io.pipelite.dsl.definition.SourceConcurrencyConfigurer;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Assert;
@@ -127,7 +129,7 @@ public class PipeliteQueueSourceIntegrationTest {
         pipeliteContext.start();
 
         for (int i = 0; i < 3; i++) {
-            pipeliteContext.supplyExchange("queue://work", pipeliteContext.getExchangeFactory().createExchange("job-" + i));
+            pipeliteContext.supplyExchange("queue://work", pipeliteContext.createExchange("job-" + i));
         }
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> done.get() == 3);

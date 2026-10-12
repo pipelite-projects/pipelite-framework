@@ -15,7 +15,9 @@
  */
 package io.pipelite.core.flow.split;
 
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.flow.FlowNodeConfigurer;
 import io.pipelite.core.flow.process.ProcessorNodeFactory;
@@ -95,7 +97,7 @@ class SplitterNode extends AbstractFlowNode implements PipeliteContextAware {
     }
 
     @Override
-    public void setPipeliteContext(PipeliteContext pipeliteContext) {
+    public void setPipeliteContext(InternalPipeliteContext pipeliteContext) {
         Objects.requireNonNull(pipeliteContext, "pipeliteContext is required and cannot be null");
         this.exchangeFactory = pipeliteContext.getExchangeFactory();
         this.aggregateRepository = pipeliteContext.getAggregateRepository();

@@ -15,8 +15,10 @@
  */
 package io.pipelite.core.flow.process;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.context.internal.DeclaredDestination;
 import io.pipelite.core.context.internal.DeclaresDestinations;
@@ -44,7 +46,7 @@ class WireTapProcessorNode extends AbstractProcessorNode implements PipeliteCont
 
     private final String endpointURL;
 
-    private PipeliteContext pipeliteContext;
+    private InternalPipeliteContext pipeliteContext;
     private ExchangeFactory exchangeFactory;
 
     WireTapProcessorNode(String endpointURL) {
@@ -66,7 +68,7 @@ class WireTapProcessorNode extends AbstractProcessorNode implements PipeliteCont
     }
 
     @Override
-    public void setPipeliteContext(PipeliteContext pipeliteContext) {
+    public void setPipeliteContext(InternalPipeliteContext pipeliteContext) {
         Preconditions.notNull(pipeliteContext, "pipeliteContext is required and cannot be null");
         this.pipeliteContext = pipeliteContext;
         this.exchangeFactory = pipeliteContext.getExchangeFactory();

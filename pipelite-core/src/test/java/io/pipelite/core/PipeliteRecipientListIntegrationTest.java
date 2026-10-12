@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
@@ -66,7 +68,7 @@ public class PipeliteRecipientListIntegrationTest {
         context.registerFlowDefinition(destination02);
         context.start();
 
-        final ExchangeFactory exchangeFactory = context.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) context).getExchangeFactory();
 
         final ExchangeImpl exchange = exchangeFactory.createExchange("Hello Pipelite!");
         exchange.putHeader("X-Include-Log", "true");

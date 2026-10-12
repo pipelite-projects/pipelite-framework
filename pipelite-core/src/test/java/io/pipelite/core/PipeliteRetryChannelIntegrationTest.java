@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
@@ -62,7 +64,7 @@ public class PipeliteRetryChannelIntegrationTest {
         pipeliteContext.registerFlowDefinition(testFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         pipeliteContext.supplyExchange("queue://ingress", exchangeFactory.createExchange("test-message"));
 
         Awaitility.await().atMost(60, TimeUnit.SECONDS).until(() -> counter.get() > 10);

@@ -24,6 +24,7 @@ import io.pipelite.core.config.FlowConfigurationScanner;
 import io.pipelite.core.config.NoOpEndpointURLPropertyResolver;
 import io.pipelite.core.context.*;
 import io.pipelite.core.context.internal.DestinationURLs;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.internal.ReservedNames;
 import io.pipelite.core.context.internal.validation.ContextValidatorChain;
 import io.pipelite.core.context.internal.validation.FlowReferenceValidator;
@@ -51,6 +52,7 @@ import io.pipelite.core.support.LogUtils;
 import io.pipelite.common.support.serialization.Base64ObjectSerializer;
 import io.pipelite.common.support.serialization.ByteArrayToObjectConverter;
 import io.pipelite.dsl.ChannelProtocols;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
 import io.pipelite.spi.channel.ChannelAdapter;
@@ -86,7 +88,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
+public class DefaultPipeliteContext implements ConfigurablePipeliteContext, InternalPipeliteContext {
 
     // Namespaced under a dedicated "state/" prefix, sibling to (never inside) any channel
     // adapter's own PipeliteHome subfolder (e.g. "file-channel-adapter") - reserved for the
@@ -508,7 +510,12 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     }
 
     @Override
-    public void supplyExchange(String destinationURL, ExchangeImpl exchange) {
+    public Exchange createExchange(Object payload) {
+        return exchangeFactory.createExchange(payload);
+    }
+
+    @Override
+    public void supplyExchange(String destinationURL, Exchange exchange) {
 
         // A destination is a URL (issue #102): a bare name used to fall through to a lookup in the
         // flow registry by source endpoint resource, a second, undocumented way in that is gone.

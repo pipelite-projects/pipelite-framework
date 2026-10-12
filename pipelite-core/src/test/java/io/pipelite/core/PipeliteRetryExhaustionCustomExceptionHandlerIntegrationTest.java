@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
@@ -78,7 +80,7 @@ public class PipeliteRetryExhaustionCustomExceptionHandlerIntegrationTest {
             pipeliteContext.start();
 
             try {
-                final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+                final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
                 pipeliteContext.supplyExchange("queue://retry-exhaustion-custom-handler-in", exchangeFactory.createExchange("poison-payload"));
 
                 Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> attemptCount.get() == 2);

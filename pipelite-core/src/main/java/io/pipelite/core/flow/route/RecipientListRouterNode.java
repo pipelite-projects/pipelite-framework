@@ -15,9 +15,11 @@
  */
 package io.pipelite.core.flow.route;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.common.support.ToStringUtils;
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.context.internal.DeclaredDestination;
 import io.pipelite.core.context.internal.DeclaresDestinations;
@@ -49,7 +51,7 @@ class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContex
 
     private final ConditionEvaluator conditionEvaluator;
 
-    private PipeliteContext pipeliteContext;
+    private InternalPipeliteContext pipeliteContext;
 
     private ExchangeFactory exchangeFactory;
 
@@ -114,7 +116,7 @@ class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContex
     }
 
     @Override
-    public void setPipeliteContext(PipeliteContext pipeliteContext) {
+    public void setPipeliteContext(InternalPipeliteContext pipeliteContext) {
         Preconditions.notNull(pipeliteContext, "pipeliteContext is required and cannot be null");
         this.pipeliteContext = pipeliteContext;
         this.exchangeFactory = pipeliteContext.getExchangeFactory();

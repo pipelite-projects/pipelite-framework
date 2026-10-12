@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.PipeliteContext;
 import org.awaitility.Awaitility;
 import org.junit.After;
@@ -55,7 +57,7 @@ public class PipeliteProducerLifecycleIntegrationTest {
             .toSink("producer-lifecycle://out")
             .build());
         context.start();
-        context.supplyExchange("queue://lifecycle-in", context.getExchangeFactory().createExchange("payload"));
+        context.supplyExchange("queue://lifecycle-in", context.createExchange("payload"));
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> events().contains("produce"));
 
         Assert.assertEquals("one producer for the flow", 1, ProducerLifecycleChannelAdapter.CREATED.get());
@@ -70,7 +72,7 @@ public class PipeliteProducerLifecycleIntegrationTest {
     public void givenAnExchangeIsSuppliedToADestination_thenTheProducerCreatedForItIsClosedRightAfter() {
         context.start();
 
-        context.supplyExchange("producer-lifecycle://out", context.getExchangeFactory().createExchange("payload"));
+        context.supplyExchange("producer-lifecycle://out", context.createExchange("payload"));
 
         Assert.assertEquals(1, ProducerLifecycleChannelAdapter.CREATED.get());
         Assert.assertEquals(java.util.List.of("produce", "close"), events());

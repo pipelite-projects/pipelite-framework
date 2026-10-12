@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
@@ -107,7 +109,7 @@ public class PipeliteDurableInboxDeadLetterIntegrationTest {
                 Assert.assertEquals(1, processed.size());
 
                 Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
-                    context.getDurableInboxProvider().forFlow(FLOW_NAME).pendingEntries().isEmpty());
+                    ((InternalPipeliteContext) context).getDurableInboxProvider().forFlow(FLOW_NAME).pendingEntries().isEmpty());
             } finally {
                 context.stop();
             }

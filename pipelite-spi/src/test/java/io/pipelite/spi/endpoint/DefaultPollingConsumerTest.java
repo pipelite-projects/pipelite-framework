@@ -38,7 +38,7 @@ public class DefaultPollingConsumerTest {
     }
 
     private static DefaultPollingConsumer newConsumer() {
-        return new DefaultPollingConsumer(new DefaultEndpoint(EndpointURL.parse("start-endpoint")));
+        return new DefaultPollingConsumer((Endpoint) () -> EndpointURL.parse("start-endpoint"));
     }
 
     @Test

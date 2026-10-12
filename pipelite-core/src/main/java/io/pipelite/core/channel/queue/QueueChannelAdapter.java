@@ -15,6 +15,7 @@
  */
 package io.pipelite.core.channel.queue;
 
+import io.pipelite.dsl.definition.SourceConcurrencyConfigurer;
 import io.pipelite.dsl.definition.SourceConfigurer;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.context.ContextEventListener;

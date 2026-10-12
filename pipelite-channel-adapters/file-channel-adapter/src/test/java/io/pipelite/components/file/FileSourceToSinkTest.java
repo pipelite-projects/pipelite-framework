@@ -15,7 +15,6 @@
  */
 package io.pipelite.components.file;
 
-import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
@@ -150,13 +149,13 @@ public class FileSourceToSinkTest {
 
     private PollingSourceHarness newConsumer(Path file, String query) {
         final EndpointURL endpointURL = EndpointURL.parse(file.toString() + query, RESOURCE_PATTERN);
-        final Endpoint endpoint = new DefaultEndpoint(endpointURL);
+        final Endpoint endpoint = (Endpoint) () -> endpointURL;
         return new PollingSourceHarness(new FileTailSource(endpoint, configuration));
     }
     private FileProducer newProducer(Path file, boolean append) {
         final String query = append ? "?append=true" : "";
         final EndpointURL endpointURL = EndpointURL.parse(file.toString() + query, RESOURCE_PATTERN);
-        final Endpoint endpoint = new DefaultEndpoint(endpointURL);
+        final Endpoint endpoint = (Endpoint) () -> endpointURL;
         return new FileProducer(endpoint, configuration);
     }
 

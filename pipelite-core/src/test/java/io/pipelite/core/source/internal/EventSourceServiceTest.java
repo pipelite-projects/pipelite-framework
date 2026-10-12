@@ -15,8 +15,9 @@
  */
 package io.pipelite.core.source.internal;
 
+import io.pipelite.spi.endpoint.Endpoint;
+
 import io.pipelite.dsl.Headers;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
@@ -75,7 +76,7 @@ public class EventSourceServiceTest {
 
     @Before
     public void setup() {
-        service = new EventSourceService(source, new DefaultEndpoint(EndpointURL.parse("test-source")), "test");
+        service = new EventSourceService(source, (Endpoint) () -> EndpointURL.parse("test-source"), "test");
         service.setFlowName("test-flow");
         service.setSourceEndpointResource("test-source");
         service.setProcessorName("test-processor");

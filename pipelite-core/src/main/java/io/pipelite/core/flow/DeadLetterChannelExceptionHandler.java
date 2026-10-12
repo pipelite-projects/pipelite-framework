@@ -15,8 +15,10 @@
  */
 package io.pipelite.core.flow;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.context.internal.DeclaredDestination;
 import io.pipelite.core.context.internal.DeclaresDestinations;
@@ -45,7 +47,7 @@ public class DeadLetterChannelExceptionHandler implements ExceptionHandler, Pipe
 
     private final String deadLetterTarget;
 
-    private PipeliteContext pipeliteContext;
+    private InternalPipeliteContext pipeliteContext;
 
     public DeadLetterChannelExceptionHandler(String deadLetterTarget) {
         Preconditions.hasText(deadLetterTarget, "deadLetterTarget is required and cannot be null/empty");
@@ -58,7 +60,7 @@ public class DeadLetterChannelExceptionHandler implements ExceptionHandler, Pipe
     }
 
     @Override
-    public void setPipeliteContext(PipeliteContext pipeliteContext) {
+    public void setPipeliteContext(InternalPipeliteContext pipeliteContext) {
         this.pipeliteContext = pipeliteContext;
     }
 
@@ -71,9 +73,8 @@ public class DeadLetterChannelExceptionHandler implements ExceptionHandler, Pipe
         // internal use and always invoked with a real Exchange (see issue #91).
         final ExchangeImpl exchangeImpl = (ExchangeImpl) exchange;
 
-        exchangeImpl.putHeader(IOKeys.FAILURE_EXCEPTION_TYPE_HEADER_NAME, failureException.getClass());
-        exchangeImpl.putHeader(IOKeys.FAILURE_EXCEPTION_MESSAGE_HEADER_NAME, failureException.getMessage());
-        exchangeImpl.putHeader(IOKeys.FAILURE_STACK_TRACE_HEADER_NAME, formatStackTrace(failureException));
+        FailureProperties.record(exchangeImpl, failureException);
+        exchangeImpl.setProperty(IOKeys.FAILURE_STACK_TRACE_PROPERTY_NAME, formatStackTrace(failureException));
 
         // The target is always a URL (issue #102): the same ChannelURL -> ChannelAdapter ->
         // Endpoint -> Producer resolution reaches an internal flow (queue://) and an external

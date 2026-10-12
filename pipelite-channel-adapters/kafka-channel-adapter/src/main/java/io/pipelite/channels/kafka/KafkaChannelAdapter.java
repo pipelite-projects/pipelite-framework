@@ -45,7 +45,7 @@ public class KafkaChannelAdapter implements ChannelAdapter {
 
     @Override
     public Endpoint createEndpoint(String url) {
-        return new KafkaEndpoint(EndpointURL.parse(url), this, configuration);
+        return new KafkaEndpoint(EndpointURL.parse(url), configuration);
     }
 
     @Override

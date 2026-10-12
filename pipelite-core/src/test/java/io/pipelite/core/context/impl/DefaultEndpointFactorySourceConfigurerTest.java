@@ -31,7 +31,7 @@ import io.pipelite.core.context.UnsupportedSourceConcurrencyException;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
 import io.pipelite.spi.endpoint.Endpoint;
-import io.pipelite.spi.endpoint.SourceConcurrencyConfigurer;
+import io.pipelite.dsl.definition.SourceConcurrencyConfigurer;
 import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
 import org.junit.Assert;
 import org.junit.Before;

@@ -16,9 +16,9 @@
 package io.pipelite.core.channel.queue;
 
 import io.pipelite.core.source.internal.ConsumerEndpoint;
-import io.pipelite.spi.channel.ChannelAdapter;
+import io.pipelite.common.support.Preconditions;
 import io.pipelite.spi.endpoint.Consumer;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
+import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.EventDrivenConsumer;
 import io.pipelite.spi.endpoint.EventDrivenConsumerService;
@@ -28,10 +28,19 @@ import io.pipelite.spi.endpoint.Producer;
  * The endpoint of a queue, on both sides. Its consumer is the framework's own event-driven one: nothing is
  * received from outside, the producer of another flow hands the exchanges over ({@link QueueProducer}).
  */
-public class QueueEndpoint extends DefaultEndpoint implements ConsumerEndpoint {
+public class QueueEndpoint implements Endpoint, ConsumerEndpoint {
 
-    public QueueEndpoint(EndpointURL endpointURL, ChannelAdapter channel) {
-        super(endpointURL, channel);
+    private final EndpointURL endpointURL;
+    private final QueueChannelAdapter channel;
+
+    public QueueEndpoint(EndpointURL endpointURL, QueueChannelAdapter channel) {
+        this.endpointURL = Preconditions.notNull(endpointURL, "endpointURL is required and cannot be null");
+        this.channel = Preconditions.notNull(channel, "channel is required and cannot be null");
+    }
+
+    @Override
+    public EndpointURL getEndpointURL() {
+        return endpointURL;
     }
 
     @Override
@@ -41,6 +50,6 @@ public class QueueEndpoint extends DefaultEndpoint implements ConsumerEndpoint {
 
     @Override
     public Producer createProducer() {
-        return new QueueProducer(this);
+        return new QueueProducer(channel, endpointURL);
     }
 }

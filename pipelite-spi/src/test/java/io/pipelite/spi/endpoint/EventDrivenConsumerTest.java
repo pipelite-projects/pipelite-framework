@@ -56,7 +56,7 @@ public class EventDrivenConsumerTest {
 
         // queueSize=4 -> QueuePressureGate.withDefaultHysteresis(4): high=4, low=1 (4/4).
         final EventDrivenConsumer consumer = new EventDrivenConsumer(
-            new DefaultEndpoint(EndpointURL.parse("start-endpoint")), 4);
+            (Endpoint) () -> EndpointURL.parse("start-endpoint"), 4);
         consumer.setFlowName("test-flow");
         consumer.setProcessorName("test-processor");
         consumer.setNext(NO_OP_NEXT);
@@ -95,7 +95,7 @@ public class EventDrivenConsumerTest {
     public void shouldNeverBlockEnqueueingAPoisonPillRegardlessOfPressure() throws Exception {
 
         final EventDrivenConsumer consumer = new EventDrivenConsumer(
-            new DefaultEndpoint(EndpointURL.parse("start-endpoint")), 4);
+            (Endpoint) () -> EndpointURL.parse("start-endpoint"), 4);
         consumer.setFlowName("test-flow");
         consumer.setProcessorName("test-processor");
         consumer.setNext(NO_OP_NEXT);

@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
@@ -90,7 +92,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
         context.registerFlowDefinition(destination);
         context.start();
 
-        final ExchangeFactory exchangeFactory = context.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) context).getExchangeFactory();
         for (int i = 0; i < numOfMessages; i++) {
             context.supplyExchange("queue://origin-start-concurrency", exchangeFactory.createExchange("message-" + i));
         }
@@ -128,7 +130,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
         context.registerFlowDefinition(destination);
         context.start();
 
-        final ExchangeFactory exchangeFactory = context.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) context).getExchangeFactory();
         for (int i = 0; i < numOfMessages; i++) {
             context.supplyExchange("queue://origin-start-sequential", exchangeFactory.createExchange("message-" + i));
         }
@@ -173,7 +175,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
         context.registerFlowDefinition(sequential);
         context.start();
 
-        final ExchangeFactory exchangeFactory = context.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) context).getExchangeFactory();
         try {
             for (int i = 0; i < poolSize; i++) {
                 context.supplyExchange("queue://saturating-start", exchangeFactory.createExchange("saturate-" + i));
@@ -232,7 +234,7 @@ public class PipeliteSourceConcurrencyIntegrationTest {
         }
         context.start();
 
-        final ExchangeFactory exchangeFactory = context.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) context).getExchangeFactory();
         for (int f = 0; f < numFlows; f++) {
             for (int i = 0; i < messagesPerFlow; i++) {
                 context.supplyExchange("queue://shared-pool-start-" + f, exchangeFactory.createExchange("msg-" + f + "-" + i));

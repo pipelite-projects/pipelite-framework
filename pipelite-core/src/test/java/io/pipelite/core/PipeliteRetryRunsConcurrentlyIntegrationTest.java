@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
@@ -83,7 +85,7 @@ public class PipeliteRetryRunsConcurrentlyIntegrationTest {
         pipeliteContext.registerFlowDefinition(testFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         pipeliteContext.supplyExchange("queue://retry-parallelism-in", exchangeFactory.createExchange("message-A"));
         pipeliteContext.supplyExchange("queue://retry-parallelism-in", exchangeFactory.createExchange("message-B"));
 

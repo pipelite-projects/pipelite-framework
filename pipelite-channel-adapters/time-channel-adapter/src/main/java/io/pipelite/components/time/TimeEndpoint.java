@@ -15,26 +15,27 @@
  */
 package io.pipelite.components.time;
 
-import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
+import io.pipelite.common.support.Preconditions;
+import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.spi.source.Source;
 
-public class TimeEndpoint extends DefaultEndpoint {
+public class TimeEndpoint implements Endpoint {
 
-    public TimeEndpoint(EndpointURL endpointURL, ChannelAdapter channel) {
-        super(endpointURL, channel);
+    private final EndpointURL endpointURL;
+
+    public TimeEndpoint(EndpointURL endpointURL) {
+        this.endpointURL = Preconditions.notNull(endpointURL, "endpointURL is required and cannot be null");
+    }
+
+    @Override
+    public EndpointURL getEndpointURL() {
+        return endpointURL;
     }
 
     @Override
     public Source createSource() {
         return new TimeSource();
-    }
-
-    @Override
-    public Producer createProducer() {
-        throw new IllegalStateException("TimeComponent doesn't support producers");
     }
 
 }

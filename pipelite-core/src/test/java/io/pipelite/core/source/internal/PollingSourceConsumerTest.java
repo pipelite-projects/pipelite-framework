@@ -15,9 +15,10 @@
  */
 package io.pipelite.core.source.internal;
 
+import io.pipelite.spi.endpoint.Endpoint;
+
 import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.Headers;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
@@ -51,7 +52,7 @@ public class PollingSourceConsumerTest {
                 return payload == null ? null : exchangeFactory.createExchange(payload);
             }
         };
-        subject = new PollingSourceConsumer(new DefaultEndpoint(EndpointURL.parse("tick")), source);
+        subject = new PollingSourceConsumer((Endpoint) () -> EndpointURL.parse("tick"), source);
         subject.setExchangeFactory(exchangeFactory);
     }
 
@@ -98,7 +99,7 @@ public class PollingSourceConsumerTest {
                 return null;
             }
         };
-        consumer[0] = new PollingSourceConsumer(new DefaultEndpoint(EndpointURL.parse("tick")), handingOver);
+        consumer[0] = new PollingSourceConsumer((Endpoint) () -> EndpointURL.parse("tick"), handingOver);
         consumer[0].setExchangeFactory(exchangeFactory);
 
         final ExchangeImpl first = consumer[0].receive();
@@ -127,7 +128,7 @@ public class PollingSourceConsumerTest {
             @Override public void setOutputPayload(Object payload) { }
         };
         final PollingSourceConsumer foreignSource = new PollingSourceConsumer(
-            new DefaultEndpoint(EndpointURL.parse("tick")), new PollingSource() {
+            (Endpoint) () -> EndpointURL.parse("tick"), new PollingSource() {
                 @Override
                 public Exchange poll() {
                     return foreign;

@@ -15,8 +15,10 @@
  */
 package io.pipelite.core.flow.internal;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.EndpointFactory;
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.flow.FlowNodeConfigurer;
 import io.pipelite.core.flow.process.FlowExecutionExchangePostProcessor;
 import io.pipelite.core.flow.process.FlowExecutionExchangePreProcessor;
@@ -49,7 +51,7 @@ import java.util.Objects;
 
 public class FlowFactory {
 
-    private final PipeliteContext context;
+    private final InternalPipeliteContext context;
     private static final String DEFAULT_SOURCE_ROLE = "event";
 
     private final EndpointFactory endpointFactory;
@@ -57,11 +59,11 @@ public class FlowFactory {
     /** Called with every producer an adapter creates for a flow, so the context can close it when it stops. */
     private final java.util.function.Consumer<AutoCloseable> producerRegistrar;
 
-    public FlowFactory(PipeliteContext context){
+    public FlowFactory(InternalPipeliteContext context){
         this(context, producer -> { });
     }
 
-    public FlowFactory(PipeliteContext context, java.util.function.Consumer<AutoCloseable> producerRegistrar){
+    public FlowFactory(InternalPipeliteContext context, java.util.function.Consumer<AutoCloseable> producerRegistrar){
         Objects.requireNonNull(context, "context is required and cannot be null");
         Objects.requireNonNull(producerRegistrar, "producerRegistrar is required and cannot be null");
         this.context = context;
@@ -70,7 +72,7 @@ public class FlowFactory {
     }
 
     @Deprecated
-    public FlowFactory(PipeliteContext context, ExchangeFactory exchangeFactory){
+    public FlowFactory(InternalPipeliteContext context, ExchangeFactory exchangeFactory){
         this(context);
     }
 

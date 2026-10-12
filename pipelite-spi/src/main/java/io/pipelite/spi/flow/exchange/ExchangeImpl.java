@@ -165,7 +165,7 @@ public class ExchangeImpl implements Exchange, Serializable {
     }
 
     public Optional<String> tryGetReturnAddress(){
-        return headers.tryGetHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME);
+        return Optional.ofNullable(getProperty(IOKeys.RETURN_ADDRESS_PROPERTY_NAME, String.class));
     }
 
     /**
@@ -174,14 +174,14 @@ public class ExchangeImpl implements Exchange, Serializable {
      */
     // @Override - Exchange#setReturnAddress is disabled for now, see io.pipelite.dsl.Exchange
     public void setReturnAddress(String returnAddress) {
-        if(!headers.hasHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME)){
-            headers.putHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME, returnAddress);
+        if(!properties.containsKey(IOKeys.RETURN_ADDRESS_PROPERTY_NAME)){
+            properties.put(IOKeys.RETURN_ADDRESS_PROPERTY_NAME, returnAddress);
         }
     }
 
 
     public void resetReturnAddress(){
-        headers.removeHeader(IOKeys.RETURN_ADDRESS_HEADER_NAME);
+        properties.remove(IOKeys.RETURN_ADDRESS_PROPERTY_NAME);
     }
 
     // @Override - Exchange#setRoutingSlip is disabled for now, see io.pipelite.dsl.Exchange

@@ -17,7 +17,6 @@ package io.pipelite.test.support.impl;
 
 import io.pipelite.dsl.Exchange;
 import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
@@ -98,10 +97,17 @@ public class CaptureChannelAdapter implements ChannelAdapter {
         return new CaptureEndpoint(EndpointURL.parse(url));
     }
 
-    private static class CaptureEndpoint extends DefaultEndpoint {
+    private static class CaptureEndpoint implements Endpoint {
+
+        private final EndpointURL endpointURL;
 
         CaptureEndpoint(EndpointURL endpointURL) {
-            super(endpointURL);
+            this.endpointURL = endpointURL;
+        }
+
+        @Override
+        public EndpointURL getEndpointURL() {
+            return endpointURL;
         }
 
         @Override

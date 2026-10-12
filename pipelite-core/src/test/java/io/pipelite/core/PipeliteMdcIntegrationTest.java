@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.awaitility.Awaitility;
@@ -59,7 +61,7 @@ public class PipeliteMdcIntegrationTest {
             .build());
         context.start();
 
-        final ExchangeImpl exchange = context.getExchangeFactory().createExchange("payload");
+        final ExchangeImpl exchange = ((InternalPipeliteContext) context).getExchangeFactory().createExchange("payload");
         context.supplyExchange("queue://mdc-queue", exchange);
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> flowNameSeen.get() != null);

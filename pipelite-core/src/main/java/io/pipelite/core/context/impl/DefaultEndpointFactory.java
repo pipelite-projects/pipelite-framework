@@ -31,7 +31,7 @@ import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelURL;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.endpoint.SourceConcurrencyConfigurer;
+import io.pipelite.dsl.definition.SourceConcurrencyConfigurer;
 import io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties;
 
 import java.lang.reflect.Constructor;

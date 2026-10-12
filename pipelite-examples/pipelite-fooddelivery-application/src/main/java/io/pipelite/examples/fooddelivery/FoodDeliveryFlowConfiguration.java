@@ -25,7 +25,7 @@ import io.pipelite.dsl.annotation.DefineFlow;
 import io.pipelite.dsl.annotation.FlowConfiguration;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.builder.Backoff;
-import io.pipelite.spi.endpoint.SourceConcurrencyConfigurer;
+import io.pipelite.dsl.definition.SourceConcurrencyConfigurer;
 
 import java.math.BigDecimal;
 import java.time.Duration;

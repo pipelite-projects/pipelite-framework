@@ -15,6 +15,8 @@
  */
 package io.pipelite.core.context.impl;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.Pipelite;
 import io.pipelite.core.context.UnsupportedSourceConcurrencyException;
 import io.pipelite.dsl.definition.FlowDefinition;
@@ -49,7 +51,7 @@ public class SourceConcurrencyConfigurationTest {
         context = new DefaultPipeliteContext();
         context.start();
 
-        final ExecutorService pool = context.getSourceWorkerPool();
+        final ExecutorService pool = ((InternalPipeliteContext) context).getSourceWorkerPool();
         Assert.assertTrue(pool instanceof ThreadPoolExecutor);
         Assert.assertEquals(200, ((ThreadPoolExecutor) pool).getMaximumPoolSize());
     }
@@ -60,7 +62,7 @@ public class SourceConcurrencyConfigurationTest {
         context.setMaxSourceWorkerPoolSize(7);
         context.start();
 
-        final ExecutorService pool = context.getSourceWorkerPool();
+        final ExecutorService pool = ((InternalPipeliteContext) context).getSourceWorkerPool();
         Assert.assertTrue(pool instanceof ThreadPoolExecutor);
         Assert.assertEquals(7, ((ThreadPoolExecutor) pool).getMaximumPoolSize());
     }
@@ -79,11 +81,11 @@ public class SourceConcurrencyConfigurationTest {
         context = new DefaultPipeliteContext();
         context.setMaxSourceWorkerPoolSize(3);
 
-        final ExecutorService pool = context.getSourceWorkerPool();
+        final ExecutorService pool = ((InternalPipeliteContext) context).getSourceWorkerPool();
 
         Assert.assertTrue(pool instanceof ThreadPoolExecutor);
         Assert.assertEquals(3, ((ThreadPoolExecutor) pool).getMaximumPoolSize());
-        Assert.assertSame("repeated calls must return the same pool instance, not recreate it", pool, context.getSourceWorkerPool());
+        Assert.assertSame("repeated calls must return the same pool instance, not recreate it", pool, ((InternalPipeliteContext) context).getSourceWorkerPool());
     }
 
     @Test(expected = UnsupportedSourceConcurrencyException.class)

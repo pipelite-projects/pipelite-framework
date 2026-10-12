@@ -44,7 +44,7 @@ public class FileChannelAdapter implements ChannelAdapter {
 
     @Override
     public Endpoint createEndpoint(String url) {
-        return new FileEndpoint(EndpointURL.parse(url, FILE_RESOURCE_PATTERN), this, configuration);
+        return new FileEndpoint(EndpointURL.parse(url, FILE_RESOURCE_PATTERN), configuration);
     }
 
     @Override

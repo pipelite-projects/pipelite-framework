@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.flow.route;
 
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.impl.DefaultExchangeFactory;
 import io.pipelite.core.context.impl.DefaultMessageFactory;
 import io.pipelite.dsl.route.RecipientList;
@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class RecipientListRouterNodeTest {
 
-    private PipeliteContext pipeliteContext;
+    private InternalPipeliteContext pipeliteContext;
     private ExchangeFactory exchangeFactory;
     private RecipientListRouterNode subject;
 
@@ -45,8 +45,8 @@ public class RecipientListRouterNodeTest {
     public void setup() {
 
         exchangeFactory = new DefaultExchangeFactory(new DefaultMessageFactory(new DistributedIdentityGeneratorImpl()));
-        pipeliteContext = Mockito.mock(PipeliteContext.class);
-        Mockito.when(pipeliteContext.getExchangeFactory()).thenReturn(exchangeFactory);
+        pipeliteContext = Mockito.mock(InternalPipeliteContext.class);
+        Mockito.when(((InternalPipeliteContext) pipeliteContext).getExchangeFactory()).thenReturn(exchangeFactory);
 
         subject = new RecipientListRouterNode(
             RecipientList.of("queue://first-in", "queue://second-in"),

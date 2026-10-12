@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.core.context.ContextValidationException;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
@@ -85,7 +87,7 @@ public class PipeliteRetryChannelCollisionIntegrationTest {
         }
 
         context.start();
-        context.supplyExchange("queue://orders", context.getExchangeFactory().createExchange("x"));
+        context.supplyExchange("queue://orders", context.createExchange("x"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> attempts.get() >= 2);
         return attempts.get();

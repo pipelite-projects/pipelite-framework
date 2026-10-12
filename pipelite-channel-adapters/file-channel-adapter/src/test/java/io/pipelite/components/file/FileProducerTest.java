@@ -15,7 +15,6 @@
  */
 package io.pipelite.components.file;
 
-import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
@@ -156,7 +155,7 @@ public class FileProducerTest {
     private static FileProducer newProducer(Path target, boolean append, Path allowedWriteDirectory) {
         final String query = append ? "?append=true" : "";
         final EndpointURL endpointURL = EndpointURL.parse(target.toString() + query, RESOURCE_PATTERN);
-        final Endpoint endpoint = new DefaultEndpoint(endpointURL);
+        final Endpoint endpoint = (Endpoint) () -> endpointURL;
         final DefaultFileChannelConfiguration configuration = new DefaultFileChannelConfiguration();
         if (allowedWriteDirectory != null) {
             configuration.setAllowedWriteDirectory(allowedWriteDirectory);

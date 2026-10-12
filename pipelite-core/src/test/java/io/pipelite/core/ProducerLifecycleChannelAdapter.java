@@ -16,7 +16,6 @@
 package io.pipelite.core;
 
 import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
@@ -42,7 +41,13 @@ public class ProducerLifecycleChannelAdapter implements ChannelAdapter {
 
     @Override
     public Endpoint createEndpoint(String url) {
-        return new DefaultEndpoint(EndpointURL.parse(url), this) {
+        final EndpointURL endpointURL = EndpointURL.parse(url);
+        return new Endpoint() {
+            @Override
+            public EndpointURL getEndpointURL() {
+                return endpointURL;
+            }
+
             @Override
             public Producer createProducer() {
                 CREATED.incrementAndGet();

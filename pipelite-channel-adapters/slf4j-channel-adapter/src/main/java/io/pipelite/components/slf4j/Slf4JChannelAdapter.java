@@ -23,7 +23,7 @@ public class Slf4JChannelAdapter implements ChannelAdapter {
 
     @Override
     public Endpoint createEndpoint(String url) {
-        return new Slf4jEndpoint(EndpointURL.parse(url), this);
+        return new Slf4jEndpoint(EndpointURL.parse(url));
     }
 
 }

@@ -17,7 +17,7 @@ package io.pipelite.core.flow.route;
 
 import io.pipelite.core.context.impl.DefaultExchangeFactory;
 import io.pipelite.core.context.impl.DefaultMessageFactory;
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.flow.expression.TextExpressionEvaluator;
 import io.pipelite.dsl.route.*;
 import io.pipelite.expression.ExpressionParser;
@@ -34,16 +34,16 @@ import java.util.concurrent.atomic.AtomicReference;
 
 public class RouterNodeTest {
 
-    private PipeliteContext pipeliteContext;
+    private InternalPipeliteContext pipeliteContext;
     private ExchangeFactory exchangeFactory;
     private RouterNode subject;
 
     @Before
     public void setup(){
 
-        pipeliteContext = Mockito.mock(PipeliteContext.class);
+        pipeliteContext = Mockito.mock(InternalPipeliteContext.class);
         exchangeFactory = new DefaultExchangeFactory(new DefaultMessageFactory(new DistributedIdentityGeneratorImpl()));
-        Mockito.when(pipeliteContext.getExchangeFactory()).thenReturn(exchangeFactory);
+        Mockito.when(((InternalPipeliteContext) pipeliteContext).getExchangeFactory()).thenReturn(exchangeFactory);
 
         final ExpressionParser expressionParser = new ExpressionParser();
         final ConditionEvaluator conditionEvaluator = new ExpressionConditionEvaluator(expressionParser);

@@ -16,19 +16,24 @@
 package io.pipelite.components.file;
 
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
+import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.spi.source.Source;
 
-public class FileEndpoint extends DefaultEndpoint {
+public class FileEndpoint implements Endpoint {
 
+    private final EndpointURL endpointURL;
     private final FileChannelConfiguration configuration;
 
-    public FileEndpoint(EndpointURL endpointURL, ChannelAdapter channel, FileChannelConfiguration configuration) {
-        super(endpointURL, channel);
+    public FileEndpoint(EndpointURL endpointURL, FileChannelConfiguration configuration) {
+        this.endpointURL = Preconditions.notNull(endpointURL, "endpointURL is required and cannot be null");
         this.configuration = Preconditions.notNull(configuration, "configuration is required and cannot be null");
+    }
+
+    @Override
+    public EndpointURL getEndpointURL() {
+        return endpointURL;
     }
 
     @Override
