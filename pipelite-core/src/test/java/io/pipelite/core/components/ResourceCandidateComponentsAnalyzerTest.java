@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.components;
 
-import io.pipelite.components.queue.QueueChannelAdapter;
+import io.pipelite.core.channel.queue.QueueChannelAdapter;
 import io.pipelite.dsl.ChannelProtocols;
 import org.junit.Assert;
 import org.junit.Before;
@@ -36,12 +36,16 @@ public class ResourceCandidateComponentsAnalyzerTest {
     }
 
     @Test
-    public void shouldResolveCandidates() throws MalformedURLException {
+    public void shouldResolveCandidates() throws java.io.IOException {
 
         final ClassLoader cl = getClass().getClassLoader();
-        final URL resourceURL = cl.getResource("META-INF/pipelite.factories");
-        final Collection<CandidateComponentMetadata> candidates = subject.apply(resourceURL);
-        Assert.assertNotNull(candidates);
+        // Several modules declare a META-INF/pipelite.factories (the framework's own queue channel in core,
+        // the test channels of this module, the default adapters): every one of them is analyzed.
+        final Collection<CandidateComponentMetadata> candidates = new java.util.ArrayList<>();
+        for (URL resourceURL : java.util.Collections.list(cl.getResources("META-INF/pipelite.factories"))) {
+            candidates.addAll(subject.apply(resourceURL));
+        }
+        Assert.assertFalse(candidates.isEmpty());
 
         // ChannelProtocols.QUEUE is what the framework addresses internal flows with (issue #102); the
         // link adapter is declared under that name in META-INF/pipelite.factories, which cannot

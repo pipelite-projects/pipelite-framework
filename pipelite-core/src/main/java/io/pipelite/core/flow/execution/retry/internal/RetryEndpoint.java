@@ -15,11 +15,12 @@
  */
 package io.pipelite.core.flow.execution.retry.internal;
 
+import io.pipelite.core.source.internal.ConsumerEndpoint;
 import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 
-public class RetryEndpoint extends DefaultEndpoint {
+public class RetryEndpoint extends DefaultEndpoint implements ConsumerEndpoint {
 
     public RetryEndpoint(EndpointURL endpointURL) {
         super(endpointURL);

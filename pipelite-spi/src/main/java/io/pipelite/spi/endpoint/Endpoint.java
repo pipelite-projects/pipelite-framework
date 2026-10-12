@@ -27,16 +27,13 @@ public interface Endpoint {
     EndpointProperties getProperties();
 
     /**
-     * What a flow reading from this endpoint ({@code fromSource}) uses. Transitional (issue #159): an
-     * endpoint that returns {@code null}, the default, still provides its consumer through {@link
-     * #createConsumer()}; the adapters move to this method one by one and {@code createConsumer} goes
-     * away with the last of them.
+     * What a flow reading from this endpoint ({@code fromSource}) uses. An endpoint that cannot be read
+     * from, like a sink-only one, keeps this default.
      */
     default Source createSource() {
-        return null;
+        throw new UnsupportedOperationException(getEndpointURL() + " cannot be used as a source");
     }
 
-    Consumer createConsumer();
     //PollingConsumer createPollingConsumer(MessageSupplier supplier, ChainedProcessor processor);
     Producer createProducer();
 

@@ -20,7 +20,6 @@
     </properties>
 
     <modules>
-        <module>queue-channel-adapter</module>
         <module>time-channel-adapter</module>
         <module>slf4j-channel-adapter</module>
         <module>http-channel-adapter</module>

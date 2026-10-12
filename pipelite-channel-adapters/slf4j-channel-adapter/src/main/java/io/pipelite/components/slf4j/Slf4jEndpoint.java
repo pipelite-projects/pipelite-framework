@@ -25,11 +25,6 @@ public class Slf4jEndpoint extends DefaultEndpoint {
     }
 
     @Override
-    public Consumer createConsumer() {
-        throw new IllegalStateException("TimeComponent doesn't support consumer");
-    }
-
-    @Override
     public Producer createProducer() {
         return new Slf4jProducer(this);
     }

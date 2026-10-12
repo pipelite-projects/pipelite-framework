@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.components.queue;
+package io.pipelite.core.channel.queue;
 
 import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.dsl.Exchange;

@@ -27,6 +27,7 @@ import io.pipelite.dsl.definition.EndpointDefinition;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.ProcessorDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
+import io.pipelite.core.source.internal.ConsumerEndpoint;
 import io.pipelite.core.source.internal.SourceConsumers;
 import io.pipelite.spi.channel.ChannelURL;
 import io.pipelite.spi.endpoint.Consumer;
@@ -179,15 +180,15 @@ public class FlowFactory {
     }
 
     /**
-     * The consumer that starts the flow. An adapter that provides a {@link Source} gets it wrapped in the
-     * framework's own consumer; one that does not yet (issue #159: the adapters move one by one) still
-     * provides its consumer itself.
+     * The consumer that starts the flow. An adapter provides a {@link Source}, which is wrapped in the
+     * framework's own consumer; the endpoints of the framework itself (the queue, the retry channel)
+     * provide their consumer directly.
      */
     private Consumer createConsumer(Endpoint sourceEndpoint, SourceDefinition sourceDefinition) {
-        final Source source = sourceEndpoint.createSource();
-        if (source == null) {
-            return sourceEndpoint.createConsumer();
+        if (sourceEndpoint instanceof ConsumerEndpoint) {
+            return ((ConsumerEndpoint) sourceEndpoint).createConsumer();
         }
+        final Source source = sourceEndpoint.createSource();
         return SourceConsumers.wrap(source, sourceEndpoint, roleOf(sourceDefinition));
     }
 

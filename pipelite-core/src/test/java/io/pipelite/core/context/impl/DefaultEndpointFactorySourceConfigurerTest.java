@@ -21,7 +21,7 @@ import io.pipelite.components.file.FileChannelAdapter;
 import io.pipelite.components.file.FileSourceConfigurer;
 import io.pipelite.components.http.HttpChannelAdapter;
 import io.pipelite.components.http.HttpSourceConfigurer;
-import io.pipelite.components.queue.QueueChannelAdapter;
+import io.pipelite.core.channel.queue.QueueChannelAdapter;
 import io.pipelite.components.time.TimeChannelAdapter;
 import io.pipelite.components.time.TimeSourceConfigurer;
 import io.pipelite.core.Pipelite;

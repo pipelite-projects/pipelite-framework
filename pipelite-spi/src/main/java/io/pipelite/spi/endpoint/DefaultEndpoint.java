@@ -55,11 +55,6 @@ public class DefaultEndpoint implements Endpoint, ExchangeFactoryAware {
     }
 
     @Override
-    public Consumer createConsumer() {
-        return new EventDrivenConsumerService(new EventDrivenConsumer(this));
-    }
-
-    @Override
     public Producer createProducer() {
         return exchange -> { };   // what the old default producer did: nothing
     }

@@ -25,11 +25,10 @@ import java.util.Map;
  * The {@link SourceConfigurer} of a queue source, {@code fromSource("queue://name", ...)}: the
  * consumers of the queue are the concurrent consumers of the one flow that reads it, and this
  * configures how many ({@link #concurrency(int)}) and on which kind of executor ({@link
- * #executorType(ExecutorType)}). Handed out by the {@code queue} channel adapter through {@code
- * ChannelAdapter#newSourceConfigurer()}. Lives here, next to {@code DefaultEndpoint}, rather than
- * in the {@code queue-channel-adapter} module, because what it configures ({@code
+ * #executorType(ExecutorType)}). Handed out by the {@code queue} channel, the framework's own, through
+ * {@code ChannelAdapter#newSourceConfigurer()}. What it configures ({@code
  * EventDrivenConsumerService}, {@code SourceConcurrencyProperties}) is the framework's own
- * default consumer machinery, not something {@code queue-channel-adapter} builds.
+ * default consumer machinery.
  * <p>
  * {@link #concurrency(int)}/{@link #executorType(ExecutorType)} exist <strong>only</strong> here —
  * no other adapter's own configurer (e.g. {@code KafkaSourceConfigurer}) declares them at all.

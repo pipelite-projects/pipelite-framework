@@ -13,21 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.components.queue;
+package io.pipelite.core.source.internal;
 
-import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
-import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.endpoint.Producer;
+import io.pipelite.spi.endpoint.Consumer;
 
-public class QueueEndpoint extends DefaultEndpoint {
+/**
+ * An endpoint of the framework's own that provides the consumer of the flow it starts itself, instead of
+ * a {@link io.pipelite.spi.source.Source} wrapped by the framework: the {@code queue://} channel, whose
+ * exchanges are not received from anywhere but handed over by the producer of another flow, and the
+ * retry channel, whose exchanges come from the repository of the executions to retry. Adapters never
+ * implement this: it is not part of the SPI.
+ */
+public interface ConsumerEndpoint {
 
-    public QueueEndpoint(EndpointURL endpointURL, ChannelAdapter channel) {
-        super(endpointURL, channel);
-    }
-
-    @Override
-    public Producer createProducer() {
-        return new QueueProducer(this);
-    }
+    Consumer createConsumer();
 }

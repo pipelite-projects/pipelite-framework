@@ -54,7 +54,7 @@ Each line maps a protocol to the fully qualified name of a class implementing `C
 
 [source,properties]
 ----
-queue=io.pipelite.components.queue.QueueChannelAdapter
+slf4j=io.pipelite.components.slf4j.Slf4JChannelAdapter
 time=io.pipelite.components.time.TimeChannelAdapter
 ----
 

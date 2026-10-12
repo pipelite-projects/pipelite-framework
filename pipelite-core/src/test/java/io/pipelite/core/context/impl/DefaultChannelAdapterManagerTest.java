@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.context.impl;
 
-import io.pipelite.components.queue.QueueChannelAdapter;
+import io.pipelite.core.channel.queue.QueueChannelAdapter;
 import io.pipelite.components.time.TimeChannelAdapter;
 import io.pipelite.core.components.DuplicateChannelAdapterProtocolException;
 import io.pipelite.core.context.ChannelAdapterManager;

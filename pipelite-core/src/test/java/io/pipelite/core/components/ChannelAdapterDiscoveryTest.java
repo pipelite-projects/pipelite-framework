@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.components;
 
-import io.pipelite.components.queue.QueueChannelAdapter;
+import io.pipelite.core.channel.queue.QueueChannelAdapter;
 import io.pipelite.components.slf4j.Slf4JChannelAdapter;
 import io.pipelite.components.time.TimeChannelAdapter;
 import io.pipelite.spi.channel.ChannelAdapter;

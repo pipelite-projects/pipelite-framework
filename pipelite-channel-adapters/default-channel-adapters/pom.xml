@@ -18,11 +18,6 @@
     <dependencies>
         <dependency>
             <groupId>io.pipelite</groupId>
-            <artifactId>queue-channel-adapter</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.pipelite</groupId>
             <artifactId>time-channel-adapter</artifactId>
             <version>${project.version}</version>
         </dependency>
