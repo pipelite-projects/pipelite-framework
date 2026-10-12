@@ -15,6 +15,7 @@
  */
 package io.pipelite.channels.kafka;
 
+import io.pipelite.channels.kafka.support.KafkaConstants;
 import io.pipelite.dsl.Headers;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
@@ -202,5 +203,51 @@ public class KafkaConsumerServiceTest {
 
         Assert.assertEquals(0, processedCount.get());
         verify(mockKafkaConsumer, times(1)).commitSync(); // batchFullyHandled trivially true for zero records
+    }
+
+    // Characterization added before the adapter contract changes (issue #159): what the adapter hands
+    // to the framework for each record, and what it does when one hand-over fails. The two tests
+    // below capture the hand-over by overriding process(...), the single seam through which the
+    // adapter gives an exchange to the framework today.
+
+    private KafkaConsumerService capturing(List<ExchangeImpl> handedOver, int failAtZeroBasedIndex) {
+        final AtomicInteger index = new AtomicInteger(0);
+        final KafkaConsumerService capturing = new KafkaConsumerService(mockKafkaConsumer, TOPIC,
+            new DefaultEndpoint(EndpointURL.parse("kafka-source"))) {
+            @Override
+            public void process(ExchangeImpl exchange) {
+                handedOver.add(exchange);
+                if (index.getAndIncrement() == failAtZeroBasedIndex) {
+                    throw new IllegalStateException("simulated failure to accept the record");
+                }
+            }
+        };
+        capturing.setExchangeFactory(TEST_EXCHANGE_FACTORY);
+        return capturing;
+    }
+
+    @Test
+    public void shouldHandOverTheRecordValueAsThePayloadAndTheRecordKeyAsAHeaderInTheOrderOfTheBatch() {
+        final List<ExchangeImpl> handedOver = new java.util.ArrayList<>();
+
+        capturing(handedOver, -1).new KafkaConsumerTask(Duration.ofMillis(100)).processBatch(batchOf(3));
+
+        Assert.assertEquals(3, handedOver.size());
+        for (int i = 0; i < 3; i++) {
+            Assert.assertEquals("value-" + i, handedOver.get(i).getInputPayload());
+            Assert.assertEquals("key-" + i,
+                handedOver.get(i).tryGetHeader(KafkaConstants.KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME).orElse(null));
+        }
+        verify(mockKafkaConsumer, times(1)).commitSync();
+    }
+
+    @Test
+    public void shouldKeepHandingOverTheRestOfTheBatchWhenOneRecordFailsButNotCommit() {
+        final List<ExchangeImpl> handedOver = new java.util.ArrayList<>();
+
+        capturing(handedOver, 1).new KafkaConsumerTask(Duration.ofMillis(100)).processBatch(batchOf(4));
+
+        Assert.assertEquals("the records after the failed one are still attempted", 4, handedOver.size());
+        verify(mockKafkaConsumer, never()).commitSync();
     }
 }
