@@ -84,6 +84,34 @@ public class PollingSourceConsumerTest {
     }
 
     @Test
+    public void givenTheSourceHandsExchangesOverWithAcceptAndReturnsNull_thenReceiveReturnsThemInOrder() {
+        final PollingSourceConsumer[] consumer = new PollingSourceConsumer[1];
+        final int[] polls = {0};
+        final PollingSource handingOver = new PollingSource() {
+            @Override
+            public Exchange poll() {
+                if (polls[0]++ == 0) {
+                    // what SourceContext#accept does: queue the exchange, durably
+                    consumer[0].consume(exchangeFactory.createExchange("first"));
+                    consumer[0].consume(exchangeFactory.createExchange("second"));
+                }
+                return null;
+            }
+        };
+        consumer[0] = new PollingSourceConsumer(new DefaultEndpoint(EndpointURL.parse("tick")), handingOver);
+        consumer[0].setExchangeFactory(exchangeFactory);
+
+        final ExchangeImpl first = consumer[0].receive();
+        final ExchangeImpl second = consumer[0].receive();
+        final ExchangeImpl none = consumer[0].receive();
+
+        Assert.assertEquals("what was handed over comes out of the same call that polled", "first", first.getInputPayload());
+        Assert.assertEquals("second", second.getInputPayload());
+        Assert.assertNull(none);
+        Assert.assertEquals("the second call took the queue and did not poll again", 2, polls[0]);
+    }
+
+    @Test
     public void givenAnExchangeThatTheContextDidNotCreate_thenItIsRejected() {
         final Exchange foreign = new Exchange() {
             @Override public Headers getHeaders() { return null; }

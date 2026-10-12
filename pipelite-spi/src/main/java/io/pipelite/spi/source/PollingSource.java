@@ -31,6 +31,10 @@ public non-sealed interface PollingSource extends Source {
      * The next exchange, created with {@link SourceContext#newExchange(Object)}, or {@code null} when
      * there is nothing to read now. Called up to {@code batchSize} times per tick, until it returns
      * {@code null}.
+     * <p>
+     * A source that reads several records at a time, and must not move its own position (a file offset)
+     * before they are safe, hands each of them over with {@link SourceContext#accept}, which makes it
+     * durable, and returns {@code null}: the framework then takes the exchanges from its own queue.
      */
     Exchange poll();
 

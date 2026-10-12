@@ -15,13 +15,10 @@
  */
 package io.pipelite.components.file;
 
-import io.pipelite.dsl.Headers;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -35,10 +32,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 /**
- * Wires a {@link FileTailPollingConsumer} (source) directly to a {@link FileProducer} (sink),
+ * Wires a {@link PollingSourceHarness} (source) directly to a {@link FileProducer} (sink),
  * without going through the full flow/DSL machinery (kept out of this module's dependencies,
  * see D4 in the implementation plan). This still exercises the source-to-sink data path and the
  * endpoint URL configuration options (record mapper resolution included) end-to-end.
@@ -66,7 +62,7 @@ public class FileSourceToSinkTest {
         final Path sinkFile = temporaryFolder.getRoot().toPath().resolve("sink.log");
         Files.writeString(sourceFile, "line-1\nline-2\nline-3\n", StandardCharsets.UTF_8);
 
-        final FileTailPollingConsumer consumer = newConsumer(sourceFile, "?startPosition=beginning");
+        final PollingSourceHarness consumer = newConsumer(sourceFile, "?startPosition=beginning");
         final FileProducer producer = newProducer(sinkFile, true);
 
         final List<Object> transferred = drainWithLineBreaks(consumer, producer);
@@ -81,7 +77,7 @@ public class FileSourceToSinkTest {
         final Path sinkFile = temporaryFolder.getRoot().toPath().resolve("sink.log");
         Files.writeString(sourceFile, "skipped-because-startPosition-is-end\n", StandardCharsets.UTF_8);
 
-        final FileTailPollingConsumer consumer = newConsumer(sourceFile, "");
+        final PollingSourceHarness consumer = newConsumer(sourceFile, "");
         final FileProducer producer = newProducer(sinkFile, true);
 
         drainWithLineBreaks(consumer, producer);
@@ -104,7 +100,7 @@ public class FileSourceToSinkTest {
         final Path sinkFile = temporaryFolder.getRoot().toPath().resolve("sink.log");
         Files.writeString(sourceFile, "hello\nworld\n", StandardCharsets.UTF_8);
 
-        final FileTailPollingConsumer consumer = newConsumer(sourceFile, "?startPosition=beginning&recordMapper=upper");
+        final PollingSourceHarness consumer = newConsumer(sourceFile, "?startPosition=beginning&recordMapper=upper");
         final FileProducer producer = newProducer(sinkFile, true);
 
         drainWithLineBreaks(consumer, producer);
@@ -120,7 +116,7 @@ public class FileSourceToSinkTest {
         final Path sinkFile = temporaryFolder.getRoot().toPath().resolve("sink.log");
         Files.writeString(sourceFile, "hello\nworld\n", StandardCharsets.UTF_8);
 
-        final FileTailPollingConsumer consumer = newConsumer(sourceFile, "?startPosition=beginning");
+        final PollingSourceHarness consumer = newConsumer(sourceFile, "?startPosition=beginning");
         final FileProducer producer = newProducer(sinkFile, true);
 
         drainWithLineBreaks(consumer, producer);
@@ -140,7 +136,7 @@ public class FileSourceToSinkTest {
      * simulates the minimal processor a real flow would place between source and sink to
      * preserve line boundaries in the sink file.
      */
-    private List<Object> drainWithLineBreaks(FileTailPollingConsumer consumer, FileProducer producer) {
+    private List<Object> drainWithLineBreaks(PollingSourceHarness consumer, FileProducer producer) {
         final List<Object> transferred = new ArrayList<>();
         ExchangeImpl exchange;
         while ((exchange = consumer.receive(0)) != null) {
@@ -152,14 +148,11 @@ public class FileSourceToSinkTest {
         return transferred;
     }
 
-    private FileTailPollingConsumer newConsumer(Path file, String query) {
+    private PollingSourceHarness newConsumer(Path file, String query) {
         final EndpointURL endpointURL = EndpointURL.parse(file.toString() + query, RESOURCE_PATTERN);
         final Endpoint endpoint = new DefaultEndpoint(endpointURL);
-        final FileTailPollingConsumer consumer = new FileTailPollingConsumer(endpoint, configuration);
-        consumer.setExchangeFactory(new TestExchangeFactory());
-        return consumer;
+        return new PollingSourceHarness(new FileTailSource(endpoint, configuration));
     }
-
     private FileProducer newProducer(Path file, boolean append) {
         final String query = append ? "?append=true" : "";
         final EndpointURL endpointURL = EndpointURL.parse(file.toString() + query, RESOURCE_PATTERN);
@@ -179,43 +172,6 @@ public class FileSourceToSinkTest {
                 upperCased.add(record.toUpperCase());
             }
             return new MappingResult<>(upperCased, result.getConsumedLength());
-        }
-    }
-
-    private static class TestExchangeFactory implements ExchangeFactory {
-
-        @Override
-        public ExchangeImpl createExchange() {
-            return createExchange(null, null);
-        }
-
-        @Override
-        public ExchangeImpl createExchange(Headers headers) {
-            return createExchange(headers, null);
-        }
-
-        @Override
-        public ExchangeImpl createExchange(Headers headers, Object inputPayload) {
-            final ExchangeImpl exchange = new ExchangeImpl(new SimpleMessage(UUID.randomUUID().toString()), headers);
-            if (inputPayload != null) {
-                exchange.setInputPayload(inputPayload);
-            }
-            return exchange;
-        }
-
-        @Override
-        public ExchangeImpl createExchange(Object inputPayload) {
-            return createExchange(null, inputPayload);
-        }
-
-        @Override
-        public ExchangeImpl copyExchange(ExchangeImpl exchange) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public ExchangeImpl nextExchange(ExchangeImpl current) {
-            throw new UnsupportedOperationException();
         }
     }
 

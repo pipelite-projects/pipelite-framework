@@ -15,13 +15,10 @@
  */
 package io.pipelite.components.file;
 
-import io.pipelite.dsl.Headers;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
@@ -32,9 +29,8 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.UUID;
 
-public class FileTailPollingConsumerTest {
+public class FileTailSourceTest {
 
     private static final String RESOURCE_PATTERN = "[a-zA-Z0-9_./:@\\\\\\-]+";
 
@@ -56,7 +52,7 @@ public class FileTailPollingConsumerTest {
         final Path file = temporaryFolder.getRoot().toPath().resolve("app.log");
         Files.writeString(file, "already-here\n", StandardCharsets.UTF_8);
 
-        final FileTailPollingConsumer subject = newConsumer(file, "");
+        final PollingSourceHarness subject = newConsumer(file, "");
 
         final ExchangeImpl exchange = subject.receive(0);
         Assert.assertNull(exchange);
@@ -67,7 +63,7 @@ public class FileTailPollingConsumerTest {
         final Path file = temporaryFolder.getRoot().toPath().resolve("app.log");
         Files.writeString(file, "first\nsecond\n", StandardCharsets.UTF_8);
 
-        final FileTailPollingConsumer subject = newConsumer(file, "?startPosition=beginning");
+        final PollingSourceHarness subject = newConsumer(file, "?startPosition=beginning");
 
         final ExchangeImpl first = subject.receive(0);
         Assert.assertNotNull(first);
@@ -87,7 +83,7 @@ public class FileTailPollingConsumerTest {
         final Path file = temporaryFolder.getRoot().toPath().resolve("app.log");
         Files.writeString(file, "old\n", StandardCharsets.UTF_8);
 
-        final FileTailPollingConsumer subject = newConsumer(file, "");
+        final PollingSourceHarness subject = newConsumer(file, "");
         Assert.assertNull(subject.receive(0)); // skips pre-existing content (startPosition=end default)
 
         Files.writeString(file, "new-line\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
@@ -100,7 +96,7 @@ public class FileTailPollingConsumerTest {
     @Test
     public void shouldReturnNullWhenFileDoesNotExistYet() {
         final Path file = temporaryFolder.getRoot().toPath().resolve("missing.log");
-        final FileTailPollingConsumer subject = newConsumer(file, "?startPosition=beginning");
+        final PollingSourceHarness subject = newConsumer(file, "?startPosition=beginning");
 
         Assert.assertNull(subject.receive(0));
     }
@@ -110,7 +106,7 @@ public class FileTailPollingConsumerTest {
         final Path file = temporaryFolder.getRoot().toPath().resolve("app.log");
         Files.writeString(file, "aaaaaaaaaa\n", StandardCharsets.UTF_8);
 
-        final FileTailPollingConsumer subject = newConsumer(file, "?startPosition=beginning");
+        final PollingSourceHarness subject = newConsumer(file, "?startPosition=beginning");
         final ExchangeImpl first = subject.receive(0);
         Assert.assertEquals("aaaaaaaaaa", first.getInputPayload());
 
@@ -127,14 +123,14 @@ public class FileTailPollingConsumerTest {
         final Path file = temporaryFolder.getRoot().toPath().resolve("app.log");
         Files.writeString(file, "first\n", StandardCharsets.UTF_8);
 
-        final FileTailPollingConsumer first = newConsumer(file, "?startPosition=beginning");
+        final PollingSourceHarness first = newConsumer(file, "?startPosition=beginning");
         Assert.assertEquals("first", first.receive(0).getInputPayload());
 
         Files.writeString(file, "second\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
 
         // A brand new consumer instance (simulating a restart) must resume from the persisted offset,
         // not re-read "first" nor re-apply startPosition semantics.
-        final FileTailPollingConsumer afterRestart = newConsumer(file, "?startPosition=beginning");
+        final PollingSourceHarness afterRestart = newConsumer(file, "?startPosition=beginning");
         final ExchangeImpl exchange = afterRestart.receive(0);
         Assert.assertNotNull(exchange);
         Assert.assertEquals("second", exchange.getInputPayload());
@@ -145,7 +141,7 @@ public class FileTailPollingConsumerTest {
         final Path file = temporaryFolder.getRoot().toPath().resolve("data.csv");
         Files.writeString(file, "id,name\ncomment\n1,alice\n2,bob\n", StandardCharsets.UTF_8);
 
-        final FileTailPollingConsumer subject = newConsumer(file, "?startPosition=beginning&skipLines=2");
+        final PollingSourceHarness subject = newConsumer(file, "?startPosition=beginning&skipLines=2");
 
         final ExchangeImpl first = subject.receive(0);
         Assert.assertNotNull(first);
@@ -165,7 +161,7 @@ public class FileTailPollingConsumerTest {
 
         // startPosition defaults to "end": skipLines has no effect because the tail
         // already jumps past all pre-existing content, header included.
-        final FileTailPollingConsumer subject = newConsumer(file, "?skipLines=1");
+        final PollingSourceHarness subject = newConsumer(file, "?skipLines=1");
         Assert.assertNull(subject.receive(0));
 
         Files.writeString(file, "1,alice\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
@@ -191,13 +187,13 @@ public class FileTailPollingConsumerTest {
         // First tranche: only one of the two header lines is complete.
         Files.writeString(file, "id,name\n", StandardCharsets.UTF_8);
 
-        final FileTailPollingConsumer first = newConsumer(file, "?startPosition=beginning&skipLines=2");
+        final PollingSourceHarness first = newConsumer(file, "?startPosition=beginning&skipLines=2");
         Assert.assertNull(first.receive(0));
 
         // Simulate a JVM restart in the middle of the header: a brand new consumer instance
         // must remember that 1 header line was already skipped, and skip exactly 1 more.
         Files.writeString(file, "comment\n1,alice\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
-        final FileTailPollingConsumer afterRestart = newConsumer(file, "?startPosition=beginning&skipLines=2");
+        final PollingSourceHarness afterRestart = newConsumer(file, "?startPosition=beginning&skipLines=2");
 
         final ExchangeImpl exchange = afterRestart.receive(0);
         Assert.assertNotNull(exchange);
@@ -205,49 +201,9 @@ public class FileTailPollingConsumerTest {
         Assert.assertNull(afterRestart.receive(0));
     }
 
-    private FileTailPollingConsumer newConsumer(Path file, String query) {
+    private PollingSourceHarness newConsumer(Path file, String query) {
         final EndpointURL endpointURL = EndpointURL.parse(file.toString() + query, RESOURCE_PATTERN);
         final Endpoint endpoint = new DefaultEndpoint(endpointURL);
-        final FileTailPollingConsumer consumer = new FileTailPollingConsumer(endpoint, configuration);
-        consumer.setExchangeFactory(new TestExchangeFactory());
-        return consumer;
+        return new PollingSourceHarness(new FileTailSource(endpoint, configuration));
     }
-
-    private static class TestExchangeFactory implements ExchangeFactory {
-
-        @Override
-        public ExchangeImpl createExchange() {
-            return createExchange(null, null);
-        }
-
-        @Override
-        public ExchangeImpl createExchange(Headers headers) {
-            return createExchange(headers, null);
-        }
-
-        @Override
-        public ExchangeImpl createExchange(Headers headers, Object inputPayload) {
-            final ExchangeImpl exchange = new ExchangeImpl(new SimpleMessage(UUID.randomUUID().toString()), headers);
-            if (inputPayload != null) {
-                exchange.setInputPayload(inputPayload);
-            }
-            return exchange;
-        }
-
-        @Override
-        public ExchangeImpl createExchange(Object inputPayload) {
-            return createExchange(null, inputPayload);
-        }
-
-        @Override
-        public ExchangeImpl copyExchange(ExchangeImpl exchange) {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public ExchangeImpl nextExchange(ExchangeImpl current) {
-            throw new UnsupportedOperationException();
-        }
-    }
-
 }

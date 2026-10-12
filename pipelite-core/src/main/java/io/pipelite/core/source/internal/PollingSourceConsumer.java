@@ -27,7 +27,9 @@ import io.pipelite.spi.source.PollingSource;
 /**
  * What the polling service asks for the next exchange: first what is already queued (an entry recovered
  * from the durable inbox is delivered before anything new is polled), then the adapter's {@link
- * PollingSource}.
+ * PollingSource}. A source that reads several records at once hands them over with {@code accept}, which
+ * queues them, and returns {@code null} from {@code poll}: what it handed over is taken from the queue
+ * right after, in the same call.
  */
 final class PollingSourceConsumer extends DefaultPollingConsumer implements ExchangeFactoryAware {
 
@@ -61,6 +63,9 @@ final class PollingSourceConsumer extends DefaultPollingConsumer implements Exch
             return queued;
         }
         final Exchange polled = source.poll();
-        return polled == null ? null : SourceExchanges.asExchangeImpl(polled);
+        if (polled != null) {
+            return SourceExchanges.asExchangeImpl(polled);
+        }
+        return super.receive(0);
     }
 }

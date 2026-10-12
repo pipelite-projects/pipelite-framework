@@ -16,13 +16,12 @@
 package io.pipelite.components.file;
 
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.spi.endpoint.DefaultPollingConsumer;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointProperties;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
+import io.pipelite.spi.source.PollingSource;
+import io.pipelite.spi.source.SourceContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,7 +34,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.List;
 
-public class FileTailPollingConsumer extends DefaultPollingConsumer implements ExchangeFactoryAware {
+final class FileTailSource implements PollingSource {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
@@ -47,11 +46,11 @@ public class FileTailPollingConsumer extends DefaultPollingConsumer implements E
     private final long skipLines;
     private final boolean skipHeaderEnabled;
 
-    private ExchangeFactory exchangeFactory;
+    private final Path stateDirectory;
 
-    public FileTailPollingConsumer(Endpoint endpoint, FileChannelConfiguration configuration) {
-        super(endpoint);
+    private SourceContext context;
 
+    FileTailSource(Endpoint endpoint, FileChannelConfiguration configuration) {
         Preconditions.notNull(configuration, "configuration is required and cannot be null");
 
         final EndpointURL endpointURL = endpoint.getEndpointURL();
@@ -62,7 +61,8 @@ public class FileTailPollingConsumer extends DefaultPollingConsumer implements E
         this.startPosition = properties.getOrDefault(FileConstants.START_POSITION_PROPERTY_NAME, FileConstants.START_POSITION_END);
         final String recordMapperName = properties.get(FileConstants.RECORD_MAPPER_PROPERTY_NAME);
         this.recordMapper = configuration.resolveMapper(recordMapperName);
-        this.stateStore = new FileTailStateStore(configuration.getStateDirectory());
+        this.stateDirectory = configuration.getStateDirectory();
+        this.stateStore = new FileTailStateStore(stateDirectory);
         this.skipLines = Long.parseLong(properties.getOrDefault(FileConstants.SKIP_LINES_PROPERTY_NAME, "0"));
 
         if (skipLines > 0 && !(recordMapper instanceof LineRecordMapper)) {
@@ -79,22 +79,27 @@ public class FileTailPollingConsumer extends DefaultPollingConsumer implements E
     }
 
     @Override
-    public void setExchangeFactory(ExchangeFactory exchangeFactory) {
-        this.exchangeFactory = exchangeFactory;
+    public void start(SourceContext context) {
+        try {
+            Files.createDirectories(stateDirectory);
+        } catch (IOException exception) {
+            throw new IllegalStateException(String.format("Unable to create state directory '%s'", stateDirectory), exception);
+        }
+        this.context = context;
     }
 
+    /**
+     * Reads what was appended to the file since the last poll and hands every record over with {@code
+     * accept}, which makes it durable before the position in the file is saved: a crash between the two
+     * redelivers the records, it does not lose them. It returns {@code null}: the records are not returned
+     * one by one, the framework takes them from its own queue, always, even when this poll found no new
+     * content, because an earlier poll may have queued more records than one call hands out.
+     */
     @Override
-    public ExchangeImpl receive() {
-        return receive(0);
-    }
-
-    @Override
-    public ExchangeImpl receive(long timeout) {
-        Preconditions.notNull(exchangeFactory, "ExchangeFactory is required and cannot be null");
+    public Exchange poll() {
+        Preconditions.notNull(context, "the source has not been started");
         pollAndEnqueueNewRecords();
-        // Always drain the queue, even when this tick found no new content: a previous tick
-        // may have enqueued more records than a single receive() call returns.
-        return super.receive(timeout);
+        return null;
     }
 
     private void pollAndEnqueueNewRecords() {
@@ -139,10 +144,10 @@ public class FileTailPollingConsumer extends DefaultPollingConsumer implements E
         }
 
         for (Object record : records) {
-            final ExchangeImpl exchange = exchangeFactory.createExchange(record);
+            final Exchange exchange = context.newExchange(record);
             exchange.putHeader(FileConstants.FILE_NAME_EXCHANGE_HEADER_NAME, path.getFileName().toString());
             exchange.putHeader(FileConstants.FILE_PATH_EXCHANGE_HEADER_NAME, path.toAbsolutePath().toString());
-            consume(exchange);
+            context.accept(exchange);
         }
 
         stateStore.save(resourceKey, new TailState(offset + result.getConsumedLength(), skippedLines));
