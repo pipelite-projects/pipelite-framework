@@ -27,11 +27,14 @@ import io.pipelite.dsl.definition.EndpointDefinition;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.ProcessorDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
+import io.pipelite.core.source.internal.SourceConsumers;
+import io.pipelite.spi.channel.ChannelURL;
 import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.DurableInboxAware;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
+import io.pipelite.spi.source.Source;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.spi.flow.Flow;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
@@ -46,6 +49,8 @@ import java.util.Objects;
 public class FlowFactory {
 
     private final PipeliteContext context;
+    private static final String DEFAULT_SOURCE_ROLE = "event";
+
     private final EndpointFactory endpointFactory;
 
     /** Called with every producer an adapter creates for a flow, so the context can close it when it stops. */
@@ -83,7 +88,7 @@ public class FlowFactory {
         /*
          * Create consumer
          */
-        final Consumer consumer = sourceEndpoint.createConsumer();
+        final Consumer consumer = createConsumer(sourceEndpoint, sourceDefinition);
         final String consumerTag = LogUtils.formatTag(flowName, sourceDefinition.getFormattedUrl());
         consumer.setFlowName(flowName);
         consumer.setSourceEndpointResource(sourceEndpointURL.getResource());
@@ -171,6 +176,26 @@ public class FlowFactory {
         injectDependencies(gate);
         previous.setNext(gate);
         return gate;
+    }
+
+    /**
+     * The consumer that starts the flow. An adapter that provides a {@link Source} gets it wrapped in the
+     * framework's own consumer; one that does not yet (issue #159: the adapters move one by one) still
+     * provides its consumer itself.
+     */
+    private Consumer createConsumer(Endpoint sourceEndpoint, SourceDefinition sourceDefinition) {
+        final Source source = sourceEndpoint.createSource();
+        if (source == null) {
+            return sourceEndpoint.createConsumer();
+        }
+        return SourceConsumers.wrap(source, sourceEndpoint, roleOf(sourceDefinition));
+    }
+
+    /** Names the threads of a source after its protocol: kafka, time, file... */
+    private static String roleOf(SourceDefinition sourceDefinition) {
+        // getUrl(), not getFormattedUrl(): the latter is lower-cased and loses its slashes, for the log tag.
+        final ChannelURL channelURL = ChannelURL.parse(sourceDefinition.getUrl());
+        return channelURL.hasProtocol() ? channelURL.getProtocol() : DEFAULT_SOURCE_ROLE;
     }
 
     private void injectDependencies(Object flowNode){

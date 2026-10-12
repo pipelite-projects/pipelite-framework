@@ -18,12 +18,23 @@ package io.pipelite.spi.endpoint;
 import io.pipelite.dsl.Headers;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.spi.source.Source;
 
 public interface Endpoint {
 
     EndpointURL getEndpointURL();
 
     EndpointProperties getProperties();
+
+    /**
+     * What a flow reading from this endpoint ({@code fromSource}) uses. Transitional (issue #159): an
+     * endpoint that returns {@code null}, the default, still provides its consumer through {@link
+     * #createConsumer()}; the adapters move to this method one by one and {@code createConsumer} goes
+     * away with the last of them.
+     */
+    default Source createSource() {
+        return null;
+    }
 
     Consumer createConsumer();
     //PollingConsumer createPollingConsumer(MessageSupplier supplier, ChainedProcessor processor);

@@ -16,15 +16,10 @@
 package io.pipelite.components.time;
 
 import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
-import io.pipelite.spi.flow.concurrent.DefaultThreadFactory;
-import io.pipelite.spi.flow.concurrent.FlowNameAbbreviator;
-
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
+import io.pipelite.spi.source.Source;
 
 public class TimeEndpoint extends DefaultEndpoint {
 
@@ -33,15 +28,8 @@ public class TimeEndpoint extends DefaultEndpoint {
     }
 
     @Override
-    public Consumer createConsumer() {
-        // The thread factory is built here, not in the constructor: setFlowName(...) is only
-        // called on the Consumer this method returns, after it returns — but the executor's
-        // backing thread isn't actually created until doStart() schedules the first task, well
-        // after that, so referencing the local pollingConsumer lazily works correctly.
-        final TimePollingConsumer pollingConsumer = new TimePollingConsumer(this);
-        final ThreadFactory threadFactory = new DefaultThreadFactory("time",
-            () -> FlowNameAbbreviator.abbreviate(pollingConsumer.getFlowName()));
-        return new TimeService(pollingConsumer, Executors.newSingleThreadScheduledExecutor(threadFactory));
+    public Source createSource() {
+        return new TimeSource();
     }
 
     @Override
