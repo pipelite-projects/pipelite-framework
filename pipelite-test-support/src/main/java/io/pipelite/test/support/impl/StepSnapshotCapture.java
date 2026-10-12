@@ -17,8 +17,8 @@ package io.pipelite.test.support.impl;
 
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.process.ExchangePostProcessor;
-import io.pipelite.spi.flow.process.FlowExecutionContext;
+import io.pipelite.core.flow.internal.ExchangePostProcessor;
+import io.pipelite.core.flow.internal.FlowExecutionContext;
 import io.pipelite.test.PipeliteTestFixture;
 
 import java.util.Map;

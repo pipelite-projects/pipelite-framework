@@ -18,7 +18,7 @@ package io.pipelite.core.flow.route;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
-import io.pipelite.spi.flow.exchange.FlowNode;
+import io.pipelite.core.flow.internal.FlowNode;
 
 @Deprecated
 public abstract class AbstractRouterNode implements FlowNode, ExchangeFactoryAware {

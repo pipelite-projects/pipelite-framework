@@ -26,11 +26,11 @@ import io.pipelite.core.flow.execution.dump.SerializedFlowExecutionDump;
 import io.pipelite.common.support.serialization.BaseEncoding;
 import io.pipelite.common.support.serialization.ByteArrayToObjectConverter;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.endpoint.EventDrivenConsumerService;
-import io.pipelite.spi.flow.AbstractFlowNode;
-import io.pipelite.spi.flow.Flow;
+import io.pipelite.core.consumer.internal.EventDrivenConsumerService;
+import io.pipelite.core.flow.internal.AbstractFlowNode;
+import io.pipelite.core.flow.internal.Flow;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.FlowNode;
+import io.pipelite.core.flow.internal.FlowNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

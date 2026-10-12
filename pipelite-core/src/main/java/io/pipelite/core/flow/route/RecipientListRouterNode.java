@@ -28,7 +28,7 @@ import io.pipelite.dsl.route.ConditionEvaluator;
 import io.pipelite.dsl.route.ExpressionCondition;
 import io.pipelite.dsl.route.RecipientList;
 import io.pipelite.expression.ExpressionParser;
-import io.pipelite.spi.flow.AbstractFlowNode;
+import io.pipelite.core.flow.internal.AbstractFlowNode;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import org.slf4j.Logger;

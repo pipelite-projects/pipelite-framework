@@ -24,13 +24,13 @@ import io.pipelite.core.flow.process.ProcessorNodeFactory;
 import io.pipelite.dsl.Headers;
 import io.pipelite.dsl.split.SplitSegment;
 import io.pipelite.dsl.split.SplitStep;
-import io.pipelite.spi.flow.AbstractFlowNode;
+import io.pipelite.core.flow.internal.AbstractFlowNode;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.FlowNode;
+import io.pipelite.core.flow.internal.FlowNode;
 import io.pipelite.spi.flow.exchange.HeadersImpl;
-import io.pipelite.spi.flow.process.ExchangePostProcessor;
-import io.pipelite.spi.flow.process.ExchangePreProcessor;
+import io.pipelite.core.flow.internal.ExchangePostProcessor;
+import io.pipelite.core.flow.internal.ExchangePreProcessor;
 
 import java.util.ArrayList;
 import java.util.Collection;

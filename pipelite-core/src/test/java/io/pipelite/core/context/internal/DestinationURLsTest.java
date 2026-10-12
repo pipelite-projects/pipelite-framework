@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.context.internal;
 
-import io.pipelite.spi.channel.ChannelURL;
+import io.pipelite.core.context.internal.ChannelURL;
 import org.junit.Assert;
 import org.junit.Test;
 

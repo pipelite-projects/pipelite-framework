@@ -15,8 +15,8 @@
  */
 package io.pipelite.core.flow;
 
-import io.pipelite.spi.flow.Flow;
-import io.pipelite.spi.flow.exchange.FlowNode;
+import io.pipelite.core.flow.internal.Flow;
+import io.pipelite.core.flow.internal.FlowNode;
 
 import java.util.Optional;
 

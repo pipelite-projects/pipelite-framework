@@ -17,7 +17,7 @@ package io.pipelite.core.context.internal;
 
 import io.pipelite.core.support.expression.ExpressionUtils;
 import io.pipelite.dsl.ChannelProtocols;
-import io.pipelite.spi.channel.ChannelURL;
+import io.pipelite.core.context.internal.ChannelURL;
 
 /**
  * The one rule for where an exchange may be sent (issue #102): a destination is a URL. An internal

@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.channel.queue;
 
-import io.pipelite.spi.endpoint.Consumer;
+import io.pipelite.core.consumer.internal.Consumer;
 import io.pipelite.dsl.Exchange;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;

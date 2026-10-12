@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.source.internal;
 
-import io.pipelite.spi.endpoint.Consumer;
+import io.pipelite.core.consumer.internal.Consumer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.source.EventSource;
 import io.pipelite.spi.source.PollingSource;

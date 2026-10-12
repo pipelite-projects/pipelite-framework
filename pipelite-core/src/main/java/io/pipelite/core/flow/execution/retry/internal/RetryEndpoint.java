@@ -17,7 +17,7 @@ package io.pipelite.core.flow.execution.retry.internal;
 
 import io.pipelite.core.source.internal.ConsumerEndpoint;
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.spi.endpoint.Consumer;
+import io.pipelite.core.consumer.internal.Consumer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 

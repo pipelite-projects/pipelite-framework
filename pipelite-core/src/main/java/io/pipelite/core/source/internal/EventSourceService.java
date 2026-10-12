@@ -17,8 +17,8 @@ package io.pipelite.core.source.internal;
 
 import io.pipelite.dsl.Exchange;
 import io.pipelite.spi.endpoint.Endpoint;
-import io.pipelite.spi.endpoint.EventDrivenConsumer;
-import io.pipelite.spi.endpoint.EventDrivenConsumerService;
+import io.pipelite.core.consumer.internal.EventDrivenConsumer;
+import io.pipelite.core.consumer.internal.EventDrivenConsumerService;
 import io.pipelite.spi.source.EventSource;
 import io.pipelite.spi.source.SourceContext;
 

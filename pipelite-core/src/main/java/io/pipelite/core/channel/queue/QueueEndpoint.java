@@ -17,11 +17,11 @@ package io.pipelite.core.channel.queue;
 
 import io.pipelite.core.source.internal.ConsumerEndpoint;
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.spi.endpoint.Consumer;
+import io.pipelite.core.consumer.internal.Consumer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.endpoint.EventDrivenConsumer;
-import io.pipelite.spi.endpoint.EventDrivenConsumerService;
+import io.pipelite.core.consumer.internal.EventDrivenConsumer;
+import io.pipelite.core.consumer.internal.EventDrivenConsumerService;
 import io.pipelite.spi.endpoint.Producer;
 
 /**

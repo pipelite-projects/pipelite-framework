@@ -17,8 +17,8 @@ package io.pipelite.core.flow.process;
 
 import io.pipelite.spi.context.IOKeys;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.process.ExchangePostProcessor;
-import io.pipelite.spi.flow.process.FlowExecutionContext;
+import io.pipelite.core.flow.internal.ExchangePostProcessor;
+import io.pipelite.core.flow.internal.FlowExecutionContext;
 
 public class FlowExecutionExchangePostProcessor implements ExchangePostProcessor {
 

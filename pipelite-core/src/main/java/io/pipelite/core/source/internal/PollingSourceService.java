@@ -17,9 +17,9 @@ package io.pipelite.core.source.internal;
 
 import io.pipelite.dsl.Exchange;
 import io.pipelite.spi.endpoint.Endpoint;
-import io.pipelite.spi.endpoint.ScheduledPollingConsumerService;
-import io.pipelite.spi.flow.concurrent.DefaultThreadFactory;
-import io.pipelite.spi.flow.concurrent.FlowNameAbbreviator;
+import io.pipelite.core.consumer.internal.ScheduledPollingConsumerService;
+import io.pipelite.core.concurrent.internal.DefaultThreadFactory;
+import io.pipelite.core.concurrent.internal.FlowNameAbbreviator;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.pipelite.spi.source.PollingSource;

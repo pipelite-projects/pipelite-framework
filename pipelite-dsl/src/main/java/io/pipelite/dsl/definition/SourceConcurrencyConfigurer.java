@@ -36,7 +36,7 @@ import java.util.Map;
  */
 public final class SourceConcurrencyConfigurer extends SourceConfigurer {
 
-    // Must match io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties exactly: the DSL cannot depend on the
+    // Must match io.pipelite.core.concurrent.internal.SourceConcurrencyProperties exactly: the DSL cannot depend on the
     // module that holds the consumer machinery, so the two names are written twice, and a test keeps them aligned.
     static final String CONCURRENCY = "concurrency";
     static final String EXECUTOR_TYPE = "executorType";

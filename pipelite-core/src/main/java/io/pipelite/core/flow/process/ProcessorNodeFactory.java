@@ -16,7 +16,7 @@
 package io.pipelite.core.flow.process;
 
 import io.pipelite.dsl.process.Processor;
-import io.pipelite.spi.flow.exchange.FlowNode;
+import io.pipelite.core.flow.internal.FlowNode;
 
 /**
  * The only public entry point for building nodes backed by this package's {@code FlowNode}

@@ -16,7 +16,7 @@
 package io.pipelite.core.context.internal;
 
 import io.pipelite.dsl.ChannelProtocols;
-import io.pipelite.spi.channel.ChannelURL;
+import io.pipelite.core.context.internal.ChannelURL;
 
 /**
  * The one rule for what a flow may read from (issue #111), the counterpart of {@link

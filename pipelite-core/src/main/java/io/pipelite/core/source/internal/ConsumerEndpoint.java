@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.source.internal;
 
-import io.pipelite.spi.endpoint.Consumer;
+import io.pipelite.core.consumer.internal.Consumer;
 
 /**
  * An endpoint of the framework's own that provides the consumer of the flow it starts itself, instead of

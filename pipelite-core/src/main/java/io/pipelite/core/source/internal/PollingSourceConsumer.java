@@ -17,7 +17,7 @@ package io.pipelite.core.source.internal;
 
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.dsl.Exchange;
-import io.pipelite.spi.endpoint.DefaultPollingConsumer;
+import io.pipelite.core.consumer.internal.DefaultPollingConsumer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;

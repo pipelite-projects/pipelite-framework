@@ -18,13 +18,14 @@ package io.pipelite.core.channel.queue;
 import io.pipelite.dsl.definition.SourceConcurrencyConfigurer;
 import io.pipelite.dsl.definition.SourceConfigurer;
 import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.context.ContextEventListener;
+import io.pipelite.core.context.internal.FlowRegistrationListener;
 import io.pipelite.spi.endpoint.*;
-import io.pipelite.spi.flow.Flow;
+import io.pipelite.core.flow.internal.Flow;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import io.pipelite.core.consumer.internal.Consumer;
 
 /**
  * The queue in front of an internal flow (issue #111). {@code fromSource("queue://x")} declares the
@@ -32,7 +33,7 @@ import java.util.Optional;
  * and the other destinations put an exchange on it. One endpoint type serves both sides, so what
  * makes a source a queue is its protocol, like any other channel adapter.
  */
-public class QueueChannelAdapter implements ChannelAdapter, ContextEventListener {
+public class QueueChannelAdapter implements ChannelAdapter, FlowRegistrationListener {
 
     private final Map<String, Consumer> consumers;
 

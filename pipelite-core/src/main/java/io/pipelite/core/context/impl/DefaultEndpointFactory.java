@@ -28,11 +28,11 @@ import io.pipelite.dsl.definition.SourceConfigurer;
 import io.pipelite.dsl.definition.SourceDefinition;
 import io.pipelite.expression.support.ReflectionUtils;
 import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.channel.ChannelURL;
+import io.pipelite.core.context.internal.ChannelURL;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.dsl.definition.SourceConcurrencyConfigurer;
-import io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties;
+import io.pipelite.core.concurrent.internal.SourceConcurrencyProperties;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;

@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.context;
 
-import io.pipelite.spi.context.Service;
+import io.pipelite.core.context.internal.Service;
 
 public interface ServiceManager {
 

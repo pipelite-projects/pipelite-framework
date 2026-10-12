@@ -19,7 +19,7 @@ import io.pipelite.core.flow.expression.TextExpressionEvaluator;
 import io.pipelite.dsl.route.ConditionEvaluator;
 import io.pipelite.dsl.route.RecipientList;
 import io.pipelite.dsl.route.RoutingTable;
-import io.pipelite.spi.flow.exchange.FlowNode;
+import io.pipelite.core.flow.internal.FlowNode;
 
 /**
  * The only public entry point for building nodes backed by this package's {@code FlowNode}

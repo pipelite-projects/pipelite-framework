@@ -21,7 +21,7 @@ import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.dsl.route.RoutingSlip;
 import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.AbstractFlowNode;
+import io.pipelite.core.flow.internal.AbstractFlowNode;
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

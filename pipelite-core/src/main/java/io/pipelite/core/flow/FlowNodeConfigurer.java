@@ -19,7 +19,7 @@ import io.pipelite.core.context.internal.InternalPipeliteContext;
 
 import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
-import io.pipelite.spi.flow.concurrent.SourceWorkerPoolAware;
+import io.pipelite.core.concurrent.internal.SourceWorkerPoolAware;
 import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 
 /**

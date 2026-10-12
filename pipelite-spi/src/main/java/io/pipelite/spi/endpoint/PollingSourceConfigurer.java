@@ -21,8 +21,8 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Shared {@link SourceConfigurer} base for every source built on {@link
- * ScheduledPollingConsumerService} (Time, File today) — {@code initialDelay}/{@code period}/{@code
+ * Shared {@link SourceConfigurer} base for every source built on the framework's
+ * scheduled polling consumer (Time, File today) — {@code initialDelay}/{@code period}/{@code
  * timeUnit}/{@code batchSize} are that shared consumer's own generic query parameters, not
  * anything adapter-specific, so they live here once instead of being duplicated on every leaf
  * configurer. Abstract, like {@link SourceConfigurer} itself: an adapter with no extra settings of

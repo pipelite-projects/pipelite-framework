@@ -16,9 +16,9 @@
 package io.pipelite.core.flow.split;
 
 import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.FlowNode;
-import io.pipelite.spi.flow.process.ExchangePostProcessor;
-import io.pipelite.spi.flow.process.ExchangePreProcessor;
+import io.pipelite.core.flow.internal.FlowNode;
+import io.pipelite.core.flow.internal.ExchangePostProcessor;
+import io.pipelite.core.flow.internal.ExchangePreProcessor;
 
 /**
  * Terminal node appended internally to a Splitter's inner segment. Captures the Exchange

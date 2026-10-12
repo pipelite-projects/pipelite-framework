@@ -1,0 +1,253 @@
+/*
+ * Copyright (C) 2023-2024 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.pipelite.core.consumer.internal;
+
+import io.pipelite.dsl.process.ExceptionHandler;
+import io.pipelite.core.context.internal.AbstractService;
+import io.pipelite.core.concurrent.internal.DefaultThreadFactory;
+import io.pipelite.dsl.definition.ExecutorType;
+import io.pipelite.core.concurrent.internal.FlowNameAbbreviator;
+import io.pipelite.core.concurrent.internal.SourceConcurrencyProperties;
+import io.pipelite.core.concurrent.internal.SourceWorkerPoolAware;
+import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
+import io.pipelite.core.flow.internal.FlowNode;
+import io.pipelite.core.flow.internal.ExchangePostProcessor;
+import io.pipelite.core.flow.internal.ExchangePreProcessor;
+import io.pipelite.spi.inbox.DurableInbox;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadFactory;
+import io.pipelite.spi.endpoint.Endpoint;
+import io.pipelite.spi.endpoint.EndpointProperties;
+
+public class EventDrivenConsumerService extends AbstractService implements Consumer, ExchangeFactoryAware, SourceWorkerPoolAware, DurableInboxAware {
+
+    private static final String DEFAULT_ROLE = "event";
+    private static final long SHUTDOWN_TIMEOUT_MILLIS = 30_000L;
+
+    /**
+     * Minimum semaphore permits ("in-flight" budget) a {@link PooledDispatchStrategy} dispatcher
+     * thread must have available to itself before another dispatcher is added. Found empirically
+     * during the issue #49 dispatcher-redesign spike: with fewer permits per dispatcher than this,
+     * multiple dispatcher threads thrash contending for too few permits, which costs more in
+     * coordination overhead than it buys in parallelism — see
+     * {@code 2026-Q3-pipelite-dispatcher-redesign-spike.md} in the pipelite-framework-analysis
+     * repository for the numbers (the naive {@code dispatcherCount = min(concurrency, cores)}
+     * formula regressed badly at low concurrency; requiring this minimum fixed it).
+     */
+    static final int MIN_PERMITS_PER_DISPATCHER = 4;
+
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+
+    private final EventDrivenConsumer eventDrivenConsumer;
+    protected final ThreadFactory threadFactory;
+    protected ExchangeFactory exchangeFactory;
+    protected ExecutorService sourceWorkerPool;
+
+    private DispatchStrategy dispatchStrategy;
+
+    public EventDrivenConsumerService(EventDrivenConsumer eventDrivenConsumer) {
+        this(eventDrivenConsumer, DEFAULT_ROLE);
+    }
+
+    /**
+     * Lets a subclass tied to a specific channel adapter (e.g. {@code KafkaConsumerService})
+     * give its threads a more specific role than the generic {@value #DEFAULT_ROLE} — otherwise
+     * a Kafka-backed flow's polling thread would be visually indistinguishable from a plain
+     * {@code queue://}-style flow's dispatch thread(s) in a thread dump.
+     */
+    protected EventDrivenConsumerService(EventDrivenConsumer eventDrivenConsumer, String role) {
+        this.eventDrivenConsumer = eventDrivenConsumer;
+        // Lazily resolved: the flow name isn't set on eventDrivenConsumer yet at this point in
+        // the flow-building lifecycle (FlowFactory calls setFlowName(...) right after this
+        // constructor returns) — but threadFactory.newThread(...) itself is only actually
+        // invoked later, in doStart(), by which time it is.
+        threadFactory = new DefaultThreadFactory(role, () -> FlowNameAbbreviator.abbreviate(eventDrivenConsumer.getFlowName()));
+    }
+
+    @Override
+    public void doStart() {
+
+        final EndpointProperties properties = eventDrivenConsumer.getEndpoint().getProperties();
+        final int concurrency = properties.getAsIntegerOrDefault(SourceConcurrencyProperties.CONCURRENCY, 1);
+        // Validated even though BOUNDED_POOL is the only value today (mirrors TimeUnit.valueOf
+        // in ScheduledPollingConsumerService) — an unrecognized value fails fast at startup.
+        ExecutorType.valueOf(properties.getOrDefault(SourceConcurrencyProperties.EXECUTOR_TYPE, ExecutorType.BOUNDED_POOL.name()));
+
+        if (dispatchStrategy == null) {
+            dispatchStrategy = concurrency <= 1
+                ? new InlineDispatchStrategy(eventDrivenConsumer, exchangeFactory, threadFactory, this::isRunAllowed, 1)
+                : new PooledDispatchStrategy(eventDrivenConsumer, exchangeFactory, threadFactory, this::isRunAllowed,
+                    sourceWorkerPool, dispatcherCountFor(concurrency), concurrency);
+        }
+        dispatchStrategy.start();
+
+        if (logger.isTraceEnabled()) {
+            logger.trace("{} successfully started for concurrency={}",
+                dispatchStrategy.getClass().getSimpleName(), concurrency);
+        }
+    }
+
+    /**
+     * At least one dispatcher, never more than the machine's core count, and never so many that
+     * any one of them would have fewer than {@link #MIN_PERMITS_PER_DISPATCHER} semaphore permits
+     * to itself on average — see that constant's Javadoc for why.
+     */
+    static int dispatcherCountFor(int concurrency) {
+        return Math.max(1, Math.min(Runtime.getRuntime().availableProcessors(), concurrency / MIN_PERMITS_PER_DISPATCHER));
+    }
+
+    /**
+     * Runs {@code exchange} through {@code target} — an arbitrary node belonging to this
+     * service's own flow, not necessarily its head — under this flow's own {@link
+     * DispatchStrategy} (its {@code concurrency(n)} budget, if any), instead of on the calling
+     * thread entirely outside that accounting. The caller here is another flow's own machinery —
+     * {@code SupplyExchangeProcessor}, resuming a retry at the specific node that previously failed (see
+     * issue #61). See {@link DispatchStrategy#dispatch} for why this is generally
+     * <strong>not</strong> synchronous — a {@link PooledDispatchStrategy}-backed flow returns
+     * once {@code target.process(exchange)} is submitted, not once it finishes, so that draining
+     * several pending retries in one batch is never serialized by one flow's concurrency budget.
+     * Falls back to running {@code target} directly, ungated, if this service has not been
+     * started yet (no {@link DispatchStrategy} to delegate to) — should not happen in normal
+     * operation, since nothing can fail and reach a retry before {@code PipeliteContext#start()}
+     * has already started every flow, but fails safe rather than throwing if it somehow does.
+     * {@code onComplete} runs once {@code target.process(exchange)} has actually finished (see
+     * {@link DispatchStrategy#dispatch} — not merely been submitted), including on this fallback
+     * path.
+     */
+    public void dispatchToNode(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
+        if (dispatchStrategy == null) {
+            if (logger.isWarnEnabled()) {
+                logger.warn("dispatchToNode(...) called before this service started - running '{}' ungated, " +
+                    "outside any concurrency budget", target.getProcessorName());
+            }
+            try {
+                target.process(exchange);
+            } finally {
+                onComplete.run();
+            }
+            return;
+        }
+        dispatchStrategy.dispatch(target, exchange, onComplete);
+    }
+
+    @Override
+    public void doStop() {
+        if (dispatchStrategy != null) {
+            dispatchStrategy.stop(SHUTDOWN_TIMEOUT_MILLIS);
+        }
+        // Note: this only waits for THIS flow's own dispatch thread(s). Tasks already submitted to
+        // the shared source worker pool are not awaited here — that pool is owned by
+        // PipeliteContext, shared across flows, and outlives the stop of any single one; its own
+        // shutdown is PipeliteContext#stop()'s responsibility.
+    }
+
+    @Override
+    public void setExchangeFactory(ExchangeFactory exchangeFactory) {
+        this.exchangeFactory = exchangeFactory;
+    }
+
+    @Override
+    public void setSourceWorkerPool(ExecutorService sourceWorkerPool) {
+        this.sourceWorkerPool = sourceWorkerPool;
+    }
+
+    @Override
+    public Endpoint getEndpoint() {
+        return eventDrivenConsumer.getEndpoint();
+    }
+
+    @Override
+    public void consume(ExchangeImpl exchange) {
+        eventDrivenConsumer.consume(exchange);
+    }
+
+    @Override
+    public void process(ExchangeImpl exchange) {
+        eventDrivenConsumer.process(exchange);
+    }
+
+    @Override
+    public void setFlowName(String flowName) {
+        eventDrivenConsumer.setFlowName(flowName);
+    }
+
+    @Override
+    public void setProcessorName(String processorName) {
+        eventDrivenConsumer.setProcessorName(processorName);
+    }
+
+    @Override
+    public void setSourceEndpointResource(String sourceEndpointResource) {
+        eventDrivenConsumer.setSourceEndpointResource(sourceEndpointResource);
+    }
+
+    @Override
+    public void setNext(FlowNode next) {
+        eventDrivenConsumer.setNext(next);
+    }
+
+    @Override
+    public boolean hasNext() {
+        return eventDrivenConsumer.hasNext();
+    }
+
+    @Override
+    public FlowNode getNext() {
+        return eventDrivenConsumer.getNext();
+    }
+
+    @Override
+    public String getProcessorName() {
+        return eventDrivenConsumer.getProcessorName();
+    }
+
+    @Override
+    public void setExceptionHandler(ExceptionHandler exceptionHandler) {
+        eventDrivenConsumer.setExceptionHandler(exceptionHandler);
+    }
+
+    /**
+     * Delegates unconditionally, including for a subclass like {@code KafkaConsumerService} that
+     * never actually calls {@code eventDrivenConsumer.process()}/{@code consume()} (issue #64) —
+     * harmless: the entry-id property this wiring depends on is never set on a Kafka-sourced
+     * Exchange, so the acknowledge hook stays provably inert there rather than needing a
+     * Kafka-specific opt-out.
+     */
+    @Override
+    public void setDurableInbox(DurableInbox durableInbox) {
+        eventDrivenConsumer.setDurableInbox(durableInbox);
+    }
+
+    @Override
+    public void tag(String tag) {
+        eventDrivenConsumer.tag(tag);
+    }
+
+    @Override
+    public void addExchangePreProcessor(ExchangePreProcessor exchangePreProcessor) {
+        eventDrivenConsumer.addExchangePreProcessor(exchangePreProcessor);
+    }
+
+    @Override
+    public void addExchangePostProcessor(ExchangePostProcessor exchangePostProcessor) {
+        eventDrivenConsumer.addExchangePostProcessor(exchangePostProcessor);
+    }
+}
