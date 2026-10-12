@@ -16,10 +16,10 @@
 package io.pipelite.components.http;
 
 import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
+import io.pipelite.spi.source.Source;
 
 public class HttpEndpoint extends DefaultEndpoint {
 
@@ -28,15 +28,15 @@ public class HttpEndpoint extends DefaultEndpoint {
     }
 
     @Override
-    public Consumer createConsumer() {
+    public Source createSource() {
 
-        final Consumer consumer = super.createConsumer();
         final EndpointURL endpointURL = getEndpointURL();
+        final HttpSource source = new HttpSource(getProperties().get(HttpConstants.METHOD_PROPERTY_NAME));
 
         final HttpChannelAdapter component = getChannelAdapter(HttpChannelAdapter.class);
-        component.registerConsumer(endpointURL.getResource(), consumer);
+        component.registerSource(endpointURL.getResource(), source);
 
-        return consumer;
+        return source;
 
     }
 
