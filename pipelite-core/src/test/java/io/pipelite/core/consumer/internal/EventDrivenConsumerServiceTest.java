@@ -265,10 +265,12 @@ public class EventDrivenConsumerServiceTest {
     @Test
     public void shouldTerminateDispatchThreadWithinTimeoutOnStop() {
 
+        // A flow name of its own: the check below looks at every live thread of the JVM, and other tests of the
+        // module also run flows named "test-flow" whose threads may still be winding down.
         final Endpoint endpoint = (Endpoint) () -> EndpointURL.parse("start-endpoint?concurrency=2");
         final EventDrivenConsumer consumer = new EventDrivenConsumer(endpoint);
         final EventDrivenConsumerService concurrentSubject = new EventDrivenConsumerService(consumer);
-        concurrentSubject.setFlowName("test-flow");
+        concurrentSubject.setFlowName("stop-timeout-flow");
         concurrentSubject.setProcessorName("test-processor");
         concurrentSubject.setExchangeFactory(TEST_EXCHANGE_FACTORY);
 
@@ -284,12 +286,12 @@ public class EventDrivenConsumerServiceTest {
         try {
             concurrentSubject.start();
             concurrentSubject.consume(exchange(1));
-            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> hasThreadNamed("pipelite-event-test-flow"));
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> hasThreadNamed("pipelite-event-stop-timeout-flow"));
 
             concurrentSubject.stop();
 
-            Assert.assertFalse("no pipelite-event-test-flow worker thread should remain alive once stop() has returned",
-                hasThreadNamed("pipelite-event-test-flow"));
+            Assert.assertFalse("no pipelite-event-stop-timeout-flow worker thread should remain alive once stop() has returned",
+                hasThreadNamed("pipelite-event-stop-timeout-flow"));
         } finally {
             sharedPool.shutdownNow();
         }
