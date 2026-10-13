@@ -39,7 +39,13 @@
 
         <dependency>
             <groupId>io.pipelite</groupId>
-            <artifactId>default-channel-adapters</artifactId>
+            <artifactId>time-channel-adapter</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>io.pipelite</groupId>
+            <artifactId>slf4j-channel-adapter</artifactId>
             <version>${project.version}</version>
         </dependency>
 

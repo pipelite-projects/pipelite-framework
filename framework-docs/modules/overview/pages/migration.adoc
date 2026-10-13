@@ -8,8 +8,10 @@ adapter author sees only the contracts it implements), for people already using 
 == Application code
 
 * *`queue-channel-adapter` is gone.* `queue://` is now built into `pipelite-core`. Remove the
-`queue-channel-adapter` dependency if you declared it; `default-channel-adapters` now bundles `time` and
-`slf4j` only. Flows that use `queue://` need no change.
+`queue-channel-adapter` dependency if you declared it. Flows that use `queue://` need no change.
+* *`default-channel-adapters` is gone.* It only grouped `time` and `slf4j`, which `pipelite-core` now
+depends on directly: remove the `default-channel-adapters` dependency if you declared it (declare
+`time-channel-adapter` or `slf4j-channel-adapter` only if you use them without `pipelite-core`).
 * *`PipeliteContext` shows less.* It keeps registering flows and dependencies, `addChannelConfigurer`,
 `isRegistered`, `getFlowDefinition`, `start` and `stop`. `tryFindFlow`, `tryFindFlowByName`,
 `getEndpointFactory`, `getExchangeFactory`, `getAggregateRepository`, `getDurableInboxProvider` and

@@ -71,11 +71,6 @@
             <!-- Channel adapters -->
             <dependency>
                 <groupId>${project.groupId}</groupId>
-                <artifactId>default-channel-adapters</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>${project.groupId}</groupId>
                 <artifactId>time-channel-adapter</artifactId>
                 <version>${project.version}</version>
             </dependency>

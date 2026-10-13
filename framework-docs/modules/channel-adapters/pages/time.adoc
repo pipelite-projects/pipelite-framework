@@ -6,7 +6,7 @@ It is useful for scheduled pipelines, external resource polling, and timer-based
 
 == Availability
 
-Included in `default-channel-adapters`, transitively available with `pipelite-core`.
+The `time-channel-adapter` module, a transitive dependency of `pipelite-core`.
 
 == Usage
 

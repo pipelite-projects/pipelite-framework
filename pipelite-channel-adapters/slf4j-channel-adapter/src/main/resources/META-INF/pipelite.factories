@@ -1,2 +1,1 @@
-time=io.pipelite.components.time.TimeChannelAdapter
 slf4j=io.pipelite.components.slf4j.Slf4JChannelAdapter

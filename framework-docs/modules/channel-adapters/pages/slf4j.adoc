@@ -6,7 +6,7 @@ It is useful for debugging, auditing, and logging intermediate outputs.
 
 == Availability
 
-Included in `default-channel-adapters`, transitively available with `pipelite-core`.
+The `slf4j-channel-adapter` module, a transitive dependency of `pipelite-core`.
 
 == Usage as sink
 
