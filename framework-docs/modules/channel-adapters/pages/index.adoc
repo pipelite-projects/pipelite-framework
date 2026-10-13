@@ -37,7 +37,7 @@ Each adapter implements the SPI interface `ChannelAdapter` and is automatically 
 
 |xref:queue.adoc[Queue]
 |`queue://`
-|`default-channel-adapters`
+|`pipelite-core` (built in)
 |The queue in front of an internal flow, to chain flows.
 |===
 

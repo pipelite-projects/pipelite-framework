@@ -1,0 +1,64 @@
+= Migrating from 1.0.0-M1
+:description: What changes between 1.0.0-M1 and 1.0.0-M2 for application code and for channel adapter authors
+
+`1.0.0-M2` is the last milestone allowed to break the API before `1.0.0`. This page lists the breaking
+changes of the restructuring of the SPI (the runtime machinery is now hidden in `pipelite-core`, and an
+adapter author sees only the contracts it implements), for people already using `1.0.0-M1`.
+
+== Application code
+
+* *`queue-channel-adapter` is gone.* `queue://` is now built into `pipelite-core`. Remove the
+`queue-channel-adapter` dependency if you declared it; `default-channel-adapters` now bundles `time` and
+`slf4j` only. Flows that use `queue://` need no change.
+* *`PipeliteContext` shows less.* It keeps registering flows and dependencies, `addChannelConfigurer`,
+`isRegistered`, `getFlowDefinition`, `start` and `stop`. `tryFindFlow`, `tryFindFlowByName`,
+`getEndpointFactory`, `getExchangeFactory`, `getAggregateRepository`, `getDurableInboxProvider` and
+`getSourceWorkerPool` are no longer part of it: they were the framework's own plumbing.
+* *Creating and supplying an exchange.* To hand an exchange to a destination, create it with
+`context.createExchange(payload)` and give it to `context.supplyExchange(url, exchange)`, which now takes
+the `Exchange` interface. `getExchangeFactory().createExchange(...)` is gone.
+* *The values the framework keeps on an exchange are no longer headers.* The return address, the routing
+slip and the details of a failure (`X-Failure-Exception-Type`, `X-Failure-Exception-Message`,
+`X-Failure-Stack-Trace`) are exchange properties. Code that read them with `tryGetHeader(...)` must not
+rely on them: they are not part of the public API.
+* *Moved types.* `SourceConcurrencyConfigurer` and `ExecutorType` moved from `io.pipelite.spi` to
+`io.pipelite.dsl.definition`. Update the imports of code that configures the concurrency of a queue
+source.
+* *A flow cannot read from a sink-only channel.* `fromSource("slf4j://...")` used to start and then
+receive nothing; it now fails when the context starts.
+* *HTTP:* a request whose exchange cannot be accepted is answered with `500`.
+
+== Channel adapter authors
+
+The contract an adapter implements is smaller, and everything around it belongs to the framework. See
+xref:channel-adapters:custom.adoc[Custom Adapter] for the whole of it.
+
+[cols="1,2"]
+|===
+|In `1.0.0-M1` |Now
+
+|`Endpoint.createConsumer()`, returning a consumer built on `EventDrivenConsumerService` or `DefaultPollingConsumer`
+|`Endpoint.createSource()`, returning an `EventSource` (pushes through `SourceContext.accept`) or a `PollingSource` (`poll()`). The consumers, their queue, workers and backpressure are the framework's.
+
+|`Producer` built on `DefaultProducer` / `AbstractProducer`, with `doProcess(ExchangeImpl)`
+|`Producer` is an interface: `produce(Exchange)`, plus an optional `close()` that the framework calls.
+
+|`Endpoint extends DefaultEndpoint`
+|`DefaultEndpoint` is removed: implement `Endpoint` (`getEndpointURL()`, and the side or sides you support).
+
+|`ExchangeImpl`, `ExchangeFactory`, `ExchangeFactoryAware`
+|Not visible to an adapter. A source creates exchanges with `SourceContext.newExchange(payload)`; a producer receives the `Exchange` interface.
+
+|`DurableInbox` and the other inbox types
+|Not visible: the framework writes to the inbox before it lets a source acknowledge its input.
+
+|`ContextEventListener.onFlowRegistered(Flow)`
+|Removed from the SPI; `onContextStarted` and `onContextStopped` remain.
+|===
+
+A source acknowledges its input (commits an offset, answers a request) only after
+`SourceContext.accept` returned, and must not acknowledge it when `accept` throws.
+
+`pipelite-spi` now contains only the types an adapter author sees and depends on `pipelite-dsl` alone.
+Adapter unit tests can no longer build the framework's `Exchange` implementation: use a stub of the
+`Exchange` interface, or add `pipelite-core` as a test dependency.

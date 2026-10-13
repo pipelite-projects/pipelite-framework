@@ -70,6 +70,6 @@ time://<name>[?period=<ms>&initialDelay=<ms>&timeUnit=<unit>&batchSize=<n>&durab
 
 == Internal mechanism
 
-The `TimePollingConsumer` uses a `ScheduledExecutorService` via `TimeService`.
+The time source (`TimeSource`) is a polling source, polled by the framework on the schedule of the endpoint.
 On each tick, a new `Exchange` is created with a payload containing the current timestamp.
-The consumer is started and stopped together with the `PipeliteContext`.
+It is started and stopped together with the `PipeliteContext`.

@@ -61,7 +61,7 @@ See xref:flow-configuration.adoc[FlowConfiguration SPI] for the recommended regi
 == Flow
 
 The `Flow` is the runtime instance of a `FlowDefinition`.
-It encapsulates the source `Consumer` and the chain of `FlowNode` instances.
+It encapsulates the consumer that wraps the source and the chain of `FlowNode` instances.
 It is created and started automatically by `PipeliteContext.start()`.
 
 == Detailed lifecycle
@@ -77,8 +77,8 @@ PipeliteContext.start()
   │    (processors, transformers, routers), then register the resulting flow
   │
   └─ ServiceManager.startAll()
-       ├─ Start EventDrivenConsumerService (HTTP, Queue, etc.)
-       └─ Start ScheduledPollingConsumerService (Time, Kafka, etc.)
+       ├─ Start the event-driven consumers (HTTP, Kafka, Queue, etc.)
+       └─ Start the polling consumers (Time, File, etc.)
 
 PipeliteContext.stop()
   └─ ServiceManager.stopAll()

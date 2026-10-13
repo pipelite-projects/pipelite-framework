@@ -10,6 +10,8 @@ Included in `default-channel-adapters`, transitively available with `pipelite-co
 
 == Usage as sink
 
+The adapter only writes: a flow that reads from it (`fromSource("slf4j://...")`) fails when the context starts, saying the endpoint "cannot be used as a source".
+
 [source,java]
 ----
 .toSink("slf4j://my-logger")
