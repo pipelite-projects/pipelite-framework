@@ -27,6 +27,7 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -42,6 +43,10 @@ public class PipeliteBarrierIntegrationTest {
     }
 
     private PipeliteContext context;
+
+    // The barriers are on Pipelite Home, which outlives a test run: an order id that a previous run already
+    // used would meet its state, so every run uses its own.
+    private final String run = UUID.randomUUID().toString().substring(0, 8);
 
     @Before
     public void setup() {
@@ -89,7 +94,7 @@ public class PipeliteBarrierIntegrationTest {
 
         for (int order = 1; order <= 5; order++) {
             for (String step : List.of("record", "check", "plan")) {
-                context.supplyExchange("queue://order-" + step, context.createExchange("order-" + order));
+                context.supplyExchange("queue://order-" + step, context.createExchange("order-" + run + "-" + order));
             }
         }
 
@@ -116,7 +121,7 @@ public class PipeliteBarrierIntegrationTest {
             .build());
         context.start();
 
-        context.supplyExchange("queue://order-record", context.createExchange("order-1"));
+        context.supplyExchange("queue://order-record", context.createExchange("order-" + run + "-1"));
         Thread.sleep(500);
 
         Assert.assertTrue("an order with one step missing waits", released.isEmpty());
