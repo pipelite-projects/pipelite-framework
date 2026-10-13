@@ -15,31 +15,34 @@
  */
 package io.pipelite.spi.endpoint;
 
-import io.pipelite.dsl.Headers;
-import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.spi.source.Source;
 
+/**
+ * A channel's address, resolved: what a flow reads from ({@link #createSource()}) and writes to
+ * ({@link #createProducer()}). A channel adapter creates one per URL in {@code ChannelAdapter#createEndpoint}.
+ */
 public interface Endpoint {
 
     EndpointURL getEndpointURL();
 
-    EndpointProperties getProperties();
+    default EndpointProperties getProperties() {
+        return getEndpointURL().getProperties();
+    }
 
-    Consumer createConsumer();
-    //PollingConsumer createPollingConsumer(MessageSupplier supplier, ChainedProcessor processor);
-    Producer createProducer();
+    /**
+     * What a flow reading from this endpoint ({@code fromSource}) uses. An endpoint that cannot be read
+     * from, like a sink-only one, keeps this default.
+     */
+    default Source createSource() {
+        throw new UnsupportedOperationException(getEndpointURL() + " cannot be used as a source");
+    }
 
-    @Deprecated
-    ExchangeImpl createExchange();
-    @Deprecated
-    ExchangeImpl createExchange(Headers headers);
-
-    <T extends ChannelAdapter> T getChannelAdapter(Class<T> channelType);
-
-    @Deprecated
-    boolean isSink();
-
-    @Deprecated
-    void setSink();
+    /**
+     * What a flow writing to this endpoint uses. An endpoint that cannot be written to, like a source-only
+     * one, keeps this default.
+     */
+    default Producer createProducer() {
+        throw new UnsupportedOperationException(getEndpointURL() + " cannot be used as a destination");
+    }
 
 }

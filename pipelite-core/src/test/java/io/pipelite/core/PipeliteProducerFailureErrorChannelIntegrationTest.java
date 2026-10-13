@@ -15,9 +15,11 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.awaitility.Awaitility;
 import org.junit.Before;
 import org.junit.Rule;
@@ -77,7 +79,7 @@ public class PipeliteProducerFailureErrorChannelIntegrationTest {
         pipeliteContext.registerFlowDefinition(mainFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         pipeliteContext.supplyExchange("queue://producer-failure-in", exchangeFactory.createExchange("payload"));
 
         // Before the #89 fix, this would time out: the producer's IllegalStateException

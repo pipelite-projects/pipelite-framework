@@ -15,15 +15,17 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
-import io.pipelite.spi.inbox.DurableInbox;
-import io.pipelite.spi.inbox.SegmentedLogDurableInboxProvider;
+import io.pipelite.core.exchange.internal.DistributedIdentityGeneratorImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.SimpleMessage;
+import io.pipelite.core.flow.execution.inbox.DurableInbox;
+import io.pipelite.core.flow.execution.inbox.SegmentedLogDurableInboxProvider;
 import org.awaitility.Awaitility;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -107,7 +109,7 @@ public class PipeliteDurableInboxDeadLetterIntegrationTest {
                 Assert.assertEquals(1, processed.size());
 
                 Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
-                    context.getDurableInboxProvider().forFlow(FLOW_NAME).pendingEntries().isEmpty());
+                    ((InternalPipeliteContext) context).getDurableInboxProvider().forFlow(FLOW_NAME).pendingEntries().isEmpty());
             } finally {
                 context.stop();
             }

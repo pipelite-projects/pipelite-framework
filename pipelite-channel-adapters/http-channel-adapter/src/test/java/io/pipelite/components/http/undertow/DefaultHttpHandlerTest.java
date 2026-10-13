@@ -16,14 +16,17 @@
 package io.pipelite.components.http.undertow;
 
 import io.pipelite.components.http.HttpChannelAdapter;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.components.http.HttpEndpoint;
+import io.pipelite.dsl.Exchange;
+import io.pipelite.spi.endpoint.EndpointURL;
+import io.pipelite.spi.source.EventSource;
+import io.pipelite.spi.source.SourceContext;
 import io.undertow.Undertow;
 import io.undertow.server.handlers.BlockingHandler;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -31,6 +34,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ThreadFactory;
 
 /**
  * Issue #129: {@code DefaultHttpHandler.handleRequest(...)}'s own {@code
@@ -47,6 +54,7 @@ import java.net.http.HttpResponse;
 public class DefaultHttpHandlerTest {
 
     private Undertow server;
+    private HttpChannelAdapter adapter;
     private HttpClient httpClient;
     private int port;
 
@@ -58,9 +66,9 @@ public class DefaultHttpHandlerTest {
         // No resource ever registered - every request reaches handleRequest() with
         // tryResolveConsumer(...) empty, since this bypasses HttpChannelAdapter's own PathHandler
         // wrapping entirely (see this class's own Javadoc).
-        final HttpChannelAdapter adapter = new HttpChannelAdapter();
+        adapter = new HttpChannelAdapter();
         final DefaultHttpHandler handler = new DefaultHttpHandler(adapter);
-        handler.setExchangeFactory(Mockito.mock(ExchangeFactory.class));
+        
 
         server = Undertow.builder()
             .addHttpListener(port, "127.0.0.1")
@@ -86,6 +94,85 @@ public class DefaultHttpHandlerTest {
         final HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
         Assert.assertEquals(404, response.statusCode());
+    }
+
+    /**
+     * Issue #159: a request whose exchange cannot be accepted (the durable inbox cannot be written) is not
+     * answered as if it had been. Before, the failure was swallowed by the consumer and handled by the flow's
+     * exception handler, and the client got a 201 for a request that was lost.
+     */
+    @Test
+    public void shouldAnswer500WhenTheRequestCannotBeAccepted() throws IOException, InterruptedException {
+        startSource("rejecting", new RecordingContext(true));
+
+        final HttpResponse<String> response = post("/rejecting", "payload");
+
+        Assert.assertEquals(500, response.statusCode());
+    }
+
+    @Test
+    public void shouldAnswer201AndHandTheBodyToTheFlowWhenTheRequestIsAccepted() throws IOException, InterruptedException {
+        final RecordingContext context = new RecordingContext(false);
+        startSource("accepting", context);
+
+        final HttpResponse<String> response = post("/accepting", "the body");
+
+        Assert.assertEquals(201, response.statusCode());
+        Assert.assertEquals(1, context.accepted.size());
+        Assert.assertEquals("the body", context.accepted.get(0).getInputPayload());
+    }
+
+    private void startSource(String resource, RecordingContext context) {
+        final EventSource source = (EventSource) new HttpEndpoint(EndpointURL.parse(resource), adapter).createSource();
+        source.start(context);
+    }
+
+    private HttpResponse<String> post(String path, String body) throws IOException, InterruptedException {
+        final HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create("http://127.0.0.1:" + port + path))
+            .POST(HttpRequest.BodyPublishers.ofString(body))
+            .build();
+        return httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** What the framework gives a source, reduced to recording what is handed over, or refusing it. */
+    private static final class RecordingContext implements SourceContext {
+        private final boolean refuse;
+        private final List<Exchange> accepted = new ArrayList<>();
+
+        RecordingContext(boolean refuse) {
+            this.refuse = refuse;
+        }
+
+        @Override
+        public String flowName() {
+            return "http-test-flow";
+        }
+
+        @Override
+        public Exchange newExchange(Object payload) {
+            final StubExchange exchange = new StubExchange();
+            exchange.setInputPayload(payload);
+            return exchange;
+        }
+
+        @Override
+        public void accept(Exchange exchange) {
+            if (refuse) {
+                throw new IllegalStateException("the exchange cannot be durably accepted");
+            }
+            accepted.add(exchange);
+        }
+
+        @Override
+        public ThreadFactory threadFactory() {
+            return Thread::new;
+        }
+
+        @Override
+        public boolean isRunning() {
+            return true;
+        }
     }
 
     private static int findFreePort() throws IOException {

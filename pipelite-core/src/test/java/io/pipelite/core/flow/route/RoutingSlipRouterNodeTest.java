@@ -15,11 +15,13 @@
  */
 package io.pipelite.core.flow.route;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.Pipelite;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.dsl.route.RoutingSlip;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Assert;

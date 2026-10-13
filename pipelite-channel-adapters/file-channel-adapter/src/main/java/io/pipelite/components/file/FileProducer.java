@@ -15,11 +15,11 @@
  */
 package io.pipelite.components.file;
 
-import io.pipelite.spi.endpoint.DefaultProducer;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointProperties;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.spi.endpoint.Producer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +30,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
-public class FileProducer extends DefaultProducer {
+public class FileProducer implements Producer {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
@@ -39,7 +39,6 @@ public class FileProducer extends DefaultProducer {
     private final boolean append;
 
     public FileProducer(Endpoint endpoint, FileChannelConfiguration configuration) {
-        super(endpoint);
 
         final EndpointURL endpointURL = endpoint.getEndpointURL();
         final EndpointProperties properties = endpointURL.getProperties();
@@ -63,7 +62,7 @@ public class FileProducer extends DefaultProducer {
     }
 
     @Override
-    public void doProcess(ExchangeImpl exchange) {
+    public void produce(Exchange exchange) {
 
         final StandardOpenOption[] options = append
             ? new StandardOpenOption[]{StandardOpenOption.CREATE, StandardOpenOption.APPEND}

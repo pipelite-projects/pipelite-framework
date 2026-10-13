@@ -29,6 +29,8 @@ Pipelite.defineFlow("http-inbound")
 ----
 <1> Opens an HTTP listener on port 8080 (default) at path `/ingress`.
 
+A request is answered only once the framework has accepted its exchange (written to the durable inbox and queued, applying the backpressure of the flow). If the exchange cannot be accepted, the request is answered with `500`.
+
 The same `method` restriction can be applied through the typed `HttpSourceConfigurer` instead of a
 query string (see xref:custom.adoc[Custom Channel Adapters] for the general mechanism):
 
@@ -103,8 +105,7 @@ reaches this adapter.
 
 == Usage as sink (outbound)
 
-Not implemented yet: `HttpEndpoint#createProducer()` throws `UnsupportedOperationException`
-unconditionally, so `.toSink("http://...")`/`.toChannel("http://...")` fail at flow-registration
+Not implemented yet: the HTTP endpoint has no producer (it keeps the default of `Endpoint#createProducer()`, which throws `UnsupportedOperationException`), so `.toSink("http://...")`/`.toChannel("http://...")` fail at flow-registration
 time. `http-channel-adapter` is inbound-only today.
 
 == Multiple path registration

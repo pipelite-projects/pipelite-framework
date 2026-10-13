@@ -19,7 +19,7 @@ import io.pipelite.core.definition.TypedSourceDefinition;
 import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
-import io.pipelite.spi.channel.ChannelURL;
+import io.pipelite.core.context.internal.ChannelURL;
 import io.pipelite.spi.endpoint.EndpointURL;
 
 import java.util.Optional;

@@ -15,13 +15,15 @@
  */
 package io.pipelite.core.flow;
 
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
-import io.pipelite.spi.flow.concurrent.SourceWorkerPoolAware;
-import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
+import io.pipelite.core.concurrent.internal.SourceWorkerPoolAware;
+import io.pipelite.core.exchange.internal.ExchangeFactoryAware;
 
 /**
- * Injects framework-level dependencies ({@code ExchangeFactory}, {@code PipeliteContext}, the
+ * Injects framework-level dependencies ({@code ExchangeFactory}, {@code InternalPipeliteContext}, the
  * shared source worker pool) into a node via its {@code Aware} marker interfaces. Shared between
  * {@link FlowFactory} (top-level flow nodes) and {@code SplitterNode} (inner segment nodes, which
  * are never seen by {@code FlowFactory} and must be injected separately) so the two don't each
@@ -32,7 +34,7 @@ public final class FlowNodeConfigurer {
     private FlowNodeConfigurer() {
     }
 
-    public static void injectDependencies(Object flowNode, PipeliteContext context) {
+    public static void injectDependencies(Object flowNode, InternalPipeliteContext context) {
         if (flowNode instanceof ExchangeFactoryAware) {
             ((ExchangeFactoryAware) flowNode).setExchangeFactory(context.getExchangeFactory());
         }

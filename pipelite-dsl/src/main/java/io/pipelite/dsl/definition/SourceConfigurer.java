@@ -33,8 +33,8 @@ import java.util.Map;
  * {@link #durableInbox(boolean)} is universal (issue #70's durable inbox applies to any source
  * regardless of adapter), so it lives on this shared base rather than being repeated per adapter.
  * {@code concurrency}/{@code executorType} deliberately do NOT live here: only a queue source
- * ({@code queue://}) may configure them (see {@code SourceConcurrencyConfigurer} in {@code
- * pipelite-spi}, next to {@code DefaultEndpoint}) — every other adapter's own configurer
+ * ({@code queue://}) may configure them (see {@code SourceConcurrencyConfigurer} next to this
+ * class) — every other adapter's own configurer
  * simply has no such methods, a compile-time-enforced version of the restriction {@code
  * DefaultEndpointFactory#rejectSourceConcurrencyParams} still separately enforces at runtime for
  * anyone bypassing the configurer and typing the query string by hand.
@@ -48,7 +48,7 @@ import java.util.Map;
  */
 public abstract class SourceConfigurer {
 
-    // Must match io.pipelite.spi.inbox.DurableInboxProperties.DURABLE_INBOX exactly - duplicated
+    // Must match io.pipelite.core.flow.execution.inbox.DurableInboxProperties.DURABLE_INBOX exactly - duplicated
     // as a literal rather than referenced, since pipelite-dsl cannot depend on pipelite-spi.
     private static final String DURABLE_INBOX_PROPERTY_NAME = "durableInbox";
 

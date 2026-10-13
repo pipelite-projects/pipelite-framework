@@ -16,15 +16,13 @@
 package io.pipelite.components.http.undertow;
 
 import io.pipelite.components.http.HttpChannelAdapter;
-import io.pipelite.components.http.HttpConstants;
-import io.pipelite.spi.endpoint.Consumer;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
+import io.pipelite.components.http.HttpSource;
 import io.undertow.server.BlockingHttpExchange;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.RequestTooBigException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -35,11 +33,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-public class DefaultHttpHandler implements HttpHandler, ExchangeFactoryAware {
+public class DefaultHttpHandler implements HttpHandler {
+
+    private static final Logger sysLogger = LoggerFactory.getLogger(DefaultHttpHandler.class);
 
     private final HttpChannelAdapter component;
-
-    private ExchangeFactory exchangeFactory;
 
     public DefaultHttpHandler(HttpChannelAdapter component) {
         this.component = component;
@@ -50,22 +48,22 @@ public class DefaultHttpHandler implements HttpHandler, ExchangeFactoryAware {
 
         try {
             final String resource = httpServerExchange.getRequestURI().replaceFirst("/", "");
-            final Optional<Consumer> consumerHolder = component.tryResolveConsumer(resource);
+            final Optional<HttpSource> sourceHolder = component.tryResolveSource(resource);
 
-            if (consumerHolder.isEmpty()) {
+            if (sourceHolder.isEmpty()) {
                 // Not a server error (issue #129): the resource is simply unmapped, the same as
                 // any other unknown path on an HTTP server.
                 httpServerExchange.setStatusCode(404);
                 return;
             }
 
-            final Consumer consumer = consumerHolder.get();
+            final HttpSource source = sourceHolder.get();
             // Per-resource, via HttpSourceConfigurer#method(...) - unset (null) means any method
             // is accepted, same as before this existed. Replaces the previous
             // ALLOWED_REQUEST_METHODS constant, which was declared but never actually checked
             // anywhere (issue #62): a single hardcoded [POST, PUT] list shared by every resource,
             // not a real per-endpoint restriction.
-            final String allowedMethod = consumer.getEndpoint().getProperties().get(HttpConstants.METHOD_PROPERTY_NAME);
+            final String allowedMethod = source.allowedMethod();
             if (allowedMethod != null && !httpServerExchange.getRequestMethod().toString().equalsIgnoreCase(allowedMethod)) {
                 httpServerExchange.setStatusCode(405);
                 return;
@@ -90,9 +88,17 @@ public class DefaultHttpHandler implements HttpHandler, ExchangeFactoryAware {
                     .lines()
                     .collect(Collectors.joining("\n"));
 
-                final ExchangeImpl exchange = exchangeFactory.createExchange(requestBodyAsText);
-                consumer.consume(exchange);
-                httpServerExchange.setStatusCode(201);
+                try {
+                    source.accept(requestBodyAsText);
+                    httpServerExchange.setStatusCode(201);
+                } catch (RuntimeException notAccepted) {
+                    // The request could not be accepted (the durable inbox could not be written): it was not
+                    // taken over, so it must not be answered as if it had been (issue #159: before, the failure
+                    // was handled by the flow's exception handler and the client was answered 201 all the
+                    // same). Inside the try-with-resources, so the status is set before the exchange is closed.
+                    sysLogger.error("Unable to accept the request made to '{}'", resource, notAccepted);
+                    httpServerExchange.setStatusCode(500);
+                }
             } catch (RequestTooBigException tooBig) {
                 // Undertow itself enforces UndertowOptions.MAX_ENTITY_SIZE by throwing this
                 // mid-read for a chunked (Content-Length-less) request that turns out too big.
@@ -111,11 +117,6 @@ public class DefaultHttpHandler implements HttpHandler, ExchangeFactoryAware {
             httpServerExchange.endExchange();
         }
 
-    }
-
-    @Override
-    public void setExchangeFactory(ExchangeFactory exchangeFactory) {
-        this.exchangeFactory = exchangeFactory;
     }
 
     /**

@@ -17,46 +17,33 @@ package io.pipelite.channels.kafka;
 
 import io.pipelite.channels.kafka.config.KafkaChannelConfiguration;
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.spi.context.ContextEventListener;
-import io.pipelite.spi.endpoint.Consumer;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
+import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
+import io.pipelite.spi.source.Source;
 
-public class KafkaEndpoint extends DefaultEndpoint implements ContextEventListener {
+public class KafkaEndpoint implements Endpoint {
 
+    private final EndpointURL endpointURL;
     private final KafkaChannelConfiguration configuration;
 
-    private DefaultKafkaProducer producer;
-
-    public KafkaEndpoint(EndpointURL endpointURL, KafkaChannelAdapter channel, KafkaChannelConfiguration configuration) {
-        super(endpointURL, channel);
-        Preconditions.notNull(configuration, "configuration is required and cannot be null");
-        this.configuration = configuration;
+    public KafkaEndpoint(EndpointURL endpointURL, KafkaChannelConfiguration configuration) {
+        this.endpointURL = Preconditions.notNull(endpointURL, "endpointURL is required and cannot be null");
+        this.configuration = Preconditions.notNull(configuration, "configuration is required and cannot be null");
     }
 
     @Override
-    public Consumer createConsumer() {
-        return new KafkaConsumerService(configuration, this);
+    public EndpointURL getEndpointURL() {
+        return endpointURL;
+    }
+
+    @Override
+    public Source createSource() {
+        return new KafkaSource(configuration, this);
     }
 
     @Override
     public Producer createProducer() {
-        producer = new DefaultKafkaProducer(this, configuration);
-        return producer;
-    }
-
-    @Override
-    public void onContextStarted() {
-        if(producer != null){
-            producer.onContextStarted();
-        }
-    }
-
-    @Override
-    public void onContextStopped() {
-        if(producer != null){
-            producer.onContextStopped();
-        }
+        return new DefaultKafkaProducer(this, configuration);
     }
 }

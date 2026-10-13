@@ -21,27 +21,16 @@ import io.pipelite.channels.kafka.config.KafkaChannelConfigurer;
 import io.pipelite.dsl.definition.SourceConfigurer;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelConfigurer;
-import io.pipelite.spi.context.ContextEventListener;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.Flow;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 
-import java.util.ArrayList;
-import java.util.Collection;
 
-public class KafkaChannelAdapter implements ChannelAdapter, ExchangeFactoryAware, ContextEventListener {
+public class KafkaChannelAdapter implements ChannelAdapter {
 
     private final KafkaChannelConfiguration configuration;
 
-    private final Collection<KafkaEndpoint> endpoints;
-
-    private ExchangeFactory exchangeFactory;
-
     public KafkaChannelAdapter(){
         configuration = new DefaultKafkaChannelConfiguration();
-        endpoints = new ArrayList<>();
     }
 
     @Override
@@ -56,33 +45,11 @@ public class KafkaChannelAdapter implements ChannelAdapter, ExchangeFactoryAware
 
     @Override
     public Endpoint createEndpoint(String url) {
-        final KafkaEndpoint endpoint = new KafkaEndpoint(EndpointURL.parse(url), this, configuration);
-        endpoints.add(endpoint);
-        return endpoint;
+        return new KafkaEndpoint(EndpointURL.parse(url), configuration);
     }
 
     @Override
     public SourceConfigurer newSourceConfigurer() {
         return new KafkaSourceConfigurer();
-    }
-
-    @Override
-    public void onContextStarted() {
-        endpoints.forEach(KafkaEndpoint::onContextStarted);
-    }
-
-    @Override
-    public void onContextStopped() {
-        endpoints.forEach(KafkaEndpoint::onContextStopped);
-    }
-
-    @Override
-    public void onFlowRegistered(Flow flow) {
-        endpoints.forEach(endpoint -> endpoint.onFlowRegistered(flow));
-    }
-
-    @Override
-    public void setExchangeFactory(ExchangeFactory exchangeFactory) {
-        this.exchangeFactory = exchangeFactory;
     }
 }

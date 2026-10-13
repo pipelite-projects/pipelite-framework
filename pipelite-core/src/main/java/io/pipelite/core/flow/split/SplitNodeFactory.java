@@ -16,7 +16,7 @@
 package io.pipelite.core.flow.split;
 
 import io.pipelite.dsl.split.SplitSegment;
-import io.pipelite.spi.flow.exchange.FlowNode;
+import io.pipelite.core.flow.internal.FlowNode;
 
 /**
  * The only public entry point for building a node backed by this package's {@code FlowNode}

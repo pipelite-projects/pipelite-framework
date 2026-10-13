@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
@@ -22,7 +24,7 @@ import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
 import io.pipelite.core.flow.execution.deadletter.DeadLetteredExchange;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.awaitility.Awaitility;
 import org.junit.Assert;
 import org.junit.Before;
@@ -121,7 +123,7 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
         pipeliteContext.registerFlowDefinition(testFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         pipeliteContext.supplyExchange("queue://dump-removal-timing-in", exchangeFactory.createExchange("test-message"));
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> invocationCount.get() >= 2);
@@ -157,7 +159,7 @@ public class PipeliteRetryDumpRemovalTimingIntegrationTest {
         pipeliteContext.registerFlowDefinition(testFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         pipeliteContext.supplyExchange("queue://dump-removal-exhaustion-in", exchangeFactory.createExchange("poison-payload"));
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> attemptCount.get() == 2);

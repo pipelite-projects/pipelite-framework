@@ -1,7 +1,33 @@
 = Custom Adapter
 :description: Guide to implementing a custom ChannelAdapter via the Pipelite SPI
 
-Pipelite exposes an open SPI that allows custom adapters to be created for any external system.
+Pipelite exposes a small, open SPI that allows custom adapters to be created for any external system.
+An adapter author implements a handful of contracts and is handed a few handles by the framework;
+everything around them - the queue between a source and its flow, the workers, the backpressure, the
+durable inbox, the error handling, the threads - belongs to the framework and is not part of the SPI.
+
+[cols="1,3"]
+|===
+|Contract |What it is for
+
+|`ChannelAdapter`
+|The entry point, one per protocol (`my-adapter://...`): creates an `Endpoint` for every URL.
+
+|`Endpoint`
+|A resolved URL. It creates the `Source` that feeds a flow (`fromSource`) and the `Producer` that writes to it (`toSink` or a route destination). Either side may be left unsupported.
+
+|`Source`
+|What feeds a flow: an `EventSource` that pushes exchanges, or a `PollingSource` the framework polls on a schedule.
+
+|`Producer`
+|What writes one exchange to the external system.
+
+|`ChannelConfigurer`, `SourceConfigurer`
+|Optional typed configuration, adapter-wide and per `fromSource`.
+
+|`ContextEventListener`
+|Optional: told when the context starts and stops.
+|===
 
 == SPI dependency
 
@@ -14,6 +40,9 @@ Pipelite exposes an open SPI that allows custom adapters to be created for any e
 </dependency>
 ----
 
+`pipelite-spi` depends only on `pipelite-dsl`, for the `Exchange` and `Headers` interfaces an adapter
+reads and writes. An adapter never needs `pipelite-core`, and cannot use its classes.
+
 == Implementing ChannelAdapter
 
 [source,java]
@@ -22,118 +51,193 @@ public class MyCustomChannelAdapter implements ChannelAdapter {
 
     @Override
     public Endpoint createEndpoint(String url) {
-        EndpointURL endpointURL = EndpointURL.parse(url);
-        return new MyCustomEndpoint(endpointURL, this);
+        return new MyCustomEndpoint(EndpointURL.parse(url));
     }
 }
 ----
 
 == Implementing Endpoint
 
+An `Endpoint` has an `EndpointURL`, and creates the two sides. Both are optional: the defaults throw an
+`UnsupportedOperationException` saying the endpoint "cannot be used as a source" or "as a destination",
+so an adapter overrides only the side it supports. A flow that reads from an endpoint with no source
+fails when the context starts, not later.
+
 [source,java]
 ----
-public class MyCustomEndpoint extends DefaultEndpoint {
+public class MyCustomEndpoint implements Endpoint {
 
-    public MyCustomEndpoint(EndpointURL url, ChannelAdapter adapter) {
-        super(url, adapter);
+    private final EndpointURL endpointURL;
+
+    public MyCustomEndpoint(EndpointURL endpointURL) {
+        this.endpointURL = endpointURL;
     }
 
     @Override
-    public Consumer createConsumer() {
-        return new MyCustomConsumerService(this);    // for use as source
+    public EndpointURL getEndpointURL() {
+        return endpointURL;
+    }
+
+    @Override
+    public Source createSource() {
+        return new MyCustomSource(this);        // for use in fromSource(...)
     }
 
     @Override
     public Producer createProducer() {
-        return new MyCustomProducer(this);           // for use as sink
+        return new MyCustomProducer(this);      // for use in toSink(...)
     }
 }
 ----
 
-The defaults `DefaultEndpoint` itself uses (when neither is overridden) are `new EventDrivenConsumerService(new EventDrivenConsumer(this))` and `new DefaultProducer(this)` - override only the side(s) a custom adapter actually needs something different for.
+`getProperties()` returns the query-string parameters of the URL (`my-adapter://orders?batchSize=10`).
 
-== Implementing Consumer (source)
+== Implementing a Source
 
-NOTE: `AbstractConsumer`/`AbstractProducer` are sealed to the framework's own default
-implementations (pre-1.0.0 API audit, issue #79 Tier 4) - a custom adapter extends
-`DefaultPollingConsumer`/`EventDrivenConsumerService`/`DefaultProducer` instead, all `non-sealed`
-and the actual, intended extension points.
+A source only receives. It is handed a `SourceContext` when it starts, and hands every incoming
+exchange to the framework. It does not create threads for the flow, queue anything, or call the flow
+itself.
 
-For *event-driven* consumers, wrap an `EventDrivenConsumer` (which owns the dispatch queue and
-concurrency) in a `Service` subclass that subscribes to the external system on `doStart()`:
+[cols="1,3"]
+|===
+|`SourceContext` |
+
+|`newExchange(Object payload)`
+|A new `Exchange` whose input payload is `payload`.
+
+|`accept(Exchange)`
+|Hands an exchange to the framework. It returns once the exchange is *accepted*: written to the durable inbox and queued, applying the backpressure of the flow. It throws when the exchange cannot be accepted, and the source must then *not* acknowledge its input.
+
+|`flowName()`
+|The name of the flow the source feeds.
+
+|`threadFactory()`
+|A factory of threads named after the flow, for a source that needs one of its own.
+
+|`isRunning()`
+|`false` once the flow is stopping; a source thread must then end.
+|===
+
+=== An event source
+
+An `EventSource` pushes: it receives on its own and calls `accept` for each exchange. `start` must
+return promptly; a source that needs a thread of its own creates it with `threadFactory()`.
 
 [source,java]
 ----
-public class MyCustomConsumerService extends EventDrivenConsumerService {
+public class MyCustomSource implements EventSource {
 
-    public MyCustomConsumerService(Endpoint endpoint) {
-        super(new EventDrivenConsumer(endpoint), "my-adapter");   // <1>
+    private final MyCustomEndpoint endpoint;
+    private SourceContext context;
+    private MySubscription subscription;
+
+    public MyCustomSource(MyCustomEndpoint endpoint) {
+        this.endpoint = endpoint;
     }
 
     @Override
-    public void doStart() {
-        super.doStart();                                          // <2>
-        mySystem.onMessage(data -> consume(exchangeFactory.createExchange(data)));   // <3>
+    public void start(SourceContext context) {
+        this.context = context;
+        this.subscription = mySystem.subscribe(endpoint.getEndpointURL().getResource(), this::onMessage);
+    }
+
+    private void onMessage(MyMessage message) {
+        final Exchange exchange = context.newExchange(message.body());
+        exchange.putHeader("my-adapter.key", message.key());
+        context.accept(exchange);                   // <1>
+        message.acknowledge();                      // <2>
     }
 
     @Override
-    public void doStop() {
-        // unsubscribe from the external system
-        super.doStop();
+    public void stop() {
+        subscription.cancel();                      // <3>
     }
 }
 ----
-<1> The role name (`"my-adapter"`) distinguishes this adapter's threads from another's in a thread dump - see `KafkaConsumerService` for a real example.
-<2> Starts the dispatch strategy first, so it is ready before the first message can arrive.
-<3> `exchangeFactory` is inherited (`protected`), wired automatically before `doStart()` runs. `consume(...)` is the public entry point for handing in a new `Exchange` - never call `process(...)` directly, its meaning differs by consumer type.
+<1> Returns once the exchange is durable and queued. If it throws, the exchange was not accepted.
+<2> Acknowledge the external system (commit the offset, answer the request) only after `accept` returned. The Kafka source commits the offsets of a batch once all of it has been accepted; the HTTP source answers `500` to a request that could not be accepted.
+<3> Called before the framework stops its own machinery.
 
-For *polling* consumers, override `receive()` on `DefaultPollingConsumer` - see
-`TimePollingConsumer`/`FileTailPollingConsumer` for real examples:
+A source with a loop of its own (a poll-loop thread, as the Kafka source has) creates the thread with
+`context.threadFactory()` and keeps running while `context.isRunning()`.
+
+=== A polling source
+
+A `PollingSource` is called by the framework on a schedule: the `initialDelay`, `period`, `timeUnit`
+and `batchSize` parameters of the endpoint (see xref:file.adoc[File] and xref:time.adoc[Time]).
+`poll()` returns the next exchange, or `null` when there is nothing to read now; it is called up to
+`batchSize` times per tick, until it returns `null`.
 
 [source,java]
 ----
-public class MyCustomPollingConsumer extends DefaultPollingConsumer
-    implements ExchangeFactoryAware {
+public class MyCustomPollingSource implements PollingSource {
 
-    private ExchangeFactory exchangeFactory;
+    private SourceContext context;
 
-    public MyCustomPollingConsumer(Endpoint endpoint) {
-        super(endpoint);
+    @Override
+    public void start(SourceContext context) {      // optional
+        this.context = context;
     }
 
     @Override
-    public void setExchangeFactory(ExchangeFactory exchangeFactory) {
-        this.exchangeFactory = exchangeFactory;
+    public Exchange poll() {
+        final Object data = mySystem.fetchNext();
+        return data != null ? context.newExchange(data) : null;
     }
 
     @Override
-    public ExchangeImpl receive() {
-        Object data = mySystem.fetchNext();
-        return data != null ? exchangeFactory.createExchange(data) : null;
+    public void stop() {                            // optional
+        mySystem.close();
     }
 }
 ----
 
-`ScheduledPollingConsumerService` calls `receive()` on its own schedule (`period`/`initialDelay`/`timeUnit`/`batchSize`, see xref:file.adoc[File]/xref:time.adoc[Time]) and dispatches whatever it returns; a `null` means nothing was available this tick.
+A polling source that reads several records at a time, and must not move its own position (a file
+offset) before they are safe, hands each of them over with `accept`, which makes it durable, and
+returns `null`: the framework then takes the exchanges from its own queue. The file source works this
+way.
 
-== Implementing Producer (sink)
+== Implementing a Producer
+
+A `Producer` writes one exchange. It is a functional interface:
 
 [source,java]
 ----
-public class MyCustomProducer extends DefaultProducer {
+public class MyCustomProducer implements Producer {
 
-    public MyCustomProducer(Endpoint endpoint) {
-        super(endpoint);
+    private final MyClient client;
+
+    public MyCustomProducer(MyCustomEndpoint endpoint) {
+        this.client = MyClient.connect(endpoint.getEndpointURL().getResource());
     }
 
     @Override
-    public void doProcess(ExchangeImpl exchange) {                 // <1>
-        Object payload = exchange.getInputPayload();
-        mySystem.send(payload);
+    public void produce(Exchange exchange) {
+        client.send(exchange.getInputPayload());        // <1>
+    }
+
+    @Override
+    public void close() {                               // <2>
+        client.close();
     }
 }
 ----
-<1> Not `process(...)` - `DefaultProducer` already implements it (`final`) to call `doProcess(...)` inside a try/catch that routes any `RuntimeException` through the flow's own exception handler (issue #89), the same failure handling a processor step already gets. A producer failure used to always propagate uncaught before that.
+<1> A `RuntimeException` thrown here is a failure of the step: the framework applies the flow's error handling around `produce`, so it is retried, dead-lettered or handled like the failure of any processor.
+<2> Optional (the default does nothing). The framework calls it once the producer is no longer needed: when the context stops, for a producer that ends a flow; right after the exchange is delivered, for one created to deliver a single exchange (for example by `supplyExchange`).
+
+== Typed configuration
+
+An adapter that needs configuration offers it in two places, both optional:
+
+* *Adapter-wide*, shared by every endpoint of the protocol (the Kafka adapter's bootstrap servers):
+implement `ChannelConfigurer<T>` and return its type from `ChannelAdapter#getChannelConfigurerType()`;
+the framework passes the configurers registered with `addChannelConfigurer(...)` to `ChannelAdapter#configure(...)`.
+* *Per `fromSource(...)`*, as the typed alternative to a query string
+(`fromSource("my-adapter://orders", (MySourceConfigurer c) -> c.batchSize(10))`): extend
+`SourceConfigurer` (or `PollingSourceConfigurer`, which already carries `initialDelay`, `period`,
+`timeUnit` and `batchSize`), contribute the query parameters in `contributeQueryParameters`, and return
+a fresh instance from `ChannelAdapter#newSourceConfigurer()`. An adapter may pre-seed defaults there:
+the `time` adapter turns the durable inbox off that way.
 
 == Registration via classpath scan
 
@@ -145,17 +249,20 @@ src/main/resources/META-INF/pipelite.factories
 ----
 
 File content: a standard `java.util.Properties` file, one `<protocol>=<fully-qualified-class-name>`
-entry per adapter (the same shape as `MyCustomChannelAdapter` itself declares nothing about its own
-protocol - the key here is what defines it):
+entry per adapter (`MyCustomChannelAdapter` itself declares nothing about its own protocol - the key
+here is what defines it):
 
 [source]
 ----
 my-adapter=com.example.adapters.MyCustomChannelAdapter
 ----
 
-`ChannelAdapterDiscovery` scans every `META-INF/pipelite.factories` on the classpath and instantiates
-one adapter per entry at `PipeliteContext` startup, failing fast with a
-`DuplicateChannelAdapterProtocolException` if two different classes claim the same protocol name.
+The context scans every `META-INF/pipelite.factories` on the classpath and instantiates one adapter
+per entry at startup, failing fast with a `DuplicateChannelAdapterProtocolException` if two different
+classes claim the same protocol name.
+
+NOTE: `queue://` is not an adapter you can replace or extend: it is a built-in of `pipelite-core`
+(see xref:queue.adoc[Queue]).
 
 == Integration with the context lifecycle
 
@@ -177,3 +284,11 @@ public class MyCustomChannelAdapter
     }
 }
 ----
+
+== Testing an adapter
+
+An adapter module depends on `pipelite-spi` and `pipelite-dsl`, not on `pipelite-core`, so its unit
+tests do not have the framework's `Exchange` implementation. A source is tested with a hand-written
+`SourceContext` whose `newExchange` and `accept` record what the source produced, and a producer with a
+small `Exchange` stub holding a payload and a map of headers. To test the adapter inside a running flow,
+add `pipelite-core` as a *test* dependency of an integration-test module.

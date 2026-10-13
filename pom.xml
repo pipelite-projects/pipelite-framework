@@ -60,6 +60,7 @@
     </properties>
 
     <modules>
+        <module>pipelite-bom</module>
         <module>pipelite-common</module>
         <module>pipelite-spi</module>
         <module>pipelite-dsl</module>

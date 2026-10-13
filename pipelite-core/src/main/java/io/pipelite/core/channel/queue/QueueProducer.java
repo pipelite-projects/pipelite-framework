@@ -1,0 +1,53 @@
+/*
+ * Copyright (C) 2023-2024 the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.pipelite.core.channel.queue;
+
+import io.pipelite.core.consumer.internal.Consumer;
+import io.pipelite.dsl.Exchange;
+import io.pipelite.spi.endpoint.EndpointURL;
+import io.pipelite.spi.endpoint.Producer;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class QueueProducer implements Producer {
+
+    private final Logger sysLogger = LoggerFactory.getLogger(getClass());
+
+    private final QueueChannelAdapter channel;
+    private final EndpointURL endpointURL;
+
+    public QueueProducer(QueueChannelAdapter channel, EndpointURL endpointURL) {
+        this.channel = channel;
+        this.endpointURL = endpointURL;
+    }
+
+    @Override
+    public void produce(Exchange exchange) {
+
+        // Fails instead of dropping the exchange when no flow reads the queue: it used to be
+        // discarded in silence (issue #100). The failure goes through the flow's exception handler like any failed producer (#92).
+        final Consumer consumer = channel.tryResolveConsumer(endpointURL.getResource())
+            .orElseThrow(() -> new IllegalArgumentException(String.format(
+                "Unrecognized destination 'queue://%s', unable to supply exchange - " +
+                    "no registered flow declares fromSource('queue://%s')", endpointURL.getResource(), endpointURL.getResource())));
+
+        if(sysLogger.isDebugEnabled()){
+            sysLogger.debug("Putting exchange on queue '{}'", endpointURL.getResource());
+        }
+        consumer.consume((ExchangeImpl) exchange);
+    }
+}

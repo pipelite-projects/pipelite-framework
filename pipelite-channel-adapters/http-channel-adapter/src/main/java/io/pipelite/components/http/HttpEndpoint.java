@@ -15,34 +15,35 @@
  */
 package io.pipelite.components.http;
 
-import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.endpoint.Consumer;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
+import io.pipelite.common.support.Preconditions;
+import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.endpoint.Producer;
+import io.pipelite.spi.source.Source;
 
-public class HttpEndpoint extends DefaultEndpoint {
+public class HttpEndpoint implements Endpoint {
 
-    public HttpEndpoint(EndpointURL endpointURL, ChannelAdapter channel) {
-        super(endpointURL, channel);
+    private final EndpointURL endpointURL;
+    private final HttpChannelAdapter channel;
+
+    public HttpEndpoint(EndpointURL endpointURL, HttpChannelAdapter channel) {
+        this.endpointURL = Preconditions.notNull(endpointURL, "endpointURL is required and cannot be null");
+        this.channel = Preconditions.notNull(channel, "channel is required and cannot be null");
     }
 
     @Override
-    public Consumer createConsumer() {
-
-        final Consumer consumer = super.createConsumer();
-        final EndpointURL endpointURL = getEndpointURL();
-
-        final HttpChannelAdapter component = getChannelAdapter(HttpChannelAdapter.class);
-        component.registerConsumer(endpointURL.getResource(), consumer);
-
-        return consumer;
-
+    public EndpointURL getEndpointURL() {
+        return endpointURL;
     }
 
     @Override
-    public Producer createProducer() {
-        throw new UnsupportedOperationException();
+    public Source createSource() {
+
+        final HttpSource source = new HttpSource(getProperties().get(HttpConstants.METHOD_PROPERTY_NAME));
+
+        channel.registerSource(endpointURL.getResource(), source);
+
+        return source;
+
     }
 
 }

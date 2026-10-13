@@ -47,7 +47,7 @@ import io.pipelite.dsl.split.SplitConfigurator;
 import io.pipelite.dsl.split.SplitSegment;
 import io.pipelite.expression.ExpressionParser;
 import io.pipelite.dsl.process.ExceptionHandler;
-import io.pipelite.spi.flow.exchange.FlowNode;
+import io.pipelite.core.flow.internal.FlowNode;
 
 import java.util.Objects;
 import java.util.function.Consumer;

@@ -15,14 +15,16 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
-import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
-import io.pipelite.spi.inbox.SegmentedLogDurableInboxProvider;
+import io.pipelite.core.exchange.internal.DistributedIdentityGeneratorImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.SimpleMessage;
+import io.pipelite.core.flow.execution.inbox.SegmentedLogDurableInboxProvider;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Assert;
@@ -99,7 +101,7 @@ public class PipeliteFlowsSharingASourceResourceIntegrationTest {
             .build());
         context.start();
         try {
-            context.supplyExchange("queue://" + SHARED, context.getExchangeFactory().createExchange("payload"));
+            context.supplyExchange("queue://" + SHARED, context.createExchange("payload"));
 
             Awaitility.await().atMost(20, TimeUnit.SECONDS).until(done::get);
 
@@ -142,7 +144,7 @@ public class PipeliteFlowsSharingASourceResourceIntegrationTest {
         context.start();
         try {
             Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
-                context.getDurableInboxProvider().forFlow("internal-flow").pendingEntries().isEmpty());
+                ((InternalPipeliteContext) context).getDurableInboxProvider().forFlow("internal-flow").pendingEntries().isEmpty());
 
             // Only its own entry: with one inbox per resource, "for-time" would have been handed to
             // this flow as well.

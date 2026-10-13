@@ -15,12 +15,8 @@
  */
 package io.pipelite.spi.context;
 
-import io.pipelite.spi.flow.Flow;
-
 public interface ContextEventListener {
 
     default void onContextStarted(){}
     default void onContextStopped(){}
-    default void onFlowRegistered(Flow flow){}
-
 }

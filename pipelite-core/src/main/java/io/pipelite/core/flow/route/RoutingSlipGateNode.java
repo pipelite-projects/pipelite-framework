@@ -15,12 +15,14 @@
  */
 package io.pipelite.core.flow.route;
 
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.dsl.route.RoutingSlip;
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.AbstractFlowNode;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.flow.internal.AbstractFlowNode;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,7 +54,7 @@ class RoutingSlipGateNode extends AbstractFlowNode implements PipeliteContextAwa
 
     private final boolean repliesToReturnAddress;
 
-    private PipeliteContext pipeliteContext;
+    private InternalPipeliteContext pipeliteContext;
 
     RoutingSlipGateNode(boolean repliesToReturnAddress) {
         this.repliesToReturnAddress = repliesToReturnAddress;
@@ -74,7 +76,7 @@ class RoutingSlipGateNode extends AbstractFlowNode implements PipeliteContextAwa
         if (repliesToReturnAddress) {
             exchange.tryGetReturnAddress().ifPresent(returnAddress -> {
                 if (logger.isDebugEnabled()) {
-                    logger.debug("{} header found, redirecting flow to '{}'", IOKeys.RETURN_ADDRESS_HEADER_NAME, returnAddress);
+                    logger.debug("{} header found, redirecting flow to '{}'", IOKeys.RETURN_ADDRESS_PROPERTY_NAME, returnAddress);
                 }
                 exchange.resetReturnAddress();
                 deliver(returnAddress, exchange, () -> exchange.setReturnAddress(returnAddress));
@@ -109,7 +111,7 @@ class RoutingSlipGateNode extends AbstractFlowNode implements PipeliteContextAwa
     }
 
     @Override
-    public void setPipeliteContext(PipeliteContext pipeliteContext) {
+    public void setPipeliteContext(InternalPipeliteContext pipeliteContext) {
         this.pipeliteContext = pipeliteContext;
     }
 }

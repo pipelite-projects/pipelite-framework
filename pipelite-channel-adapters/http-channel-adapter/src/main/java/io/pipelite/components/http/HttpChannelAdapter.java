@@ -23,11 +23,8 @@ import io.pipelite.dsl.definition.SourceConfigurer;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelConfigurer;
 import io.pipelite.spi.context.ContextEventListener;
-import io.pipelite.spi.endpoint.Consumer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
 import io.undertow.Handlers;
 import io.undertow.Undertow;
 import io.undertow.UndertowOptions;
@@ -39,18 +36,16 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
-public class HttpChannelAdapter implements ChannelAdapter, ExchangeFactoryAware, ContextEventListener {
+public class HttpChannelAdapter implements ChannelAdapter, ContextEventListener {
 
-    private final Map<String, Consumer> consumersByResource;
+    private final Map<String, HttpSource> sourcesByResource;
 
     private final HttpChannelConfiguration configuration;
 
     private Undertow server;
 
-    private ExchangeFactory exchangeFactory;
-
     public HttpChannelAdapter(){
-        consumersByResource = new LinkedHashMap<>();
+        sourcesByResource = new LinkedHashMap<>();
         configuration = new DefaultHttpChannelConfiguration();
     }
 
@@ -70,11 +65,6 @@ public class HttpChannelAdapter implements ChannelAdapter, ExchangeFactoryAware,
     }
 
     @Override
-    public void setExchangeFactory(ExchangeFactory exchangeFactory) {
-        this.exchangeFactory = exchangeFactory;
-    }
-
-    @Override
     public Endpoint createEndpoint(String url) {
         final EndpointURL endpointURL = EndpointURL.parse(url);
         return new HttpEndpoint(endpointURL, this);
@@ -88,8 +78,8 @@ public class HttpChannelAdapter implements ChannelAdapter, ExchangeFactoryAware,
     @Override
     public void onContextStarted() {
 
-        // Start Undertow only if was registered consumers
-        if(consumersByResource.isEmpty()){
+        // Start Undertow only if a source was registered
+        if(sourcesByResource.isEmpty()){
             return;
         }
 
@@ -110,26 +100,21 @@ public class HttpChannelAdapter implements ChannelAdapter, ExchangeFactoryAware,
         }
     }
 
-    public void registerConsumer(String resource, Consumer consumer){
-        if(consumersByResource.containsKey(resource)){
+    public void registerSource(String resource, HttpSource source){
+        if(sourcesByResource.containsKey(resource)){
             throw new IllegalStateException(String.format("Consumer resource '%s' already added", resource));
         }
-        consumersByResource.put(resource, consumer);
+        sourcesByResource.put(resource, source);
     }
 
-    public Optional<Consumer> tryResolveConsumer(String resource){
-        if(consumersByResource.containsKey(resource)){
-            return Optional.of(consumersByResource.get(resource));
-        }
-        return Optional.empty();
+    public Optional<HttpSource> tryResolveSource(String resource){
+        return Optional.ofNullable(sourcesByResource.get(resource));
     }
 
     private HttpHandler createHttpHandler(){
         final PathHandler pathHandler = Handlers.path();
         final DefaultHttpHandler httpHandler = new DefaultHttpHandler(this);
-        httpHandler.setExchangeFactory(exchangeFactory);
-
-        consumersByResource.keySet().forEach(resource -> {
+        sourcesByResource.keySet().forEach(resource -> {
             pathHandler.addExactPath(resource, httpHandler);
         });
         return new BlockingHandler(pathHandler);

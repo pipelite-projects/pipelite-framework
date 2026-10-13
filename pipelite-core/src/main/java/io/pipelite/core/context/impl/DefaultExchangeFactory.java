@@ -16,11 +16,11 @@
 package io.pipelite.core.context.impl;
 
 import io.pipelite.dsl.Headers;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.HeadersImpl;
-import io.pipelite.spi.flow.exchange.Message;
-import io.pipelite.spi.flow.exchange.MessageFactory;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
+import io.pipelite.core.exchange.internal.HeadersImpl;
+import io.pipelite.core.exchange.internal.Message;
+import io.pipelite.core.exchange.internal.MessageFactory;
 
 import java.util.Map;
 import java.util.Objects;

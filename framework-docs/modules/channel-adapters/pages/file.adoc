@@ -29,7 +29,7 @@ Pipelite.defineFlow("file-tail")
 ----
 <1> Polls `/var/log/app.log` every 500 ms, starting from the beginning of the file.
 
-The `FileTailPollingConsumer` polls the file on a dedicated per-endpoint thread via `FileTailConsumerService` (one `ScheduledExecutorService` per endpoint, not shared across the adapter). On each poll it reads only the bytes appended since the last known offset, maps them into records via the configured `FileRecordMapper`, and emits one `Exchange` per record.
+The file source (`FileTailSource`) is polled by the framework on a schedule of its own per endpoint, not shared across the adapter. On each poll it reads only the bytes appended since the last known offset, maps them into records via the configured `FileRecordMapper`, and emits one `Exchange` per record.
 
 The same settings can be applied through the typed `FileSourceConfigurer` instead of a query
 string (see xref:custom.adoc[Custom Channel Adapters] for the general mechanism):
@@ -74,7 +74,7 @@ file://<path>[?<params>]
 
 |`period`
 |`1000`
-|Polling interval, in the unit given by `timeUnit`. Inherited from the generic `ScheduledPollingConsumerService` (same parameter used by the `time` and `kafka` sources).
+|Polling interval, in the unit given by `timeUnit`. Common to every polling source (same parameter used by the `time` and `kafka` sources).
 
 |`initialDelay`
 |`0`
@@ -214,4 +214,4 @@ This makes tailing resumable across restarts: a new `PipeliteContext` pointed at
 
 == Availability of the `mode` parameter
 
-`FileEndpoint#createConsumer()` only accepts `mode=tail` (the default); any other value throws `IllegalArgumentException` when the flow is registered. This is a configuration-time failure, not a runtime one — it surfaces as soon as the context starts, before any polling begins.
+`FileEndpoint#createSource()` only accepts `mode=tail` (the default); any other value throws `IllegalArgumentException` when the flow is registered. This is a configuration-time failure, not a runtime one — it surfaces as soon as the context starts, before any polling begins.

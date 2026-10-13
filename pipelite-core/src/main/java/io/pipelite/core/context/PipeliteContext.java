@@ -15,16 +15,11 @@
  */
 package io.pipelite.core.context;
 
-import io.pipelite.core.flow.split.AggregateRepository;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.spi.channel.ChannelConfigurer;
-import io.pipelite.spi.flow.Flow;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.inbox.DurableInboxProvider;
 
 import java.util.Optional;
-import java.util.concurrent.ExecutorService;
 
 public interface PipeliteContext {
 
@@ -66,46 +61,14 @@ public interface PipeliteContext {
      * @throws IllegalArgumentException if {@code destinationURL} is not a URL, or its protocol has
      *                                  no registered channel adapter.
      */
-    void supplyExchange(String destinationURL, ExchangeImpl exchange);
+    void supplyExchange(String destinationURL, Exchange exchange);
 
     /**
-     * Looks up a registered {@link Flow} by its source endpoint resource (the same value
-     * {@code Flow#getEndpointURI()} was registered under). Used to resume a flow's execution
-     * directly at a specific {@code FlowNode} (see {@code SupplyExchangeProcessor}) rather than
-     * re-entering from the source — the registry backing this lookup is otherwise entirely
-     * internal to this context's implementation.
+     * A new exchange whose input payload is {@code payload}, to be delivered with {@link #supplyExchange}.
+     * Issue #159: this replaces {@code getExchangeFactory().createExchange(...)}, which exposed the
+     * framework's own exchange types to the code of a flow.
      */
-    Optional<Flow> tryFindFlow(String sourceEndpointResource);
-
-    /**
-     * Looks up a registered {@link Flow} by its own name — the value passed to
-     * {@code Pipelite.defineFlow(String flowName)} — not by its {@code fromSource(...)} resource
-     * (see {@link #tryFindFlow(String)} for that). The flow name is an identity, not an address:
-     * since issue #102 no DSL method takes it as a destination (see {@link #supplyExchange}).
-     */
-    Optional<Flow> tryFindFlowByName(String flowName);
-
-    EndpointFactory getEndpointFactory();
-
-    ExchangeFactory getExchangeFactory();
-
-    AggregateRepository getAggregateRepository();
-
-    /**
-     * Resolves the per-source {@code DurableInbox} a consumer durably records its intake with
-     * (issue #70) — called once per source at flow-build time (see {@code FlowFactory}), never
-     * on the hot path.
-     */
-    DurableInboxProvider getDurableInboxProvider();
-
-    /**
-     * The shared, application-wide worker pool used by {@code fromSource("queue://...")}
-     * endpoints when {@code concurrency > 1} is configured on their URL. A single pool sized
-     * independently of how many flows use it or how high each sets its own {@code concurrency} —
-     * see {@link io.pipelite.core.context.ConfigurablePipeliteContext#setMaxSourceWorkerPoolSize(int)}.
-     * Only meaningful after {@link #start()}.
-     */
-    ExecutorService getSourceWorkerPool();
+    Exchange createExchange(Object payload);
 
     void start();
 

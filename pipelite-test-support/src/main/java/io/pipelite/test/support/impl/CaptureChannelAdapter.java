@@ -15,13 +15,12 @@
  */
 package io.pipelite.test.support.impl;
 
+import io.pipelite.dsl.Exchange;
 import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
-import io.pipelite.spi.endpoint.DefaultProducer;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.test.PipeliteTestFixture;
 
 import java.lang.ref.WeakReference;
@@ -98,33 +97,37 @@ public class CaptureChannelAdapter implements ChannelAdapter {
         return new CaptureEndpoint(EndpointURL.parse(url));
     }
 
-    private static class CaptureEndpoint extends DefaultEndpoint {
+    private static class CaptureEndpoint implements Endpoint {
+
+        private final EndpointURL endpointURL;
 
         CaptureEndpoint(EndpointURL endpointURL) {
-            super(endpointURL);
+            this.endpointURL = endpointURL;
+        }
+
+        @Override
+        public EndpointURL getEndpointURL() {
+            return endpointURL;
         }
 
         @Override
         public Producer createProducer() {
-            return new CaptureProducer(this);
+            return new CaptureProducer();
         }
     }
 
-    private static class CaptureProducer extends DefaultProducer {
-
-        CaptureProducer(Endpoint endpoint) {
-            super(endpoint);
-        }
+    private static class CaptureProducer implements Producer {
 
         @Override
-        public void doProcess(ExchangeImpl exchange) {
-            final String testId = exchange.getProperty(TEST_ID_PROPERTY, String.class);
+        public void produce(Exchange exchange) {
+            final ExchangeImpl captured = (ExchangeImpl) exchange;
+            final String testId = captured.getProperty(TEST_ID_PROPERTY, String.class);
             if (testId != null) {
                 final WeakReference<CompletableFuture<ExchangeImpl>> ref = PENDING.get(testId);
                 if (ref != null) {
                     final CompletableFuture<ExchangeImpl> future = ref.get();
                     if (future != null) {
-                        future.complete(exchange);
+                        future.complete(captured);
                     }
                 }
             }

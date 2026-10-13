@@ -18,3 +18,4 @@ nav:
   - modules/channel-adapters/nav.adoc
   - modules/spring-integration/nav.adoc
   - modules/testing/nav.adoc
+  - modules/changelog/nav.adoc

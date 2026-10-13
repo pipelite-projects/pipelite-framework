@@ -15,9 +15,9 @@
  */
 package io.pipelite.core.context.impl;
 
-import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.DistributedIdentityGeneratorImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

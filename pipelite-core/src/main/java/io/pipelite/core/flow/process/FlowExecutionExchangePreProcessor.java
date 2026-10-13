@@ -15,10 +15,10 @@
  */
 package io.pipelite.core.flow.process;
 
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.process.ExchangePreProcessor;
-import io.pipelite.spi.flow.process.FlowExecutionContext;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.flow.internal.ExchangePreProcessor;
+import io.pipelite.core.flow.internal.FlowExecutionContext;
 
 public class FlowExecutionExchangePreProcessor implements ExchangePreProcessor {
 

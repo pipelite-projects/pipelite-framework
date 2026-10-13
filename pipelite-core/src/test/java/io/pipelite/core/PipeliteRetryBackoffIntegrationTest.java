@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
@@ -73,7 +75,7 @@ public class PipeliteRetryBackoffIntegrationTest {
         context.registerFlowDefinition(testFlow);
         context.start();
 
-        context.supplyExchange("queue://ingress", context.getExchangeFactory().createExchange("test-message"));
+        context.supplyExchange("queue://ingress", context.createExchange("test-message"));
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> attemptTimestamps.size() >= 2);
 

@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.components;
 
-import io.pipelite.components.queue.QueueChannelAdapter;
+import io.pipelite.core.channel.queue.QueueChannelAdapter;
 import io.pipelite.components.time.TimeChannelAdapter;
 import org.junit.Assert;
 import org.junit.Test;

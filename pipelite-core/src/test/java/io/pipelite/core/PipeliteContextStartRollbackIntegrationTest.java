@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.components.http.config.HttpChannelConfigurer;
 import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
@@ -91,7 +93,7 @@ public class PipeliteContextStartRollbackIntegrationTest {
 
         // If the queue flow's consumer were still running (the bug), this would be processed
         // almost immediately; a rolled-back context has nothing left listening for it.
-        context.supplyExchange("queue://issue54-ingress", context.getExchangeFactory().createExchange("test"));
+        context.supplyExchange("queue://issue54-ingress", context.createExchange("test"));
         Thread.sleep(300);
 
         Assert.assertEquals("a failed start() must leave no consumer thread running", 0, processedCount.get());

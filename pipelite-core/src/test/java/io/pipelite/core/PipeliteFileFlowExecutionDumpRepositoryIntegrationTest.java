@@ -15,10 +15,12 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.core.flow.execution.dump.FileFlowExecutionDumpRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.awaitility.Awaitility;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -69,7 +71,7 @@ public class PipeliteFileFlowExecutionDumpRepositoryIntegrationTest {
         pipeliteContext.registerFlowDefinition(testFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         pipeliteContext.supplyExchange("queue://ingress", exchangeFactory.createExchange("test-message"));
 
         // Proves RetryChannelExceptionHandler.save(...) landed in the repository passed to the
@@ -112,7 +114,7 @@ public class PipeliteFileFlowExecutionDumpRepositoryIntegrationTest {
             pipeliteContext.registerFlowDefinition(testFlow);
             pipeliteContext.start();
 
-            final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+            final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
             pipeliteContext.supplyExchange("queue://default-repository-ingress", exchangeFactory.createExchange("test-message"));
 
             final Path expectedDumpsDirectory = customHome.resolve("state").resolve("retry");

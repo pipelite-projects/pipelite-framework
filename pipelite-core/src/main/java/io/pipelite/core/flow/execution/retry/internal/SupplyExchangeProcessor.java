@@ -15,20 +15,22 @@
  */
 package io.pipelite.core.flow.execution.retry.internal;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.flow.FlowNodeLocator;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.dump.SerializedFlowExecutionDump;
 import io.pipelite.common.support.serialization.BaseEncoding;
 import io.pipelite.common.support.serialization.ByteArrayToObjectConverter;
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.endpoint.EventDrivenConsumerService;
-import io.pipelite.spi.flow.AbstractFlowNode;
-import io.pipelite.spi.flow.Flow;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.FlowNode;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.consumer.internal.EventDrivenConsumerService;
+import io.pipelite.core.flow.internal.AbstractFlowNode;
+import io.pipelite.core.flow.internal.Flow;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.flow.internal.FlowNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +99,7 @@ class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContex
     private final ByteArrayToObjectConverter converter;
     private final FlowExecutionDumpRepository dumpRepository;
 
-    private PipeliteContext pipeliteContext;
+    private InternalPipeliteContext pipeliteContext;
 
     SupplyExchangeProcessor(FlowExecutionDumpRepository dumpRepository) {
         Preconditions.notNull(dumpRepository, "dumpRepository is required and cannot be null");
@@ -201,7 +203,7 @@ class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContex
     }
 
     @Override
-    public void setPipeliteContext(PipeliteContext pipeliteContext) {
+    public void setPipeliteContext(InternalPipeliteContext pipeliteContext) {
         this.pipeliteContext = pipeliteContext;
     }
 }

@@ -15,11 +15,13 @@
  */
 package io.pipelite.core.context.impl;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.Pipelite;
 import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.junit.Test;
 
 /**
@@ -66,7 +68,7 @@ public class EndpointURLPropertyPlaceholderTest {
         context.registerFlowDefinition(flow);
         context.start();
 
-        final ExchangeFactory exchangeFactory = context.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) context).getExchangeFactory();
         // does not throw "Unrecognized destination": proves the flow is routable under the
         // resolved resource name, not under the literal, unresolved placeholder.
         context.supplyExchange("queue://resolved-source", exchangeFactory.createExchange("Hello Pipelite!"));

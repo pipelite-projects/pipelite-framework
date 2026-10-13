@@ -15,13 +15,15 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.core.definition.DuplicateProcessorNameException;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Before;
@@ -34,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -101,7 +104,7 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         pipeliteContext.registerFlowDefinition(mainFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         pipeliteContext.supplyExchange("queue://dlc-only-in", exchangeFactory.createExchange("poison-payload"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> deadLettered.get() != null);
@@ -109,8 +112,11 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         // No retry configured: the very first failure must have gone straight to the DLC.
         assertEquals(1, attemptCount.get());
         assertEquals("poison-payload", deadLettered.get().getInputPayloadAs(String.class));
-        assertTrue(deadLettered.get().hasHeader(IOKeys.FAILURE_EXCEPTION_TYPE_HEADER_NAME));
-        assertTrue(deadLettered.get().tryGetHeader(IOKeys.FAILURE_STACK_TRACE_HEADER_NAME).isPresent());
+        // The failure information is the framework's own: exchange properties, not headers (issue #159).
+        assertEquals(RuntimeException.class,
+            deadLettered.get().getProperty(IOKeys.FAILURE_EXCEPTION_TYPE_PROPERTY_NAME, Class.class));
+        assertTrue(deadLettered.get().getProperty(IOKeys.FAILURE_STACK_TRACE_PROPERTY_NAME, String.class) != null);
+        assertFalse("no header of the user is added", deadLettered.get().hasHeader(IOKeys.FAILURE_EXCEPTION_TYPE_PROPERTY_NAME));
     }
 
     @Test
@@ -139,7 +145,7 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         pipeliteContext.registerFlowDefinition(mainFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         pipeliteContext.supplyExchange("queue://dlc-composed-in", exchangeFactory.createExchange("persistent-poison-payload"));
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> deadLettered.get() != null);
@@ -194,7 +200,7 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         pipeliteContext.registerFlowDefinition(mainFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         pipeliteContext.supplyExchange("queue://link-qualified-dlc-in", exchangeFactory.createExchange("poison-payload"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> deadLettered.get() != null);
@@ -243,7 +249,7 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         pipeliteContext.registerFlowDefinition(mainFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         pipeliteContext.supplyExchange("queue://distinct-flow-name-dlc-in", exchangeFactory.createExchange("poison-payload"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> deadLettered.get() != null);
@@ -281,7 +287,7 @@ public class PipeliteDeadLetterChannelIntegrationTest {
         pipeliteContext.registerFlowDefinition(mainFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         pipeliteContext.supplyExchange("queue://retry-link-dlc-in", exchangeFactory.createExchange("persistent-poison-payload"));
 
         Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> deadLettered.get() != null);

@@ -15,13 +15,15 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
-import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
-import io.pipelite.spi.inbox.SegmentedLogDurableInboxProvider;
+import io.pipelite.core.exchange.internal.DistributedIdentityGeneratorImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.SimpleMessage;
+import io.pipelite.core.flow.execution.inbox.SegmentedLogDurableInboxProvider;
 import org.awaitility.Awaitility;
 import org.junit.After;
 import org.junit.Assert;
@@ -94,7 +96,7 @@ public class PipeliteTimeSourceInboxRecoveryIntegrationTest {
                 .until(() -> processed.contains("recovered-payload"));
 
             Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() ->
-                context.getDurableInboxProvider().forFlow(FLOW_NAME).pendingEntries().isEmpty());
+                ((InternalPipeliteContext) context).getDurableInboxProvider().forFlow(FLOW_NAME).pendingEntries().isEmpty());
 
             // Ticks (LocalDateTime payloads) still run alongside it: the fix does not turn the
             // source into a pure queue consumer.

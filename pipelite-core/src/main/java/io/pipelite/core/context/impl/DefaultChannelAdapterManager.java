@@ -21,10 +21,11 @@ import io.pipelite.core.components.DuplicateChannelAdapterProtocolException;
 import io.pipelite.core.context.ChannelAdapterManager;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelConfigurer;
+import io.pipelite.core.context.internal.FlowRegistrationListener;
 import io.pipelite.spi.context.ContextEventListener;
-import io.pipelite.spi.flow.Flow;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
+import io.pipelite.core.flow.internal.Flow;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactoryAware;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -103,8 +104,8 @@ public class DefaultChannelAdapterManager implements ChannelAdapterManager {
     @Override
     public void notifyFlowRegisterd(Flow flow) {
         channelAdapters.forEach((componentName, component) -> {
-            if(component instanceof ContextEventListener){
-                ((ContextEventListener)component).onFlowRegistered(flow);
+            if(component instanceof FlowRegistrationListener){
+                ((FlowRegistrationListener)component).onFlowRegistered(flow);
             }
         });
     }

@@ -17,7 +17,7 @@ package io.pipelite.core.context;
 
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelConfigurer;
-import io.pipelite.spi.flow.Flow;
+import io.pipelite.core.flow.internal.Flow;
 
 import java.util.Optional;
 

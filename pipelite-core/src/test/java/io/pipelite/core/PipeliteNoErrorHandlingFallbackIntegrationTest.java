@@ -15,10 +15,12 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.awaitility.Awaitility;
 import org.junit.Assert;
 import org.junit.Before;
@@ -63,7 +65,7 @@ public class PipeliteNoErrorHandlingFallbackIntegrationTest {
         pipeliteContext.registerFlowDefinition(testFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         pipeliteContext.supplyExchange(ChannelProtocols.queueURL(resource), exchangeFactory.createExchange("poison-payload"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> invocationCount.get() == 1);
@@ -72,7 +74,7 @@ public class PipeliteNoErrorHandlingFallbackIntegrationTest {
         // propagated past dispatchToNext's acknowledge(...) call and the entry stayed pending
         // forever - only a restart (never this same run) would ever attempt it again.
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
-            pipeliteContext.getDurableInboxProvider().forFlow("no-error-handling-flow").pendingEntries().isEmpty());
+            ((InternalPipeliteContext) pipeliteContext).getDurableInboxProvider().forFlow("no-error-handling-flow").pendingEntries().isEmpty());
 
         // Exactly one attempt - no retry was configured, so none should have happened.
         Assert.assertEquals(1, invocationCount.get());
@@ -98,7 +100,7 @@ public class PipeliteNoErrorHandlingFallbackIntegrationTest {
         pipeliteContext.registerFlowDefinition(testFlow);
         pipeliteContext.start();
 
-        final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) pipeliteContext).getExchangeFactory();
         pipeliteContext.supplyExchange(ChannelProtocols.queueURL(resource), exchangeFactory.createExchange("poison-payload"));
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> invocationCount.get() == 1);
 

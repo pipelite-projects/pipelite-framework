@@ -18,18 +18,17 @@ package io.pipelite.channels.kafka;
 import io.pipelite.channels.kafka.config.KafkaChannelConfiguration;
 import io.pipelite.channels.kafka.support.KafkaConstants;
 import io.pipelite.common.support.Preconditions;
-import io.pipelite.spi.context.ContextEventListener;
-import io.pipelite.spi.endpoint.DefaultProducer;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.spi.endpoint.Producer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 import java.util.Map;
 
-public class DefaultKafkaProducer extends DefaultProducer implements ContextEventListener {
+public class DefaultKafkaProducer implements Producer {
 
     private final KafkaChannelConfiguration configuration;
     private final KafkaProducer<Object,Object> kafkaProducer;
@@ -37,19 +36,22 @@ public class DefaultKafkaProducer extends DefaultProducer implements ContextEven
     private final String topicName;
 
     public DefaultKafkaProducer(Endpoint endpoint, KafkaChannelConfiguration configuration) {
+        this(endpoint, configuration, new KafkaProducer<>(createKafkaProperties(
+            Preconditions.notNull(configuration, "configuration is required and cannot be null"))));
+    }
 
-        super(endpoint);
-
+    // Test seam: the underlying Kafka producer is handed in, so a test needs no broker.
+    DefaultKafkaProducer(Endpoint endpoint, KafkaChannelConfiguration configuration, KafkaProducer<Object, Object> kafkaProducer) {
         Preconditions.notNull(configuration, "configuration is required and cannot be null");
         this.configuration = configuration;
 
         final EndpointURL endpointURL = endpoint.getEndpointURL();
         topicName = endpointURL.getResource();
-        kafkaProducer = new KafkaProducer<>(createKafkaProperties(configuration));
+        this.kafkaProducer = kafkaProducer;
     }
 
     @Override
-    public void doProcess(ExchangeImpl exchange) {
+    public void produce(Exchange exchange) {
 
         final Object recordValue = exchange.getInputPayloadAs(Object.class);
         if(recordValue != null) {
@@ -64,11 +66,15 @@ public class DefaultKafkaProducer extends DefaultProducer implements ContextEven
 
     }
 
+    /**
+     * Closes the underlying Kafka producer, which holds a connection and a sender thread. Before issue
+     * #159 this was written as a context-stopped hook that nothing ever called, so the producer of a
+     * flow was never closed, and neither was the one created for each exchange supplied to a
+     * {@code kafka://} destination.
+     */
     @Override
-    public void onContextStopped() {
-        if(kafkaProducer != null){
-            kafkaProducer.close();
-        }
+    public void close() {
+        kafkaProducer.close();
     }
 
     private static Map<String,Object> createKafkaProperties(KafkaChannelConfiguration configuration){

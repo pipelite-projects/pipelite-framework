@@ -16,7 +16,7 @@
 package io.pipelite.core.context.impl;
 
 import io.pipelite.core.context.ServiceManager;
-import io.pipelite.spi.context.Service;
+import io.pipelite.core.context.internal.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

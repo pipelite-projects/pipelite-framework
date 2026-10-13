@@ -15,6 +15,8 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
 import io.pipelite.core.context.ContextValidationException;
 import io.pipelite.core.context.PipeliteContext;
@@ -86,7 +88,7 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
 
         // Validation runs before registerFlows(): not even the valid flow was registered, so no
         // consumer exists and nothing was recovered from a durable inbox.
-        Assert.assertTrue(pipeliteContext.tryFindFlow("kitchen-start").isEmpty());
+        Assert.assertTrue(((InternalPipeliteContext) pipeliteContext).tryFindFlow("kitchen-start").isEmpty());
     }
 
     /**
@@ -115,7 +117,7 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
                 expected.getProblems());
         }
 
-        Assert.assertTrue(pipeliteContext.tryFindFlow("dup-src").isEmpty());
+        Assert.assertTrue(((InternalPipeliteContext) pipeliteContext).tryFindFlow("dup-src").isEmpty());
         Assert.assertTrue(seen.isEmpty());
     }
 
@@ -138,7 +140,7 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
             .build());
 
         pipeliteContext.start();
-        pipeliteContext.supplyExchange("queue://shared-name", pipeliteContext.getExchangeFactory().createExchange("order-1"));
+        pipeliteContext.supplyExchange("queue://shared-name", pipeliteContext.createExchange("order-1"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> cooked.size() == 1);
         Assert.assertEquals(List.of("order-1"), cooked);
@@ -208,7 +210,7 @@ public class PipeliteFlowReferenceValidationIntegrationTest {
             .build());
 
         pipeliteContext.start();
-        pipeliteContext.supplyExchange("queue://ingress-start", pipeliteContext.getExchangeFactory().createExchange("order-1"));
+        pipeliteContext.supplyExchange("queue://ingress-start", pipeliteContext.createExchange("order-1"));
 
         Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> cooked.size() == 1);
         Assert.assertEquals(List.of("order-1"), cooked);

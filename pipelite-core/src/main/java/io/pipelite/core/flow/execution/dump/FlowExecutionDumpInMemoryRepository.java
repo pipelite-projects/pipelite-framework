@@ -18,7 +18,7 @@ package io.pipelite.core.flow.execution.dump;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.FlowExecutionDumpStatus;
-import io.pipelite.spi.flow.process.ExchangePostProcessor;
+import io.pipelite.core.flow.internal.ExchangePostProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

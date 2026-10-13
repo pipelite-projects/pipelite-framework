@@ -1,3 +1,0 @@
-queue=io.pipelite.components.queue.QueueChannelAdapter
-time=io.pipelite.components.time.TimeChannelAdapter
-slf4j=io.pipelite.components.slf4j.Slf4JChannelAdapter

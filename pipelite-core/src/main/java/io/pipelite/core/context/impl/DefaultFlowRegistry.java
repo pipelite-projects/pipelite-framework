@@ -16,7 +16,7 @@
 package io.pipelite.core.context.impl;
 
 import io.pipelite.core.context.FlowRegistry;
-import io.pipelite.spi.flow.Flow;
+import io.pipelite.core.flow.internal.Flow;
 
 import java.util.Map;
 import java.util.Objects;

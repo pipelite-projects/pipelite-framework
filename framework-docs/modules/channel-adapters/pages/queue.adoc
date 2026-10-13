@@ -5,7 +5,7 @@ The `queue` adapter is the entrance of an internal flow: a named queue, inside t
 
 == Availability
 
-Included in `default-channel-adapters`, transitively available with `pipelite-core`.
+Built into `pipelite-core`: there is no separate module and nothing to add to the classpath.
 
 == Usage
 

@@ -44,6 +44,10 @@ It contains:
 * `output` — The `Message` holding the payload produced by the current step.
 * `headers` — Metadata that travels along the flow, independent of the payload (`Headers`).
 
+The user code sees the `Exchange` interface. Besides the headers, the framework keeps its own values on the
+exchange (the return address, the routing slip, the details of a failure) as *properties*, a separate bag that
+is not visible through the header methods, so a header can never collide with, or be mistaken for, one of them.
+
 === Message
 
 A `Message` is the container of the application payload. It carries no headers: those belong to
@@ -56,10 +60,12 @@ A `ChannelAdapter` creates an `Endpoint` for each URL used in a flow definition.
 `Endpoint` depends on where the URL appears:
 
 * A URL given to `fromSource(...)` makes it a *source endpoint*: the framework asks it for a
-`Consumer` (event-driven or polling), which receives messages from the external system and starts
-the flow.
-* A URL given to `toSink(...)` makes it a *sink endpoint*: the framework asks it for a `Producer`,
-which sends the flow's messages to the external system.
+`Source` (an `EventSource` that pushes, or a `PollingSource` polled on a schedule), which receives messages
+from the external system and hands them to the framework. The framework wraps it in its own consumer,
+which owns the queue, the workers, the backpressure and the durable inbox.
+* A URL given to `toSink(...)` (or a route destination) makes it a *sink endpoint*: the framework asks it
+for a `Producer`, which sends the flow's messages to the external system. The framework wraps it in a node
+of the flow that applies the flow's error handling around it.
 
 The same adapter serves both roles - for instance `kafka://orders` can be read by one flow and
 written by another - but each `Endpoint` instance plays only one of them.
@@ -114,7 +120,7 @@ Available types:
    ├── ChannelAdapter resolution (classpath scan)
    ├── Endpoint creation
    ├── FlowNode construction
-   └── Consumer startup (EventDriven or Polling)
+   └── Source startup (wrapped in an event-driven or a polling consumer)
 4. Runtime message processing
 5. context.stop()
    └── Orderly shutdown of all services
@@ -122,13 +128,34 @@ Available types:
 
 == Threading Model
 
-* *Event-driven consumers* built directly on external I/O callbacks (HTTP) react on whatever thread the underlying server (Undertow) hands the request to - no dedicated thread of their own.
+* *Event sources* built directly on external I/O callbacks (HTTP) react on whatever thread the underlying server (Undertow) hands the request to - no dedicated thread of their own.
 * *Kafka* is also event-driven, but with its own dedicated poll-loop thread that continuously reads from the Kafka client and feeds results into the same dispatch mechanism HTTP uses.
-* *Polling consumers* (File, Time) are driven externally, on a schedule, by `ScheduledPollingConsumerService`.
+* *Polling sources* (File, Time) are driven externally, on a schedule, by the framework.
 * *Concurrent sources* (`fromSource("queue://...?concurrency=N")`, see xref:dsl:flow-definition.adoc[Flow Definition]) dispatch to one shared, bounded worker pool instead of allocating dedicated threads per source, so overall thread usage stays bounded no matter how many flows opt in.
 * *WireTap* nodes forward to a separate channel synchronously, on the same thread as the main flow, before it continues (issue #47).
-* The `RetryService` handles retries on a separate thread with access to the `FlowExecutionDumpRepository`.
+* The retry service handles retries on a separate thread with access to the `FlowExecutionDumpRepository`.
 * Every framework-owned thread is named `pipelite-<role>-<flow-name>` (e.g. `pipelite-kafka-order-ingest`, `pipelite-pool-3`), so a thread dump shows at a glance what each thread belongs to.
+
+== Public API and hidden core
+
+The modules are layered so that each kind of user sees only what it needs:
+
+[cols="1,3"]
+|===
+|Module |Who uses it
+
+|`pipelite-dsl`
+|Application code: the flow DSL, and the `Exchange`, `Headers`, `Processor` and `ExceptionHandler` interfaces the code receives.
+
+|`pipelite-spi`
+|Adapter authors: thirteen types - `ChannelAdapter`, `ChannelConfigurer`, `ContextEventListener`, `Endpoint`, `EndpointURL`, `EndpointProperties`, `Producer`, `PollingSourceConfigurer`, `PollingProperties`, `Source`, `EventSource`, `PollingSource` and `SourceContext`. It depends only on `pipelite-dsl`.
+
+|`pipelite-core`
+|The runtime, in packages named `internal` where they are not API: the context, the exchange implementation, the consumers and their dispatch, the backpressure gate, the durable inbox, the `queue://` channel, the retry and dead-letter machinery.
+|===
+
+An adapter never sees the queue between a source and its flow, the inbox, or the `Exchange` implementation: it
+hands exchanges over through a `SourceContext` and receives them in a `Producer`.
 
 == SPI — Extensibility
 
@@ -140,5 +167,7 @@ public interface ChannelAdapter {
     Endpoint createEndpoint(String url);
 }
 ----
+
+and an `Endpoint` that creates a `Source` and/or a `Producer`.
 
 The adapter is automatically discovered via classpath scan (file `META-INF/pipelite.factories`, one `protocol=fully.qualified.ClassName` entry per adapter - see xref:channel-adapters:custom.adoc[Custom Channel Adapters]).

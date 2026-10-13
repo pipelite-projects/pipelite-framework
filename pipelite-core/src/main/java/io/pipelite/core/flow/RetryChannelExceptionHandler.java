@@ -25,8 +25,8 @@ import io.pipelite.core.flow.execution.dump.FlowExecutionDumpFactory;
 import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.definition.builder.Backoff;
 import io.pipelite.dsl.process.ExceptionHandler;
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,8 +128,7 @@ public class RetryChannelExceptionHandler implements ExceptionHandler, DeclaresD
         // internal use and always invoked with a real Exchange (see issue #91).
         final ExchangeImpl exchangeImpl = (ExchangeImpl) exchange;
 
-        exchangeImpl.putHeader(IOKeys.FAILURE_EXCEPTION_TYPE_HEADER_NAME, failureException.getClass());
-        exchangeImpl.putHeader(IOKeys.FAILURE_EXCEPTION_MESSAGE_HEADER_NAME, failureException.getMessage());
+        FailureProperties.record(exchangeImpl, failureException);
 
         // executionDumpFactory.create(...) already reads FLOW_EXECUTION_ATTEMPT_NUMBER_PROPERTY_NAME
         // off the exchange and sets attemptNumber+1 on the dump it returns — a previous version of

@@ -15,11 +15,13 @@
  */
 package io.pipelite.core;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.ConfigurablePipeliteContext;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpInMemoryRepository;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.awaitility.Awaitility;
 import org.junit.Before;
 import org.junit.Test;
@@ -73,7 +75,7 @@ public class PipeliteSplitAggregateExceptionHandlingTest {
         context.registerFlowDefinition(flow);
         context.start();
 
-        final ExchangeFactory exchangeFactory = context.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) context).getExchangeFactory();
         final ExchangeImpl exchange = exchangeFactory.createExchange(List.of(1, 2, 3));
 
         context.supplyExchange("queue://split-no-retry-in", exchange);
@@ -109,7 +111,7 @@ public class PipeliteSplitAggregateExceptionHandlingTest {
         context.registerFlowDefinition(flow);
         context.start();
 
-        final ExchangeFactory exchangeFactory = context.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) context).getExchangeFactory();
         final ExchangeImpl exchange = exchangeFactory.createExchange(List.of(1));
 
         context.supplyExchange("queue://split-retry-in", exchange);

@@ -15,8 +15,10 @@
  */
 package io.pipelite.core.flow.internal;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.core.context.EndpointFactory;
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.flow.FlowNodeConfigurer;
 import io.pipelite.core.flow.process.FlowExecutionExchangePostProcessor;
 import io.pipelite.core.flow.process.FlowExecutionExchangePreProcessor;
@@ -27,35 +29,50 @@ import io.pipelite.dsl.definition.EndpointDefinition;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.ProcessorDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
-import io.pipelite.spi.endpoint.Consumer;
-import io.pipelite.spi.endpoint.DurableInboxAware;
+import io.pipelite.core.source.internal.ConsumerEndpoint;
+import io.pipelite.core.source.internal.SourceConsumers;
+import io.pipelite.core.context.internal.ChannelURL;
+import io.pipelite.core.consumer.internal.Consumer;
+import io.pipelite.core.consumer.internal.DurableInboxAware;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
+import io.pipelite.spi.source.Source;
 import io.pipelite.dsl.process.ExceptionHandler;
-import io.pipelite.spi.flow.Flow;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.FlowNode;
-import io.pipelite.spi.inbox.DurableInbox;
-import io.pipelite.spi.inbox.DurableInboxProperties;
-import io.pipelite.spi.inbox.NoOpDurableInbox;
+import io.pipelite.core.flow.internal.Flow;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
+import io.pipelite.core.flow.internal.FlowNode;
+import io.pipelite.core.flow.execution.inbox.DurableInbox;
+import io.pipelite.core.flow.execution.inbox.DurableInboxProperties;
+import io.pipelite.core.flow.execution.inbox.NoOpDurableInbox;
 
 import java.util.Iterator;
 import java.util.Objects;
 
 public class FlowFactory {
 
-    private final PipeliteContext context;
+    private final InternalPipeliteContext context;
+    private static final String DEFAULT_SOURCE_ROLE = "event";
+
     private final EndpointFactory endpointFactory;
 
-    public FlowFactory(PipeliteContext context){
+    /** Called with every producer an adapter creates for a flow, so the context can close it when it stops. */
+    private final java.util.function.Consumer<AutoCloseable> producerRegistrar;
+
+    public FlowFactory(InternalPipeliteContext context){
+        this(context, producer -> { });
+    }
+
+    public FlowFactory(InternalPipeliteContext context, java.util.function.Consumer<AutoCloseable> producerRegistrar){
         Objects.requireNonNull(context, "context is required and cannot be null");
+        Objects.requireNonNull(producerRegistrar, "producerRegistrar is required and cannot be null");
         this.context = context;
+        this.producerRegistrar = producerRegistrar;
         endpointFactory = context.getEndpointFactory();
     }
 
     @Deprecated
-    public FlowFactory(PipeliteContext context, ExchangeFactory exchangeFactory){
+    public FlowFactory(InternalPipeliteContext context, ExchangeFactory exchangeFactory){
         this(context);
     }
 
@@ -74,7 +91,7 @@ public class FlowFactory {
         /*
          * Create consumer
          */
-        final Consumer consumer = sourceEndpoint.createConsumer();
+        final Consumer consumer = createConsumer(sourceEndpoint, sourceDefinition);
         final String consumerTag = LogUtils.formatTag(flowName, sourceDefinition.getFormattedUrl());
         consumer.setFlowName(flowName);
         consumer.setSourceEndpointResource(sourceEndpointURL.getResource());
@@ -122,7 +139,10 @@ public class FlowFactory {
             final Endpoint toEndpoint = endpointFactory.createEndpoint(endpointDefinition);
             final EndpointURL toEndpointURL = toEndpoint.getEndpointURL();
 
-            final Producer producer = toEndpoint.createProducer();
+            // The adapter's Producer knows nothing of flows: it is wrapped in the node that ends the chain.
+            final Producer adapterProducer = toEndpoint.createProducer();
+            producerRegistrar.accept(adapterProducer);
+            final ProducerNode producer = new ProducerNode(adapterProducer);
 
             producer.setFlowName(flowName);
             producer.setSourceEndpointResource(sourceEndpointURL.getResource());
@@ -159,6 +179,26 @@ public class FlowFactory {
         injectDependencies(gate);
         previous.setNext(gate);
         return gate;
+    }
+
+    /**
+     * The consumer that starts the flow. An adapter provides a {@link Source}, which is wrapped in the
+     * framework's own consumer; the endpoints of the framework itself (the queue, the retry channel)
+     * provide their consumer directly.
+     */
+    private Consumer createConsumer(Endpoint sourceEndpoint, SourceDefinition sourceDefinition) {
+        if (sourceEndpoint instanceof ConsumerEndpoint) {
+            return ((ConsumerEndpoint) sourceEndpoint).createConsumer();
+        }
+        final Source source = sourceEndpoint.createSource();
+        return SourceConsumers.wrap(source, sourceEndpoint, roleOf(sourceDefinition));
+    }
+
+    /** Names the threads of a source after its protocol: kafka, time, file... */
+    private static String roleOf(SourceDefinition sourceDefinition) {
+        // getUrl(), not getFormattedUrl(): the latter is lower-cased and loses its slashes, for the log tag.
+        final ChannelURL channelURL = ChannelURL.parse(sourceDefinition.getUrl());
+        return channelURL.hasProtocol() ? channelURL.getProtocol() : DEFAULT_SOURCE_ROLE;
     }
 
     private void injectDependencies(Object flowNode){

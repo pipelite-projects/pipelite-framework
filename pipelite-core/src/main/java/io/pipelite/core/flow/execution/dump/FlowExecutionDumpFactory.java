@@ -18,9 +18,9 @@ package io.pipelite.core.flow.execution.dump;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.flow.execution.FlowExecutionDump;
 import io.pipelite.common.support.serialization.ObjectSerializer;
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.IdentityGenerator;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.IdentityGenerator;
 
 public class FlowExecutionDumpFactory {
 

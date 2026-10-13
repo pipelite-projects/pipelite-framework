@@ -32,8 +32,8 @@ import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.dsl.process.ProcessContribution;
 import io.pipelite.dsl.process.Processor;
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -139,12 +139,11 @@ class RetryStrategyFilter implements Processor {
         final DeadLetteredExchange entry = DeadLetteredExchange.createNow(executionDump.getId(), executionDump.getFlowName());
         entry.setSourceEndpointResource(executionDump.getSourceEndpointResource());
         entry.setFailedProcessor(executionDump.getFailedProcessor());
-        // FAILURE_EXCEPTION_TYPE_HEADER_NAME is stored as a live Class object (see
-        // RetryChannelExceptionHandler#handleException), not a String - tryGetHeader(...) would
-        // throw ClassCastException trying to read it as one.
-        entry.setExceptionType(recoveredExchange.tryGetHeaderAs(IOKeys.FAILURE_EXCEPTION_TYPE_HEADER_NAME, Class.class)
-            .map(Class::getName).orElse(null));
-        entry.setExceptionMessage(recoveredExchange.tryGetHeader(IOKeys.FAILURE_EXCEPTION_MESSAGE_HEADER_NAME).orElse(null));
+        // FAILURE_EXCEPTION_TYPE_PROPERTY_NAME is stored as a live Class object (see
+        // FailureProperties#record), not a String - reading it as one would throw ClassCastException.
+        final Class<?> exceptionType = recoveredExchange.getProperty(IOKeys.FAILURE_EXCEPTION_TYPE_PROPERTY_NAME, Class.class);
+        entry.setExceptionType(exceptionType != null ? exceptionType.getName() : null);
+        entry.setExceptionMessage(recoveredExchange.getProperty(IOKeys.FAILURE_EXCEPTION_MESSAGE_PROPERTY_NAME, String.class));
         entry.setStackTrace(executionDump.getStackTrace());
         final String serializedExchangeData = objectSerializer.serializeObject(recoveredExchange);
         entry.setExchangeData(serializedExchangeData, objectSerializer.getEncoding());

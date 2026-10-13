@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.context;
 
-import io.pipelite.spi.flow.Flow;
+import io.pipelite.core.flow.internal.Flow;
 
 import java.util.Optional;
 

@@ -15,14 +15,23 @@
  */
 package io.pipelite.core.flow.execution.retry.internal;
 
-import io.pipelite.spi.endpoint.Consumer;
-import io.pipelite.spi.endpoint.DefaultEndpoint;
+import io.pipelite.core.source.internal.ConsumerEndpoint;
+import io.pipelite.common.support.Preconditions;
+import io.pipelite.core.consumer.internal.Consumer;
+import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 
-public class RetryEndpoint extends DefaultEndpoint {
+public class RetryEndpoint implements Endpoint, ConsumerEndpoint {
+
+    private final EndpointURL endpointURL;
 
     public RetryEndpoint(EndpointURL endpointURL) {
-        super(endpointURL);
+        this.endpointURL = Preconditions.notNull(endpointURL, "endpointURL is required and cannot be null");
+    }
+
+    @Override
+    public EndpointURL getEndpointURL() {
+        return endpointURL;
     }
 
     @Override

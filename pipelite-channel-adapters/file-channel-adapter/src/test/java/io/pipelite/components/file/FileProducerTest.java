@@ -15,11 +15,8 @@
  */
 package io.pipelite.components.file;
 
-import io.pipelite.spi.endpoint.DefaultEndpoint;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.SimpleMessage;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,7 +42,7 @@ public class FileProducerTest {
         final Path target = temporaryFolder.getRoot().toPath().resolve("out.txt");
         final FileProducer subject = newProducer(target, false);
 
-        subject.process(exchangeWithPayload("hello world"));
+        subject.produce(exchangeWithPayload("hello world"));
 
         assertEquals("hello world", Files.readString(target, StandardCharsets.UTF_8));
     }
@@ -55,7 +52,7 @@ public class FileProducerTest {
         final Path target = temporaryFolder.getRoot().toPath().resolve("out.bin");
         final FileProducer subject = newProducer(target, false);
 
-        subject.process(exchangeWithPayload(new byte[]{1, 2, 3}));
+        subject.produce(exchangeWithPayload(new byte[]{1, 2, 3}));
 
         assertEquals(3, Files.size(target));
     }
@@ -65,7 +62,7 @@ public class FileProducerTest {
         final Path target = temporaryFolder.getRoot().toPath().resolve("out-stream.txt");
         final FileProducer subject = newProducer(target, false);
 
-        subject.process(exchangeWithPayload(new ByteArrayInputStream("streamed".getBytes(StandardCharsets.UTF_8))));
+        subject.produce(exchangeWithPayload(new ByteArrayInputStream("streamed".getBytes(StandardCharsets.UTF_8))));
 
         assertEquals("streamed", Files.readString(target, StandardCharsets.UTF_8));
     }
@@ -75,8 +72,8 @@ public class FileProducerTest {
         final Path target = temporaryFolder.getRoot().toPath().resolve("out.txt");
         final FileProducer subject = newProducer(target, false);
 
-        subject.process(exchangeWithPayload("first"));
-        subject.process(exchangeWithPayload("second"));
+        subject.produce(exchangeWithPayload("first"));
+        subject.produce(exchangeWithPayload("second"));
 
         assertEquals("second", Files.readString(target, StandardCharsets.UTF_8));
     }
@@ -86,8 +83,8 @@ public class FileProducerTest {
         final Path target = temporaryFolder.getRoot().toPath().resolve("out.txt");
         final FileProducer subject = newProducer(target, true);
 
-        subject.process(exchangeWithPayload("first\n"));
-        subject.process(exchangeWithPayload("second\n"));
+        subject.produce(exchangeWithPayload("first\n"));
+        subject.produce(exchangeWithPayload("second\n"));
 
         assertEquals("first\nsecond\n", Files.readString(target, StandardCharsets.UTF_8));
     }
@@ -97,7 +94,7 @@ public class FileProducerTest {
         final Path target = temporaryFolder.getRoot().toPath().resolve("nested").resolve("dir").resolve("out.txt");
         final FileProducer subject = newProducer(target, false);
 
-        subject.process(exchangeWithPayload("hello"));
+        subject.produce(exchangeWithPayload("hello"));
 
         assertEquals("hello", Files.readString(target, StandardCharsets.UTF_8));
     }
@@ -112,7 +109,7 @@ public class FileProducerTest {
         final Path target = allowedDirectory.resolve("nested").resolve("out.txt");
         final FileProducer subject = newProducer(target, false, allowedDirectory);
 
-        subject.process(exchangeWithPayload("hello"));
+        subject.produce(exchangeWithPayload("hello"));
 
         assertEquals("hello", Files.readString(target, StandardCharsets.UTF_8));
     }
@@ -156,7 +153,7 @@ public class FileProducerTest {
     private static FileProducer newProducer(Path target, boolean append, Path allowedWriteDirectory) {
         final String query = append ? "?append=true" : "";
         final EndpointURL endpointURL = EndpointURL.parse(target.toString() + query, RESOURCE_PATTERN);
-        final Endpoint endpoint = new DefaultEndpoint(endpointURL);
+        final Endpoint endpoint = (Endpoint) () -> endpointURL;
         final DefaultFileChannelConfiguration configuration = new DefaultFileChannelConfiguration();
         if (allowedWriteDirectory != null) {
             configuration.setAllowedWriteDirectory(allowedWriteDirectory);
@@ -164,8 +161,8 @@ public class FileProducerTest {
         return new FileProducer(endpoint, configuration);
     }
 
-    private static ExchangeImpl exchangeWithPayload(Object payload) {
-        final ExchangeImpl exchange = new ExchangeImpl(new SimpleMessage("test-id"));
+    private static StubExchange exchangeWithPayload(Object payload) {
+        final StubExchange exchange = new StubExchange();
         exchange.setInputPayload(payload);
         return exchange;
     }

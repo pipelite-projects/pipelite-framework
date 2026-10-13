@@ -15,9 +15,11 @@
  */
 package io.pipelite.core.flow.route;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.common.support.ToStringUtils;
-import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.context.internal.DeclaredDestination;
 import io.pipelite.core.context.internal.DeclaresDestinations;
@@ -26,9 +28,9 @@ import io.pipelite.dsl.route.ConditionEvaluator;
 import io.pipelite.dsl.route.ExpressionCondition;
 import io.pipelite.dsl.route.RecipientList;
 import io.pipelite.expression.ExpressionParser;
-import io.pipelite.spi.flow.AbstractFlowNode;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.flow.internal.AbstractFlowNode;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +51,7 @@ class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContex
 
     private final ConditionEvaluator conditionEvaluator;
 
-    private PipeliteContext pipeliteContext;
+    private InternalPipeliteContext pipeliteContext;
 
     private ExchangeFactory exchangeFactory;
 
@@ -114,7 +116,7 @@ class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContex
     }
 
     @Override
-    public void setPipeliteContext(PipeliteContext pipeliteContext) {
+    public void setPipeliteContext(InternalPipeliteContext pipeliteContext) {
         Preconditions.notNull(pipeliteContext, "pipeliteContext is required and cannot be null");
         this.pipeliteContext = pipeliteContext;
         this.exchangeFactory = pipeliteContext.getExchangeFactory();

@@ -24,7 +24,7 @@ public class TimeChannelAdapter implements ChannelAdapter {
 
     @Override
     public Endpoint createEndpoint(String url) {
-        return new TimeEndpoint(EndpointURL.parse(url), this);
+        return new TimeEndpoint(EndpointURL.parse(url));
     }
 
     /**

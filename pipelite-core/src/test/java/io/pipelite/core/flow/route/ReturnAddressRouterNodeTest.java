@@ -17,9 +17,9 @@ package io.pipelite.core.flow.route;
 
 import io.pipelite.core.Pipelite;
 import io.pipelite.core.context.impl.DefaultPipeliteContext;
-import io.pipelite.core.context.PipeliteContext;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.awaitility.Awaitility;
 import org.junit.Before;
 import org.junit.Test;
@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class ReturnAddressRouterNodeTest {
 
-    private PipeliteContext context;
+    private InternalPipeliteContext context;
 
     @Before
     public void setup(){
@@ -39,7 +39,7 @@ public class ReturnAddressRouterNodeTest {
     @Test
     public void shouldReplyToReturnAddress(){
 
-        final ExchangeFactory exchangeFactory = context.getExchangeFactory();
+        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) context).getExchangeFactory();
         final AtomicBoolean replayedToDestination = new AtomicBoolean(false);
 
         context.registerFlowDefinition(

@@ -21,8 +21,8 @@ import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.process.ProcessContribution;
 import io.pipelite.dsl.process.Processor;
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
 
 /**
  * Resolves the {@link FlowExecutionDump} a retry-channel exchange carries (or, failing that,

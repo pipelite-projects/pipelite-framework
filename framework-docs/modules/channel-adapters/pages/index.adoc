@@ -27,17 +27,17 @@ Each adapter implements the SPI interface `ChannelAdapter` and is automatically 
 
 |xref:time.adoc[Time]
 |`time://`
-|`default-channel-adapters`
+|`time-channel-adapter` (with `pipelite-core`)
 |Periodic tick generator (cron-like).
 
 |xref:slf4j.adoc[SLF4J]
 |`slf4j://`
-|`default-channel-adapters`
+|`slf4j-channel-adapter` (with `pipelite-core`)
 |Payload logging via SLF4J (sink only).
 
 |xref:queue.adoc[Queue]
 |`queue://`
-|`default-channel-adapters`
+|`pipelite-core` (built in)
 |The queue in front of an internal flow, to chain flows.
 |===
 
@@ -54,7 +54,7 @@ Each line maps a protocol to the fully qualified name of a class implementing `C
 
 [source,properties]
 ----
-queue=io.pipelite.components.queue.QueueChannelAdapter
+slf4j=io.pipelite.components.slf4j.Slf4JChannelAdapter
 time=io.pipelite.components.time.TimeChannelAdapter
 ----
 

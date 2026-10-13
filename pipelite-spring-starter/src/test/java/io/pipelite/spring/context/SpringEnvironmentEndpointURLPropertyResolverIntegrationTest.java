@@ -18,7 +18,6 @@ package io.pipelite.spring.context;
 import io.pipelite.core.Pipelite;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.dsl.definition.FlowDefinition;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
 import io.pipelite.spring.EnablePipelite;
 import org.junit.Assert;
 import org.junit.Test;
@@ -43,11 +42,10 @@ public class SpringEnvironmentEndpointURLPropertyResolverIntegrationTest {
             context.refresh();
 
             final PipeliteContext pipeliteContext = context.getBean(PipeliteContext.class);
-            final ExchangeFactory exchangeFactory = pipeliteContext.getExchangeFactory();
 
             // does not throw "Unrecognized destination": proves the flow is registered and routable
             // under the *resolved* resource name, not under the literal '${test.source.name}' placeholder.
-            pipeliteContext.supplyExchange("queue://source-resolved", exchangeFactory.createExchange("Hello Pipelite!"));
+            pipeliteContext.supplyExchange("queue://source-resolved", pipeliteContext.createExchange("Hello Pipelite!"));
         }
     }
 

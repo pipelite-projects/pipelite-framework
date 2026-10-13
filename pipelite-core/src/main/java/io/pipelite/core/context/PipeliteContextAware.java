@@ -15,8 +15,10 @@
  */
 package io.pipelite.core.context;
 
+import io.pipelite.core.context.internal.InternalPipeliteContext;
+
 public interface PipeliteContextAware {
 
-    void setPipeliteContext(PipeliteContext pipeliteContext);
+    void setPipeliteContext(InternalPipeliteContext pipeliteContext);
 
 }

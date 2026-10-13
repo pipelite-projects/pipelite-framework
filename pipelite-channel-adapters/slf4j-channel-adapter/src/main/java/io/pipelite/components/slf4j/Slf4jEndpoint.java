@@ -15,18 +15,22 @@
  */
 package io.pipelite.components.slf4j;
 
-import io.pipelite.spi.channel.ChannelAdapter;
-import io.pipelite.spi.endpoint.*;
+import io.pipelite.common.support.Preconditions;
+import io.pipelite.spi.endpoint.Endpoint;
+import io.pipelite.spi.endpoint.EndpointURL;
+import io.pipelite.spi.endpoint.Producer;
 
-public class Slf4jEndpoint extends DefaultEndpoint {
+public class Slf4jEndpoint implements Endpoint {
 
-    public Slf4jEndpoint(EndpointURL endpointURL, ChannelAdapter channel) {
-        super(endpointURL, channel);
+    private final EndpointURL endpointURL;
+
+    public Slf4jEndpoint(EndpointURL endpointURL) {
+        this.endpointURL = Preconditions.notNull(endpointURL, "endpointURL is required and cannot be null");
     }
 
     @Override
-    public Consumer createConsumer() {
-        throw new IllegalStateException("TimeComponent doesn't support consumer");
+    public EndpointURL getEndpointURL() {
+        return endpointURL;
     }
 
     @Override

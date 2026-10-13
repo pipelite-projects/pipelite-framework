@@ -24,6 +24,7 @@ import io.pipelite.core.config.FlowConfigurationScanner;
 import io.pipelite.core.config.NoOpEndpointURLPropertyResolver;
 import io.pipelite.core.context.*;
 import io.pipelite.core.context.internal.DestinationURLs;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.internal.ReservedNames;
 import io.pipelite.core.context.internal.validation.ContextValidatorChain;
 import io.pipelite.core.context.internal.validation.FlowReferenceValidator;
@@ -51,28 +52,29 @@ import io.pipelite.core.support.LogUtils;
 import io.pipelite.common.support.serialization.Base64ObjectSerializer;
 import io.pipelite.common.support.serialization.ByteArrayToObjectConverter;
 import io.pipelite.dsl.ChannelProtocols;
+import io.pipelite.dsl.Exchange;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.spi.channel.ChannelConfigurer;
-import io.pipelite.spi.channel.ChannelURL;
-import io.pipelite.spi.context.IOKeys;
-import io.pipelite.spi.context.Service;
+import io.pipelite.core.context.internal.ChannelURL;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.context.internal.Service;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.dsl.process.ExceptionHandler;
-import io.pipelite.spi.flow.Flow;
-import io.pipelite.spi.flow.concurrent.DefaultThreadFactory;
-import io.pipelite.spi.flow.concurrent.SourceConcurrencyProperties;
-import io.pipelite.spi.flow.exchange.DistributedIdentityGeneratorImpl;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.MessageFactory;
-import io.pipelite.spi.inbox.DurableInbox;
-import io.pipelite.spi.inbox.DurableInboxProvider;
-import io.pipelite.spi.inbox.InboxEntry;
-import io.pipelite.spi.inbox.SegmentedLogDurableInboxProvider;
+import io.pipelite.core.flow.internal.Flow;
+import io.pipelite.core.concurrent.internal.DefaultThreadFactory;
+import io.pipelite.core.concurrent.internal.SourceConcurrencyProperties;
+import io.pipelite.core.exchange.internal.DistributedIdentityGeneratorImpl;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
+import io.pipelite.core.exchange.internal.MessageFactory;
+import io.pipelite.core.flow.execution.inbox.DurableInbox;
+import io.pipelite.core.flow.execution.inbox.DurableInboxProvider;
+import io.pipelite.core.flow.execution.inbox.InboxEntry;
+import io.pipelite.core.flow.execution.inbox.SegmentedLogDurableInboxProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,11 +83,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
+public class DefaultPipeliteContext implements ConfigurablePipeliteContext, InternalPipeliteContext {
 
     // Namespaced under a dedicated "state/" prefix, sibling to (never inside) any channel
     // adapter's own PipeliteHome subfolder (e.g. "file-channel-adapter") - reserved for the
@@ -132,6 +135,8 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
 
     private final FlowRegistry flowRegistry;
     private final ServiceManager serviceManager;
+    /** The producers adapters created for the flows (not the ones created to supply a single exchange). */
+    private final List<AutoCloseable> producers = new CopyOnWriteArrayList<>();
     private final ChannelAdapterManager channelAdapterManager;
 
     // Whether the built-in retry channel has been created yet, tracked here rather than asked of
@@ -198,7 +203,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
         channelAdapterManager = new DefaultChannelAdapterManager(exchangeFactory);
 
         endpointFactory = new DefaultEndpointFactory(channelAdapterManager, new NoOpEndpointURLPropertyResolver());
-        flowFactory = new FlowFactory(this);
+        flowFactory = new FlowFactory(this, producers::add);
 
         executionDumpFactory = new FlowExecutionDumpFactory(new DistributedIdentityGeneratorImpl(), new Base64ObjectSerializer());
         // Durable by default (issue #68): a retry-channel dump is a redelivery guarantee, and an
@@ -431,6 +436,10 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
             }
         }
 
+        // release the producers that end the flows: after the consumers and the worker pool have stopped,
+        // so that no exchange still in flight finds its producer closed
+        closeProducers();
+
         // notify context-stopped event
         channelAdapterManager.notifyContextStopped();
 
@@ -501,7 +510,12 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
     }
 
     @Override
-    public void supplyExchange(String destinationURL, ExchangeImpl exchange) {
+    public Exchange createExchange(Object payload) {
+        return exchangeFactory.createExchange(payload);
+    }
+
+    @Override
+    public void supplyExchange(String destinationURL, Exchange exchange) {
 
         // A destination is a URL (issue #102): a bare name used to fall through to a lookup in the
         // flow registry by source endpoint resource, a second, undocumented way in that is gone.
@@ -515,11 +529,26 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext {
         // create producer and produce exchange
         final ChannelAdapter channel = channelHolder.get();
         final Endpoint endpoint = channel.createEndpoint(channelURL.getEndpointURL());
-        final Producer producer = endpoint.createProducer();
-        producer.process(exchange);
+        // Created to deliver this one exchange, so released as soon as it is delivered.
+        try (Producer producer = endpoint.createProducer()) {
+            producer.produce(exchange);
+        }
     }
 
 
+
+    private void closeProducers() {
+        for (AutoCloseable producer : producers) {
+            try {
+                producer.close();
+            } catch (Exception exception) {
+                if (sysLogger.isWarnEnabled()) {
+                    sysLogger.warn("Unable to close a producer", exception);
+                }
+            }
+        }
+        producers.clear();
+    }
 
     private void registerFlows() {
 

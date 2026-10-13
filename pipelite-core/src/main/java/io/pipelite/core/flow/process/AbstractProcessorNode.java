@@ -17,12 +17,12 @@ package io.pipelite.core.flow.process;
 
 import io.pipelite.dsl.process.ProcessContribution;
 import io.pipelite.dsl.process.Processor;
-import io.pipelite.spi.flow.AbstractFlowNode;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
-import io.pipelite.spi.flow.exchange.ExchangeFactory;
-import io.pipelite.spi.flow.exchange.ExchangeFactoryAware;
-import io.pipelite.spi.flow.exchange.FlowNode;
-import io.pipelite.spi.flow.process.ExchangePostProcessor;
+import io.pipelite.core.flow.internal.AbstractFlowNode;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.ExchangeFactory;
+import io.pipelite.core.exchange.internal.ExchangeFactoryAware;
+import io.pipelite.core.flow.internal.FlowNode;
+import io.pipelite.core.flow.internal.ExchangePostProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

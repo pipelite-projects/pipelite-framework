@@ -16,8 +16,8 @@
 package io.pipelite.spi.endpoint;
 
 /**
- * {@code EndpointURL} query-string parameter names shared by every polling consumer: {@link
- * ScheduledPollingConsumerService} (reads all four) and {@link
+ * {@code EndpointURL} query-string parameter names shared by every polling consumer: the scheduled
+ * polling consumer of the framework (reads all four) and {@link
  * io.pipelite.spi.endpoint.PollingSourceConfigurer} (its typed {@code fromSource(...)}
  * equivalent) always; {@code KafkaConsumerService} reads {@link #PERIOD}/{@link #TIME_UNIT} only,
  * for its own poll-loop cadence, which happens to share the same two names. Mirrors {@code

@@ -15,22 +15,24 @@
  */
 package io.pipelite.components.slf4j;
 
+import io.pipelite.dsl.Exchange;
 import io.pipelite.spi.endpoint.*;
-import io.pipelite.spi.flow.exchange.ExchangeImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
-public class Slf4jProducer extends DefaultProducer implements Producer {
+public class Slf4jProducer implements Producer {
 
     private Logger logger = null;
 
+    private final Endpoint endpoint;
+
     public Slf4jProducer(Endpoint endpoint) {
-        super(endpoint);
+        this.endpoint = endpoint;
     }
 
     @Override
-    public void doProcess(ExchangeImpl exchange) {
+    public void produce(Exchange exchange) {
 
         if(logger == null){
             final EndpointURL endpointURL = endpoint.getEndpointURL();

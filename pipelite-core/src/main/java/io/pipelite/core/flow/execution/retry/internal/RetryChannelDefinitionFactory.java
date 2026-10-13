@@ -27,8 +27,8 @@ import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
 import io.pipelite.core.flow.process.ProcessorNodeFactory;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.process.Processor;
-import io.pipelite.spi.flow.exchange.FlowNode;
-import io.pipelite.spi.inbox.DurableInboxProperties;
+import io.pipelite.core.flow.internal.FlowNode;
+import io.pipelite.core.flow.execution.inbox.DurableInboxProperties;
 
 public class RetryChannelDefinitionFactory {
 
