@@ -5,7 +5,9 @@ name: PR Type Labeler
 # "Type label" check fails when the PR ends up with none, and turns green once one is added.
 on:
   pull_request_target:
-    types: [opened, edited, reopened, labeled, unlabeled]
+    # synchronize: a push to an open PR gives it a new head commit, which needs its own "Type label" result
+    # (the check is required), even though nothing about the labels changed.
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
 
 jobs:
   label:
