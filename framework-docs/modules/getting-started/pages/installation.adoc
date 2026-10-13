@@ -16,6 +16,40 @@ To use Pipelite without Spring Boot, add the core module to your `pom.xml`:
 
 The `pipelite-core` module transitively includes `pipelite-common`, `pipelite-spi`, `pipelite-dsl`, `pipelite-expression`, and the `default-channel-adapters` module.
 
+== Aligning versions with the BOM
+
+An application that uses several Pipelite artifacts (the core, a few channel adapters, the test support)
+can import the bill of materials once, and declare the artifacts without a version:
+
+[source,xml,subs="attributes+"]
+----
+<dependencyManagement>
+    <dependencies>
+        <dependency>
+            <groupId>{project-group-id}</groupId>
+            <artifactId>pipelite-bom</artifactId>
+            <version>{project-version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+
+<dependencies>
+    <dependency>
+        <groupId>{project-group-id}</groupId>
+        <artifactId>pipelite-core</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>{project-group-id}</groupId>
+        <artifactId>kafka-channel-adapter</artifactId>
+    </dependency>
+</dependencies>
+----
+
+A channel adapter written by a third party can import it too, to depend on `pipelite-spi` at the version of the
+framework it is built against.
+
 == Spring Boot integration
 
 For Spring Boot applications, use the dedicated starter instead:
