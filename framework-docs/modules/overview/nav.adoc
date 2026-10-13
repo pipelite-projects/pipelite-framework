@@ -2,4 +2,3 @@
 ** xref:overview:index.adoc[Introduction]
 ** xref:overview:architecture.adoc[Architecture]
 ** xref:overview:performance.adoc[Performance and Throughput]
-** xref:overview:migration.adoc[Migrating from 1.0.0-M1]

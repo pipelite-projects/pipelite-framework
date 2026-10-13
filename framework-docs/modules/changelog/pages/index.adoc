@@ -1,0 +1,17 @@
+= Changelog
+:description: What changes from one release of the Pipelite Framework to the next, and what to do about it
+
+One page per release lists what changed since the previous one, with the *breaking changes* first and what
+to do about each of them in application code and in channel adapters. The generated release notes, with
+every merged pull request, are on the https://github.com/pipelite-projects/pipelite-framework/releases[GitHub releases page].
+
+Until `1.0.0` the API may still change between milestones; `1.0.0-M2` is the last milestone allowed to
+break it.
+
+[cols="1,3"]
+|===
+|Release |Content
+
+|xref:1.0.0-M2.adoc[1.0.0-M2]
+|The restructuring of the SPI: the runtime machinery is hidden in `pipelite-core`, an adapter author sees only the contracts it implements; `queue://` is built in; a bill of materials.
+|===

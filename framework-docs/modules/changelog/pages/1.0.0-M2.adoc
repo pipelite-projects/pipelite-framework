@@ -1,4 +1,4 @@
-= Migrating from 1.0.0-M1
+= 1.0.0-M2
 :description: What changes between 1.0.0-M1 and 1.0.0-M2 for application code and for channel adapter authors
 
 `1.0.0-M2` is the last milestone allowed to break the API before `1.0.0`. This page lists the breaking
@@ -64,3 +64,8 @@ A source acknowledges its input (commits an offset, answers a request) only afte
 `pipelite-spi` now contains only the types an adapter author sees and depends on `pipelite-dsl` alone.
 Adapter unit tests can no longer build the framework's `Exchange` implementation: use a stub of the
 `Exchange` interface, or add `pipelite-core` as a test dependency.
+
+== Build
+
+* *A bill of materials.* `pipelite-bom` manages the version of every published module: import it once and
+declare the artifacts without a version (see xref:getting-started:installation.adoc[Installation]).
