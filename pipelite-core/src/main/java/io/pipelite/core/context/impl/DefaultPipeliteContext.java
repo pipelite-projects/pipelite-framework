@@ -41,6 +41,8 @@ import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
 import io.pipelite.core.flow.execution.deadletter.DeadLetteredExchangeFactory;
 import io.pipelite.core.flow.execution.deadletter.FileDeadLetterQueueRepository;
 import io.pipelite.core.flow.split.AggregateInMemoryRepository;
+import io.pipelite.core.flow.barrier.BarrierInMemoryRepository;
+import io.pipelite.core.flow.barrier.BarrierRepository;
 import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.core.flow.execution.dump.FileFlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpFactory;
@@ -154,6 +156,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
     private final FlowFactory flowFactory;
     private final ExchangeFactory exchangeFactory;
     private final AggregateRepository aggregateRepository;
+    private final BarrierRepository barrierRepository;
 
     // Not final: ConfigurablePipeliteContext#setFlowExecutionDumpRepository(...) may replace the
     // default before start() - see registerFlows(), which reads this field live rather than
@@ -197,6 +200,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
         final MessageFactory messageFactory = new DefaultMessageFactory(new DistributedIdentityGeneratorImpl());
         exchangeFactory = new DefaultExchangeFactory(messageFactory);
         aggregateRepository = new AggregateInMemoryRepository();
+        barrierRepository = new BarrierInMemoryRepository();
 
         flowRegistry = new DefaultFlowRegistry();
         serviceManager = new DefaultServiceManager();
@@ -319,6 +323,11 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
     @Override
     public AggregateRepository getAggregateRepository() {
         return aggregateRepository;
+    }
+
+    @Override
+    public BarrierRepository getBarrierRepository() {
+        return barrierRepository;
     }
 
     @Override

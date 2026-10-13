@@ -17,6 +17,7 @@ package io.pipelite.core.context.internal;
 
 import io.pipelite.core.context.EndpointFactory;
 import io.pipelite.core.context.PipeliteContext;
+import io.pipelite.core.flow.barrier.BarrierRepository;
 import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.core.flow.internal.Flow;
 import io.pipelite.core.exchange.internal.ExchangeFactory;
@@ -54,6 +55,9 @@ public interface InternalPipeliteContext extends PipeliteContext {
     ExchangeFactory getExchangeFactory();
 
     AggregateRepository getAggregateRepository();
+
+    /** Where the barriers keep the exchanges that wait for the others (issue #150). */
+    BarrierRepository getBarrierRepository();
 
     /**
      * Resolves the per-source {@code DurableInbox} a consumer durably records its intake with
