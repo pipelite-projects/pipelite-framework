@@ -23,10 +23,7 @@ import io.pipelite.core.definition.builder.retry.RetryBuilder;
 import io.pipelite.core.definition.builder.internal.Builder;
 import io.pipelite.core.definition.builder.route.RecipientListBuilder;
 import io.pipelite.core.definition.builder.route.RouteDefinitionBuilder;
-import io.pipelite.core.definition.builder.barrier.BarrierSpecBuilder;
 import io.pipelite.core.definition.builder.split.SplitSegmentBuilder;
-import io.pipelite.core.flow.barrier.BarrierNodeFactory;
-import io.pipelite.dsl.barrier.BarrierConfigurator;
 import io.pipelite.core.flow.DeadLetterChannelExceptionHandler;
 import io.pipelite.core.flow.GlobalDefaultExceptionHandler;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
@@ -176,17 +173,6 @@ public class FlowDefinitionBuilder implements FlowOperations {
         final FlowNode splitNode = SplitNodeFactory.splitter(segment);
         final ProcessorDefinition splitDefinition = new ProcessorDefinitionImpl(name, splitNode);
         builder.with(target -> target.addProcessorDefinition(splitDefinition));
-        return this;
-    }
-
-    @Override
-    public ProcessOperations barrier(String name, BarrierConfigurator configurator) {
-        Objects.requireNonNull(configurator, "configurator is required and cannot be null");
-        final BarrierSpecBuilder specBuilder = new BarrierSpecBuilder();
-        configurator.configure(specBuilder);
-        final FlowNode barrierNode = BarrierNodeFactory.barrier(specBuilder.build());
-        final ProcessorDefinition barrierDefinition = new ProcessorDefinitionImpl(name, barrierNode);
-        builder.with(target -> target.addProcessorDefinition(barrierDefinition));
         return this;
     }
 
