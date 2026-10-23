@@ -45,7 +45,8 @@ public final class CorrelationKeys {
      */
     public static String keyOf(Correlation correlation, Exchange exchange) {
         final String key = switch (correlation.getKind()) {
-            case HEADER -> exchange.tryGetHeader(correlation.getText()).orElse(null);
+            // Not tryGetHeader, which only takes a String and throws for any other value: a numeric id is a plausible key.
+            case HEADER -> exchange.tryGetHeaderAs(correlation.getText(), Object.class).map(String::valueOf).orElse(null);
             case EXPRESSION -> evaluate(correlation.getText(), exchange);
         };
         if (key == null || key.isBlank()) {

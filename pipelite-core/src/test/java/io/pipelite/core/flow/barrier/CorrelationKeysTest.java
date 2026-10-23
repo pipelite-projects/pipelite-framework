@@ -74,6 +74,18 @@ public class CorrelationKeysTest {
     }
 
     @Test
+    public void givenAHeaderThatIsNotAString_thenTheKeyIsItsTextInsteadOfAFailure() {
+        final ExchangeImpl exchange = exchange("payload");
+        exchange.putHeader("order-number", 42L);
+        exchange.putHeader("priority", 7);
+        exchange.putHeader("urgent", true);
+
+        Assert.assertEquals("42", CorrelationKeys.keyOf(Correlation.ofHeader("order-number"), exchange));
+        Assert.assertEquals("7", CorrelationKeys.keyOf(Correlation.ofHeader("priority"), exchange));
+        Assert.assertEquals("true", CorrelationKeys.keyOf(Correlation.ofHeader("urgent"), exchange));
+    }
+
+    @Test
     public void givenAMissingHeader_thenTheExchangeCannotBeCorrelatedAndTheMessageNamesIt() {
         assertCannotBeCorrelated(Correlation.ofHeader("order-id"), exchange("payload"), "order-id");
     }
