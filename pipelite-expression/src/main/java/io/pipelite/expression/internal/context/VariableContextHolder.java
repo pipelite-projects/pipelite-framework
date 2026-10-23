@@ -15,7 +15,7 @@
  */
 package io.pipelite.expression.internal.context;
 
-import io.pipelite.expression.internal.context.concurrent.InheritableThreadLocalVariableContextHolderStrategy;
+import io.pipelite.expression.internal.context.concurrent.ThreadLocalVariableContextHolderStrategy;
 import io.pipelite.expression.internal.context.concurrent.VariableContextHolderStrategy;
 
 /**
@@ -34,7 +34,9 @@ public class VariableContextHolder {
     }
 
     private static void initialize() {
-        strategy = new InheritableThreadLocalVariableContextHolderStrategy();
+        // Not the inheritable one: a thread would share the context object of the thread that created it, and
+        // two threads setting variables before evaluating would read each other's.
+        strategy = new ThreadLocalVariableContextHolderStrategy();
     }
 
     public static void clearContext() {
