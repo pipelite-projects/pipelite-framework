@@ -109,7 +109,7 @@ public final class BarrierSpecBuilder implements BarrierOperations {
      */
     private static String queueNameOf(String flowURL) {
         if (flowURL == null || flowURL.isBlank()) {
-            throw new IllegalArgumentException("await needs the URL of the flow, as queue://<queue it reads>");
+            throw new IllegalArgumentException("await needs the URL of the flow, as " + ChannelProtocols.queueURL("<queue it reads>"));
         }
         final ChannelURL channelURL = ChannelURL.parse(flowURL);
         if (!channelURL.hasProtocol()) {
@@ -119,8 +119,8 @@ public final class BarrierSpecBuilder implements BarrierOperations {
         }
         if (!ChannelProtocols.QUEUE.equals(channelURL.getProtocol())) {
             throw new IllegalArgumentException(String.format(
-                "await(\"%s\"): only a flow that reads a queue (queue://<name>) can be awaited, not one that reads from '%s'",
-                flowURL, channelURL.getProtocol()));
+                "await(\"%s\"): only a flow that reads a queue (%s) can be awaited, not one that reads from '%s'",
+                flowURL, ChannelProtocols.queueURL("<name>"), channelURL.getProtocol()));
         }
         final String queueName = EndpointURL.parse(channelURL.getEndpointURL()).getResource();
         if (queueName == null || queueName.isBlank()) {

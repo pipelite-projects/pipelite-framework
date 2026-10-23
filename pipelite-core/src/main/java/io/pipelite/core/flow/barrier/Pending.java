@@ -15,6 +15,8 @@
  */
 package io.pipelite.core.flow.barrier;
 
+import io.pipelite.dsl.ChannelProtocols;
+
 import java.io.Serializable;
 import java.util.Objects;
 
@@ -31,6 +33,6 @@ public record Pending(String flow, String key) implements Serializable {
     /** {@code flow} is the name of the queue the awaited flow reads. */
     @Override
     public String toString() {
-        return "queue://" + flow + " for key '" + key + "'";
+        return ChannelProtocols.queueURL(flow) + " for key '" + key + "'";
     }
 }

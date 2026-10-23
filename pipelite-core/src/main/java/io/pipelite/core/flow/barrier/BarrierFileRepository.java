@@ -20,14 +20,12 @@ import io.pipelite.common.support.fs.LockedFileStore;
 import io.pipelite.common.support.serialization.BaseEncoding;
 import io.pipelite.common.support.serialization.ByteArrayToObjectConverter;
 import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
+import io.pipelite.core.support.hash.SHA256HashGeneartor;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -46,8 +44,13 @@ import java.util.stream.Stream;
  */
 public class BarrierFileRepository extends BarrierInMemoryRepository {
 
+    private static final String WAITERS_DIRECTORY = "waiters";
+    private static final String COMPLETIONS_DIRECTORY = "completions";
     private static final String WAITER_EXTENSION = ".waiter";
     private static final String COMPLETION_EXTENSION = ".completion";
+
+    /** Tells the flow from the key in the identity of a completion: it cannot be part of either. */
+    private static final char IDENTITY_SEPARATOR = '\u0000';
 
     private final Path waitersDirectory;
     private final Path completionsDirectory;
@@ -58,8 +61,8 @@ public class BarrierFileRepository extends BarrierInMemoryRepository {
 
     public BarrierFileRepository(Path directory) {
         Preconditions.notNull(directory, "directory is required and cannot be null");
-        this.waitersDirectory = directory.resolve("waiters");
-        this.completionsDirectory = directory.resolve("completions");
+        this.waitersDirectory = directory.resolve(WAITERS_DIRECTORY);
+        this.completionsDirectory = directory.resolve(COMPLETIONS_DIRECTORY);
         this.waitersStore = new LockedFileStore(waitersDirectory);
         this.completionsStore = new LockedFileStore(completionsDirectory);
         for (String content : readAll(waitersDirectory, WAITER_EXTENSION, waitersStore)) {
@@ -116,15 +119,11 @@ public class BarrierFileRepository extends BarrierInMemoryRepository {
     }
 
     private static String identityOf(Pending pending) {
-        return pending.flow() + '\u0000' + pending.key();
+        return pending.flow() + IDENTITY_SEPARATOR + pending.key();
     }
 
     private static String fileName(String identity, String extension) {
-        try {
-            final MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(identity.getBytes(StandardCharsets.UTF_8))) + extension;
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 is not available", exception);
-        }
+        // A hash generator for each call: the one of the project keeps a MessageDigest, which is not thread safe.
+        return new SHA256HashGeneartor().hash(identity.getBytes(StandardCharsets.UTF_8)) + extension;
     }
 }
