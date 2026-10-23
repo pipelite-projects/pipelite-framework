@@ -17,6 +17,7 @@ package io.pipelite.core.consumer.internal;
 
 import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
 import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.flow.internal.FlowNode;
 import io.pipelite.core.concurrent.internal.QueuePressureGate;
 import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.core.flow.execution.inbox.DurableInbox;
@@ -171,7 +172,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
                 }
                 return 0;
             }
-            dispatchToNext(exchange);
+            dispatch(priorityExchange);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
         }
@@ -210,6 +211,46 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
             metadata.put(METADATA_FLOW_NAME_KEY, flowName);
         }
         return metadata;
+    }
+
+    /**
+     * Queues the resume of an exchange at {@code target}, a node of this flow, to be run by the workers of the
+     * flow like any other exchange it received: the dedicated thread when the flow has no concurrency, the shared
+     * worker pool, within the budget of the flow, when it has. It is not a new exchange, so it is neither counted,
+     * nor written to the durable inbox (whoever resumes it keeps it durable), nor held back by the pressure gate:
+     * the caller, a flow that completed, must not wait for the queue of another. {@code onComplete} runs once
+     * {@code target} has finished with it, whether it threw or not.
+     */
+    void resume(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
+        queue.add(PriorityExchange.forResumption(exchange, exchangeCount.incrementAndGet(), target, onComplete));
+    }
+
+    /** Runs what was taken from the queue: a new exchange goes through the flow, a resumption goes to its node. */
+    void dispatch(PriorityExchange item) {
+        if (!item.isResumption()) {
+            dispatchToNext(item.getExchange());
+            return;
+        }
+        final ExchangeImpl exchange = item.getExchange();
+        final String previousCorrelationId = MDC.get(MDC_EXCHANGE_ID_KEY);
+        final String previousFlowName = MDC.get(MDC_FLOW_NAME_KEY);
+        MDC.put(MDC_EXCHANGE_ID_KEY, exchange.getInput().getId());
+        MDC.put(MDC_FLOW_NAME_KEY, getFlowName());
+        try {
+            item.getResumeTarget().process(exchange);
+        } finally {
+            if (previousCorrelationId != null) {
+                MDC.put(MDC_EXCHANGE_ID_KEY, previousCorrelationId);
+            } else {
+                MDC.remove(MDC_EXCHANGE_ID_KEY);
+            }
+            if (previousFlowName != null) {
+                MDC.put(MDC_FLOW_NAME_KEY, previousFlowName);
+            } else {
+                MDC.remove(MDC_FLOW_NAME_KEY);
+            }
+            item.getResumeOnComplete().run();
+        }
     }
 
     /**
@@ -267,18 +308,40 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
 
         private final ExchangeImpl exchange;
         private final long priority;
+        /** Set when this is the resume of an exchange at a node, not a new exchange. */
+        private final FlowNode resumeTarget;
+        private final Runnable resumeOnComplete;
 
         public static PriorityExchange withMaxPriority(ExchangeImpl exchange) {
-            return new PriorityExchange(exchange, Integer.MIN_VALUE);
+            return new PriorityExchange(exchange, Integer.MIN_VALUE, null, null);
         }
 
         public static PriorityExchange withNormalPriority(ExchangeImpl exchange, long ticketNumber) {
-            return new PriorityExchange(exchange, ticketNumber);
+            return new PriorityExchange(exchange, ticketNumber, null, null);
         }
 
-        private PriorityExchange(ExchangeImpl exchange, long priority) {
+        static PriorityExchange forResumption(ExchangeImpl exchange, long ticketNumber, FlowNode target, Runnable onComplete) {
+            return new PriorityExchange(exchange, ticketNumber, Objects.requireNonNull(target, "target is required and cannot be null"),
+                Objects.requireNonNull(onComplete, "onComplete is required and cannot be null"));
+        }
+
+        private PriorityExchange(ExchangeImpl exchange, long priority, FlowNode resumeTarget, Runnable resumeOnComplete) {
             this.exchange = exchange;
             this.priority = priority;
+            this.resumeTarget = resumeTarget;
+            this.resumeOnComplete = resumeOnComplete;
+        }
+
+        boolean isResumption() {
+            return resumeTarget != null;
+        }
+
+        FlowNode getResumeTarget() {
+            return resumeTarget;
+        }
+
+        Runnable getResumeOnComplete() {
+            return resumeOnComplete;
         }
 
         public ExchangeImpl getExchange() {

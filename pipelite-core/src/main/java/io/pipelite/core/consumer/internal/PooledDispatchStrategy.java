@@ -101,7 +101,7 @@ final class PooledDispatchStrategy implements DispatchStrategy {
                 // shared pool thread itself on every single message.
                 pool.execute(() -> {
                     try {
-                        consumer.dispatchToNext(exchange);
+                        consumer.dispatch(priorityExchange);
                     } catch (Throwable t) {
                         if (logger.isErrorEnabled()) {
                             logger.error("Unhandled error dispatching an Exchange on the shared source worker pool", t);

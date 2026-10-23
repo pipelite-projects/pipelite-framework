@@ -19,6 +19,8 @@ import io.pipelite.dsl.process.PayloadTransformer;
 import io.pipelite.dsl.process.Processor;
 import io.pipelite.dsl.route.RecipientList;
 import io.pipelite.dsl.route.RoutingTable;
+import io.pipelite.dsl.barrier.BarrierConfigurator;
+import io.pipelite.dsl.barrier.BarrierOperations;
 import io.pipelite.dsl.split.SplitConfigurator;
 
 import java.util.function.Function;
@@ -39,6 +41,13 @@ public interface ProcessOperations extends BuildOperations {
     BuildOperations toRoute(Function<RouteConfigurator, RoutingTable<?>> dynamicRouteConfigurator);
 
     ProcessOperations split(String name, SplitConfigurator segmentConfigurator);
+
+    /**
+     * Makes the exchange that reaches this step wait until the executions of other flows have completed, and then
+     * lets it go on unchanged. The flows are awaited by the URL of the queue they read, and the exchange resumes on
+     * the workers of its own flow. See {@link BarrierOperations}.
+     */
+    ProcessOperations barrier(String name, BarrierConfigurator barrierConfigurator);
 
     SinkOperations toSink(String url);
 
