@@ -25,6 +25,7 @@ import io.pipelite.core.flow.FlowNodeLocator;
 import io.pipelite.core.flow.internal.AbstractFlowNode;
 import io.pipelite.core.flow.internal.Flow;
 import io.pipelite.core.flow.internal.FlowNode;
+import io.pipelite.dsl.barrier.Correlation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,6 +67,8 @@ public final class BarrierCoordinator {
 
     /** The barriers of the context, by id: what they await and for how long. */
     private final Map<String, BarrierSpec> barriers = new ConcurrentHashMap<>();
+    /** The ways to read a key that the barriers use for the flow that reads each queue. */
+    private final Map<String, Set<Correlation>> correlationsByQueue = new ConcurrentHashMap<>();
     /** The waiters being resumed now, so a recovery that runs meanwhile does not resume them a second time. */
     private final Set<String> resuming = ConcurrentHashMap.newKeySet();
 
@@ -81,6 +84,70 @@ public final class BarrierCoordinator {
 
     void register(String barrierId, BarrierSpec spec) {
         barriers.put(barrierId, spec);
+        for (BarrierSpec.Await await : spec.getAwaits()) {
+            correlationsByQueue.computeIfAbsent(await.queueName(), queue -> ConcurrentHashMap.newKeySet()).add(await.correlation());
+        }
+    }
+
+    /** The distinct ways the barriers read a key from an execution of the flow that reads {@code queueName}. */
+    public Set<Correlation> correlationsAwaiting(String queueName) {
+        return Set.copyOf(correlationsByQueue.getOrDefault(queueName, Set.of()));
+    }
+
+    /**
+     * An execution of a flow that some barrier awaits ended: tells what became of it for each of its keys. It tells
+     * nothing for an execution that was retried or is waiting at a barrier of its own.
+     */
+    public void executionEnded(ExecutionTracker tracker) {
+        tell(tracker, tracker.settle());
+    }
+
+    /** The retries of an execution were exhausted: it failed definitively. */
+    public void executionExhausted(ExecutionTracker tracker) {
+        tell(tracker, tracker.settleExhausted());
+    }
+
+    private void tell(ExecutionTracker tracker, ExecutionTracker.Outcome outcome) {
+        switch (outcome) {
+            case COMPLETED -> tracker.pendings().forEach(pending -> flowCompleted(pending.flow(), pending.key()));
+            case FAILED -> tracker.pendings().forEach(pending -> flowFailed(pending.flow(), pending.key()));
+            case NONE -> {
+            }
+        }
+    }
+
+    /**
+     * What to run when the execution {@code tracker} follows ended, or {@code null} without a tracker. It never
+     * throws: the flow that ended must not be affected by what the barriers do about it.
+     */
+    public Runnable endOf(ExecutionTracker tracker) {
+        if (tracker == null) {
+            return null;
+        }
+        return () -> {
+            try {
+                executionEnded(tracker);
+            } catch (RuntimeException failure) {
+                sysLogger.error("The barriers could not be told that an execution ended", failure);
+            }
+        };
+    }
+
+    /** {@code target} followed by what to run when it returned normally: for a resume that is the end of an execution. */
+    public static FlowNode endingWith(String flowName, FlowNode target, Runnable onEnd) {
+        if (onEnd == null) {
+            return target;
+        }
+        final AbstractFlowNode wrapper = new AbstractFlowNode() {
+            @Override
+            public void process(ExchangeImpl exchange) {
+                target.process(exchange);
+                onEnd.run();
+            }
+        };
+        wrapper.setFlowName(flowName);
+        wrapper.setProcessorName(target.getProcessorName());
+        return wrapper;
     }
 
     /** Whether some barrier awaits the flow that reads the queue {@code queueName}. */
@@ -137,7 +204,14 @@ public final class BarrierCoordinator {
             final Consumer<ExchangeImpl> action = waiter.status() == Waiter.Status.FAILED
                 ? kept -> node.fail(kept, waiter.failedBy())
                 : node::proceed;
-            final ResumeNode target = new ResumeNode(action);
+            final Consumer<ExchangeImpl> ending = resumed -> {
+                action.accept(resumed);
+                final Runnable end = endOf(ExecutionTracker.of(resumed));
+                if (end != null) {
+                    end.run();
+                }
+            };
+            final ResumeNode target = new ResumeNode(ending);
             target.setFlowName(waiter.flowName());
             target.setProcessorName(waiter.nodeName());
             dispatcher.dispatch(flow.get(), target, exchange, () -> finished(waiter));

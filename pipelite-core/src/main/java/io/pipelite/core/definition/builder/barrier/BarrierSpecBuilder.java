@@ -111,6 +111,10 @@ public final class BarrierSpecBuilder implements BarrierOperations {
         if (flowURL == null || flowURL.isBlank()) {
             throw new IllegalArgumentException("await needs the URL of the flow, as " + ChannelProtocols.queueURL("<queue it reads>"));
         }
+        if (flowURL.contains("${") || flowURL.contains("#{")) {
+            throw new IllegalArgumentException(String.format(
+                "await(\"%s\"): the URL of an awaited flow must be written out, not built from a placeholder or an expression", flowURL));
+        }
         final ChannelURL channelURL = ChannelURL.parse(flowURL);
         if (!channelURL.hasProtocol()) {
             throw new IllegalArgumentException(String.format(

@@ -65,6 +65,9 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
      */
     private DurableInbox durableInbox = NoOpDurableInbox.INSTANCE;
 
+    /** Follows the executions of the flow, for what awaits them (issue #150); {@code null} when nothing does. */
+    private volatile ExecutionObserver executionObserver;
+
     /**
      * See {@link QueuePressureGate}: the queue above is unbounded in practice (confirmed
      * empirically, see its own comment), so nothing short of this gate ever signals "slow down"
@@ -98,6 +101,10 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
     @Override
     public void setDurableInbox(DurableInbox durableInbox) {
         this.durableInbox = durableInbox;
+    }
+
+    public void setExecutionObserver(ExecutionObserver executionObserver) {
+        this.executionObserver = executionObserver;
     }
 
     @Override
@@ -137,6 +144,9 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
                     }
                 }
             }
+            // The execution of a flow is not the one of the flow the exchange came from: it gets its own tracker, if
+            // someone awaits this flow, when it starts.
+            exchange.removeProperty(IOKeys.EXECUTION_TRACKER_PROPERTY_NAME);
             queue.put(PriorityExchange.withNormalPriority(exchange, exchangeNumber));
             /*
             synchronized (this){
@@ -279,8 +289,17 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
         // verified as a real, reproduced bug (PipeliteFlowQueueIntegrationTest's origin-flow entry
         // silently never acknowledged), not a theoretical one.
         final String entryId = exchange.getProperty(IOKeys.DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME, String.class);
+        // Kept in a local, like the entry id above: a plain sink can hand this same exchange to another flow, which
+        // has an execution, and a tracker, of its own.
+        final ExecutionObserver observer = executionObserver;
+        final Runnable onEnd = observer != null ? observer.started(exchange) : null;
         try {
             super.process(exchange);
+            // The execution returned: it went through, was filtered, or its failure was handed to the error
+            // handling. An exception that escapes is not an end: the entry stays pending and is delivered again.
+            if (onEnd != null) {
+                onEnd.run();
+            }
             // Terminal state (issue #70): super.process(...) returning at all - whether the
             // pipeline actually succeeded, or a RuntimeException was caught and routed to a retry
             // channel by AbstractProcessorNode's own exceptionHandler branch - means nothing more

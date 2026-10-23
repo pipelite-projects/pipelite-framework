@@ -85,7 +85,18 @@ public class PipeliteBarrierIntegrationTest {
             })
             .withExceptionHandler((exception, exchange) -> failures.add(exception))
             .build());
+        registerAwaitedFlows(context);
         context.start();
+    }
+
+    /** The flows the barrier awaits: they only have to exist, the tests tell the coordinator what they would. */
+    private static void registerAwaitedFlows(PipeliteContext context) {
+        for (String queue : List.of("step-b", "step-c")) {
+            context.registerFlowDefinition(Pipelite.defineFlow(queue)
+                .fromSource("queue://" + queue)
+                .process("idle", (exchange, contribution) -> { })
+                .build());
+        }
     }
 
     private void supply(String orderId, String payload) {
@@ -194,6 +205,7 @@ public class PipeliteBarrierIntegrationTest {
                 .timeout(Duration.ofMinutes(10)))
             .process("next", (exchange, contribution) -> resumedPayloads.add(exchange.getInputPayloadAs(String.class)))
             .build());
+        registerAwaitedFlows(context);
         context.start();
         final Exchange exchange = context.createExchange("payload-1");
         exchange.putHeader("order-id", key("o-1"));

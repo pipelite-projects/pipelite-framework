@@ -69,6 +69,14 @@ public class IOKeys {
      */
     public static final String DURABLE_INBOX_RESUPPLIED_ENTRY_ID_PROPERTY_NAME = "X-DurableInbox-Resupplied-Entry-Id";
 
+    /**
+     * The {@code ExecutionTracker} of an execution of a flow that a barrier awaits (issue #150): what to tell the
+     * barriers when the execution ends, and how it went. Set when the execution starts, only for a flow some
+     * barrier awaits; it travels with the exchange (a retry carries it in its dump) and is dropped when the
+     * exchange is handed to the consumer of another flow, which has an execution of its own.
+     */
+    public static final String EXECUTION_TRACKER_PROPERTY_NAME = "X-Barrier-Execution-Tracker";
+
     private IOKeys(){
     }
 }

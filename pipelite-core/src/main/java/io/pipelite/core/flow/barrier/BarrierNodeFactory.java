@@ -18,6 +18,8 @@ package io.pipelite.core.flow.barrier;
 import io.pipelite.core.definition.builder.barrier.BarrierSpec;
 import io.pipelite.core.flow.internal.FlowNode;
 
+import java.util.Optional;
+
 /**
  * The only public entry point for building a node backed by this package's {@code FlowNode} implementation,
  * like {@code SplitNodeFactory} (issue #82): {@code BarrierNode} is package-private.
@@ -29,5 +31,10 @@ public final class BarrierNodeFactory {
 
     public static FlowNode barrier(BarrierSpec spec) {
         return new BarrierNode(spec);
+    }
+
+    /** What {@code node} declares, when it is a barrier. */
+    public static Optional<BarrierSpec> specOf(FlowNode node) {
+        return node instanceof BarrierNode barrier ? Optional.of(barrier.spec()) : Optional.empty();
     }
 }

@@ -248,6 +248,11 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
         eventDrivenConsumer.setDurableInbox(durableInbox);
     }
 
+    /** Follows the executions of this flow, for the barriers that await it (issue #150). */
+    public void setExecutionObserver(ExecutionObserver executionObserver) {
+        eventDrivenConsumer.setExecutionObserver(executionObserver);
+    }
+
     @Override
     public void tag(String tag) {
         eventDrivenConsumer.tag(tag);

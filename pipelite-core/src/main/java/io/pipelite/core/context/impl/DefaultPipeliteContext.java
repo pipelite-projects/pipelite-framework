@@ -28,6 +28,7 @@ import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.internal.ReservedNames;
 import io.pipelite.core.context.internal.validation.ContextValidatorChain;
 import io.pipelite.core.context.internal.validation.FlowReferenceValidator;
+import io.pipelite.core.context.internal.validation.BarrierReferenceValidator;
 import io.pipelite.core.context.internal.validation.QueueSourceUniquenessValidator;
 import io.pipelite.core.context.internal.validation.ReservedFlowNameValidator;
 import io.pipelite.core.context.internal.validation.ContextValidator;
@@ -199,6 +200,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
         contextValidatorChain = new ContextValidatorChain();
         contextValidatorChain.add(new FlowReferenceValidator());
         contextValidatorChain.add(new QueueSourceUniquenessValidator());
+        contextValidatorChain.add(new BarrierReferenceValidator());
         contextValidatorChain.add(new ReservedFlowNameValidator());
 
         dependencyRegistry = new DefaultDependencyRegistry();
@@ -603,7 +605,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
                     // start(), and this factory must bake in whatever is current now, not
                     // whatever was current at construction time (see #68).
                     final RetryChannelDefinitionFactory retryChannelDefinitionFactory =
-                        new RetryChannelDefinitionFactory(executionDumpRepository, this, deadLetterQueueRepository);
+                        new RetryChannelDefinitionFactory(executionDumpRepository, this, deadLetterQueueRepository, barrierCoordinator);
                     final FlowDefinition retryChannelDefinition = retryChannelDefinitionFactory.createDefinition(ReservedNames.RETRY_CHANNEL);
                     final Flow retryChannel = flowFactory.createFlow(retryChannelDefinition);
                     flowRegistry.addFlow(retryChannel);

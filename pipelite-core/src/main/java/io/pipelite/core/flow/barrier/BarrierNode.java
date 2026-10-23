@@ -76,6 +76,10 @@ class BarrierNode extends AbstractFlowNode implements PipeliteContextAware {
         pipeliteContext.getBarrierCoordinator().register(barrierId(), spec);
     }
 
+    BarrierSpec spec() {
+        return spec;
+    }
+
     /** Stable and unique in a context: {@code <flow>/<node>}. */
     String barrierId() {
         return getFlowName() + "/" + getProcessorName();
@@ -95,8 +99,14 @@ class BarrierNode extends AbstractFlowNode implements PipeliteContextAware {
         }
 
         switch (disposition.kind()) {
-            case HOLD -> sysLogger.debug("Barrier '{}': the exchange waits for the flows it awaits", barrierId());
-            case DISCARD -> sysLogger.debug("Barrier '{}': the exchange was already released or failed, left to the recovery", barrierId());
+            case HOLD -> {
+                ExecutionTracker.markWaiting(exchange);
+                sysLogger.debug("Barrier '{}': the exchange waits for the flows it awaits", barrierId());
+            }
+            case DISCARD -> {
+                ExecutionTracker.markWaiting(exchange);
+                sysLogger.debug("Barrier '{}': the exchange was already released or failed, left to the recovery", barrierId());
+            }
             case PROCEED -> proceed(exchange);
             case FAIL -> fail(exchange, disposition.failedBy());
         }

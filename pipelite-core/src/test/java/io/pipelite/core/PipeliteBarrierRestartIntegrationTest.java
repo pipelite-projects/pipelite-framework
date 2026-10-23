@@ -59,6 +59,16 @@ public class PipeliteBarrierRestartIntegrationTest {
             .build();
     }
 
+    /** The flows the barrier awaits: they only have to exist, the tests tell the coordinator what they would. */
+    private static void registerAwaitedFlows(PipeliteContext context) {
+        for (String queue : List.of("step-b", "step-c")) {
+            context.registerFlowDefinition(Pipelite.defineFlow(queue)
+                .fromSource("queue://" + queue)
+                .process("idle", (exchange, contribution) -> { })
+                .build());
+        }
+    }
+
     private Path barrierDirectory() {
         return temporaryFolder.getRoot().toPath().resolve("state").resolve("barrier");
     }
@@ -103,6 +113,7 @@ public class PipeliteBarrierRestartIntegrationTest {
             final List<String> resumedByFirstRun = new CopyOnWriteArrayList<>();
             final PipeliteContext firstRun = new DefaultPipeliteContext();
             firstRun.registerFlowDefinition(shipOrder(resumedByFirstRun, new CopyOnWriteArrayList<>()));
+            registerAwaitedFlows(firstRun);
             firstRun.start();
             supply(firstRun, "o-1", "payload-1");
             Awaitility.await().atMost(15, TimeUnit.SECONDS).until(() -> files("waiters") == 1);
@@ -114,6 +125,7 @@ public class PipeliteBarrierRestartIntegrationTest {
             final PipeliteContext secondRun = new DefaultPipeliteContext();
             try {
                 secondRun.registerFlowDefinition(shipOrder(resumedBySecondRun, new CopyOnWriteArrayList<>()));
+                registerAwaitedFlows(secondRun);
                 secondRun.start();
                 final var coordinator = ((InternalPipeliteContext) secondRun).getBarrierCoordinator();
                 coordinator.flowCompleted("step-c", "o-1");
@@ -132,6 +144,7 @@ public class PipeliteBarrierRestartIntegrationTest {
         runWithTheTemporaryHome(() -> {
             final PipeliteContext firstRun = new DefaultPipeliteContext();
             firstRun.registerFlowDefinition(shipOrder(new CopyOnWriteArrayList<>(), new CopyOnWriteArrayList<>()));
+            registerAwaitedFlows(firstRun);
             firstRun.start();
             supply(firstRun, "o-1", "payload-1");
             Awaitility.await().atMost(15, TimeUnit.SECONDS).until(() -> files("waiters") == 1);
@@ -147,6 +160,7 @@ public class PipeliteBarrierRestartIntegrationTest {
             final PipeliteContext secondRun = new DefaultPipeliteContext();
             try {
                 secondRun.registerFlowDefinition(shipOrder(resumed, new CopyOnWriteArrayList<>()));
+                registerAwaitedFlows(secondRun);
                 secondRun.start();
 
                 Awaitility.await().atMost(15, TimeUnit.SECONDS).until(() -> !resumed.isEmpty());
@@ -164,6 +178,7 @@ public class PipeliteBarrierRestartIntegrationTest {
         runWithTheTemporaryHome(() -> {
             final PipeliteContext firstRun = new DefaultPipeliteContext();
             firstRun.registerFlowDefinition(shipOrder(new CopyOnWriteArrayList<>(), new CopyOnWriteArrayList<>()));
+            registerAwaitedFlows(firstRun);
             firstRun.start();
             supply(firstRun, "o-1", "payload-1");
             Awaitility.await().atMost(15, TimeUnit.SECONDS).until(() -> files("waiters") == 1);
@@ -177,6 +192,7 @@ public class PipeliteBarrierRestartIntegrationTest {
             final PipeliteContext secondRun = new DefaultPipeliteContext();
             try {
                 secondRun.registerFlowDefinition(shipOrder(resumed, failures));
+                registerAwaitedFlows(secondRun);
                 secondRun.start();
 
                 Awaitility.await().atMost(15, TimeUnit.SECONDS).until(() -> failures.size() == 1);
