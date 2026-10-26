@@ -145,12 +145,18 @@ public class BarrierInMemoryRepository implements BarrierRepository {
     }
 
     @Override
-    public List<Waiter> findExpired(Instant now) {
+    public List<Waiter> expire(Instant now) {
         lock.lock();
         try {
-            return waiters.values().stream()
-                .filter(waiter -> waiter.status() == Waiter.Status.WAITING && !waiter.expiresAt().isAfter(now))
-                .toList();
+            final List<Waiter> expired = new ArrayList<>();
+            for (Waiter waiter : new ArrayList<>(waiters.values())) {
+                if (waiter.status() == Waiter.Status.WAITING && !waiter.expiresAt().isAfter(now)) {
+                    final Waiter resolved = waiter.expired();
+                    put(waiter, resolved);
+                    expired.add(resolved);
+                }
+            }
+            return expired;
         } finally {
             lock.unlock();
         }

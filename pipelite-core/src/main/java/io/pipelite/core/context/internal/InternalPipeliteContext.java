@@ -18,6 +18,8 @@ package io.pipelite.core.context.internal;
 import io.pipelite.core.context.EndpointFactory;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.flow.barrier.BarrierCoordinator;
+import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
+import io.pipelite.core.flow.execution.deadletter.DeadLetteredExchangeFactory;
 import io.pipelite.core.flow.barrier.BarrierRepository;
 import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.core.flow.internal.Flow;
@@ -62,6 +64,12 @@ public interface InternalPipeliteContext extends PipeliteContext {
 
     /** What resumes a waiting exchange once the flows it awaits have completed (issue #150). */
     BarrierCoordinator getBarrierCoordinator();
+
+    /** Where the exchanges that failed for good, or waited too long at a barrier, are kept. */
+    DeadLetterQueueRepository getDeadLetterQueueRepository();
+
+    /** Makes the entry of the dead letter queue for a failed exchange. */
+    DeadLetteredExchangeFactory getDeadLetterQueueEntryFactory();
 
     /**
      * Resolves the per-source {@code DurableInbox} a consumer durably records its intake with

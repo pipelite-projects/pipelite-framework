@@ -211,14 +211,79 @@ public abstract class BarrierRepositoryContractTest {
     }
 
     @Test
-    public void givenWaitersThatExpireAtDifferentTimes_thenOnlyTheOnesStillWaitingAndDueAreFound() {
+    public void givenWaitersThatExpireAtDifferentTimes_thenOnlyTheOnesStillWaitingAndDueAreGivenUp() {
         repository.arrive(waiter("early", NOW.plusSeconds(60), pending("step-b", "o-1")));
         repository.arrive(waiter("late", NOW.plusSeconds(7200), pending("step-b", "o-2")));
         repository.arrive(waiter("released", NOW.plusSeconds(60), pending("step-b", "o-3")));
         repository.complete("step-b", "o-3", LATER);
 
-        Assert.assertEquals(List.of("early"), ids(repository.findExpired(NOW.plusSeconds(3600))));
-        Assert.assertTrue(repository.findExpired(NOW).isEmpty());
+        Assert.assertTrue("nothing is due yet", repository.expire(NOW).isEmpty());
+        final List<Waiter> expired = repository.expire(NOW.plusSeconds(3600));
+
+        Assert.assertEquals(List.of("early"), ids(expired));
+        Assert.assertEquals(Waiter.Status.EXPIRED, expired.get(0).status());
+        Assert.assertEquals("what it was still waiting for stays, to say so", Set.of(pending("step-b", "o-1")), expired.get(0).pending());
+        Assert.assertEquals(Waiter.Status.EXPIRED, repository.tryLoad("early").orElseThrow().status());
+        Assert.assertEquals(Waiter.Status.WAITING, repository.tryLoad("late").orElseThrow().status());
+        Assert.assertTrue("given up once", repository.expire(NOW.plusSeconds(3600)).isEmpty());
+        Assert.assertEquals("an expired wait is resolved, like a released one, until it is dealt with",
+            List.of("early", "released"), ids(repository.findResolved()));
+    }
+
+    @Test
+    public void givenAWaiterExpired_thenALaterCompletionReleasesNobodyAndItsReplayIsDiscarded() {
+        final Waiter waiter = waiter("w-1", NOW.plusSeconds(60), pending("step-b", "o-1"));
+        repository.arrive(waiter);
+        repository.expire(NOW.plusSeconds(3600));
+
+        Assert.assertTrue(repository.complete("step-b", "o-1", LATER).isEmpty());
+        Assert.assertEquals(WaitDisposition.Kind.DISCARD, repository.arrive(waiter).kind());
+        repository.remove("w-1");
+        Assert.assertTrue(repository.findResolved().isEmpty());
+    }
+
+    @Test
+    public void givenTheExpiryAndTheCompletionRaceEachOther_thenTheWaiterIsGivenUpOrReleasedNeverBoth() throws Exception {
+        final int rounds = 200;
+        final ExecutorService pool = Executors.newFixedThreadPool(2);
+        final List<String> wrong = Collections.synchronizedList(new ArrayList<>());
+        try {
+            for (int round = 0; round < rounds; round++) {
+                final String key = "o-" + round;
+                repository.arrive(waiter("w-" + round, NOW.plusSeconds(60), pending("step-b", key)));
+                final CountDownLatch start = new CountDownLatch(1);
+                final List<Object> outcomes = Collections.synchronizedList(new ArrayList<>());
+                final List<java.util.concurrent.Future<?>> futures = new ArrayList<>();
+                futures.add(pool.submit(() -> {
+                    try {
+                        start.await();
+                        repository.expire(NOW.plusSeconds(3600)).stream().filter(w -> w.pending().contains(pending("step-b", key)))
+                            .forEach(w -> outcomes.add("expired"));
+                    } catch (Throwable t) {
+                        wrong.add(key + " " + t);
+                    }
+                }));
+                futures.add(pool.submit(() -> {
+                    try {
+                        start.await();
+                        repository.complete("step-b", key, LATER).forEach(w -> outcomes.add("released"));
+                    } catch (Throwable t) {
+                        wrong.add(key + " " + t);
+                    }
+                }));
+                start.countDown();
+                for (java.util.concurrent.Future<?> future : futures) {
+                    future.get(30, TimeUnit.SECONDS);
+                }
+                if (outcomes.size() != 1) {
+                    wrong.add(key + " ended " + outcomes.size() + " ways: " + outcomes);
+                }
+            }
+        } finally {
+            pool.shutdownNow();
+        }
+
+        Assert.assertTrue(wrong.size() + " rounds were wrong, for instance " + wrong.stream().limit(3).toList(), wrong.isEmpty());
     }
 
     @Test

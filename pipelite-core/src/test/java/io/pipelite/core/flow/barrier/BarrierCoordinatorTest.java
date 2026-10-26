@@ -15,14 +15,19 @@
  */
 package io.pipelite.core.flow.barrier;
 
+import io.pipelite.common.support.serialization.Base64ObjectSerializer;
 import io.pipelite.core.consumer.internal.Consumer;
 import io.pipelite.core.context.impl.DefaultExchangeFactory;
 import io.pipelite.core.context.impl.DefaultMessageFactory;
+import io.pipelite.core.context.internal.IOKeys;
 import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.definition.builder.barrier.BarrierSpecBuilder;
 import io.pipelite.core.exchange.internal.DistributedIdentityGeneratorImpl;
 import io.pipelite.core.exchange.internal.ExchangeFactory;
 import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
+import io.pipelite.core.flow.execution.deadletter.DeadLetteredExchange;
+import io.pipelite.core.flow.execution.deadletter.DeadLetteredExchangeFactory;
 import io.pipelite.core.flow.internal.AbstractFlowNode;
 import io.pipelite.core.flow.internal.Flow;
 import io.pipelite.core.flow.internal.FlowNode;
@@ -31,6 +36,7 @@ import io.pipelite.spi.endpoint.Endpoint;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
 import java.time.Duration;
@@ -95,6 +101,9 @@ public class BarrierCoordinatorTest {
     private final List<Dispatch> dispatches = Collections.synchronizedList(new ArrayList<>());
     private boolean runDispatchesAtOnce = true;
     private boolean dispatchFails = false;
+    private Instant arrival = NOW;
+    private Instant now = NOW;
+    private DeadLetterQueueRepository deadLetterQueue;
 
     @Before
     public void setup() {
@@ -103,7 +112,7 @@ public class BarrierCoordinatorTest {
         context = Mockito.mock(InternalPipeliteContext.class);
         Mockito.when(context.getExchangeFactory()).thenReturn(exchangeFactory);
         Mockito.when(context.getBarrierRepository()).thenReturn(repository);
-        coordinator = new BarrierCoordinator(context, () -> NOW, (flowOf, target, exchange, onComplete) -> {
+        coordinator = new BarrierCoordinator(context, () -> now, (flowOf, target, exchange, onComplete) -> {
             if (dispatchFails) {
                 throw new IllegalStateException("the pool refuses it");
             }
@@ -117,10 +126,14 @@ public class BarrierCoordinatorTest {
             }
         });
         Mockito.when(context.getBarrierCoordinator()).thenReturn(coordinator);
+        deadLetterQueue = Mockito.mock(DeadLetterQueueRepository.class);
+        Mockito.when(context.getDeadLetterQueueRepository()).thenReturn(deadLetterQueue);
+        Mockito.when(context.getDeadLetterQueueEntryFactory())
+            .thenReturn(new DeadLetteredExchangeFactory(new DistributedIdentityGeneratorImpl(), new Base64ObjectSerializer()));
 
         final BarrierSpecBuilder builder = new BarrierSpecBuilder();
         TWO_FLOWS.configure(builder);
-        node = new BarrierNode(builder.build(), () -> NOW);
+        node = new BarrierNode(builder.build(), () -> arrival);
         node.setFlowName("ship-order");
         node.setProcessorName("preparation");
         node.setPipeliteContext(context);
@@ -264,5 +277,108 @@ public class BarrierCoordinatorTest {
         Assert.assertEquals(1, recorder.received.size());
         Assert.assertTrue(repository.findResolved().isEmpty());
         Assert.assertNotNull(exchange);
+    }
+
+    @Test
+    public void givenAWaitThatTookTooLong_thenMaintainSendsTheExchangeToTheDeadLetterQueueSayingWhatItWaitedFor() {
+        final ExchangeImpl exchange = waitFor("o-1");
+        coordinator.flowCompleted("step-b", "o-1");
+
+        now = NOW.plus(Duration.ofMinutes(9));
+        coordinator.maintain();
+        Mockito.verifyNoInteractions(deadLetterQueue);
+
+        now = NOW.plus(Duration.ofMinutes(11));
+        coordinator.maintain();
+
+        final ArgumentCaptor<DeadLetteredExchange> entry = ArgumentCaptor.forClass(DeadLetteredExchange.class);
+        Mockito.verify(deadLetterQueue).save(entry.capture());
+        Assert.assertEquals("ship-order", entry.getValue().getFlowName());
+        Assert.assertEquals("preparation", entry.getValue().getFailedProcessor());
+        Assert.assertEquals(BarrierTimeoutException.class.getName(), entry.getValue().getExceptionType());
+        Assert.assertTrue(entry.getValue().getExceptionMessage(),
+            entry.getValue().getExceptionMessage().contains("step-c") && !entry.getValue().getExceptionMessage().contains("step-b"));
+        Assert.assertTrue("nothing resumes", recorder.received.isEmpty());
+        Assert.assertTrue(dispatches.isEmpty());
+        Assert.assertTrue("and the wait is forgotten",
+            repository.tryLoad("ship-order/preparation#" + exchange.getInput().getId()).isEmpty());
+
+        coordinator.maintain();
+        Mockito.verifyNoMoreInteractions(deadLetterQueue);
+    }
+
+    @Test
+    public void givenAnExchangeGivenUp_thenTheFlowsThatAwaitItsFlowAreToldItFailed() {
+        // o-2 carries what the barriers that await its flow are waiting for: the o-1 of step-b
+        final ExchangeImpl expiring = exchangeFactory.createExchange("payload-of-o-2");
+        expiring.putHeader("order-id", "o-2");
+        expiring.setProperty(IOKeys.EXECUTION_TRACKER_PROPERTY_NAME, new ExecutionTracker(java.util.Set.of(new Pending("step-b", "o-1"))));
+        node.process(expiring);
+        arrival = NOW.plus(Duration.ofMinutes(5));
+        waitFor("o-1");
+
+        now = NOW.plus(Duration.ofMinutes(11));
+        coordinator.maintain();
+
+        Mockito.verify(deadLetterQueue, Mockito.times(1)).save(Mockito.any());
+        Assert.assertEquals("the exchange that awaited o-1 gets the failure", 1, handled.size());
+        Assert.assertEquals(new Pending("step-b", "o-1"), ((BarrierFailedException) handled.get(0)).getFailedBy());
+    }
+
+    @Test
+    public void givenThereIsNoDeadLetterQueue_thenTheExpiredWaitStaysForALaterRun() {
+        final ExchangeImpl exchange = waitFor("o-1");
+        Mockito.when(context.getDeadLetterQueueRepository()).thenReturn(null);
+
+        now = NOW.plus(Duration.ofMinutes(11));
+        coordinator.maintain();
+        coordinator.maintain();
+
+        Assert.assertEquals(Waiter.Status.EXPIRED,
+            repository.tryLoad("ship-order/preparation#" + exchange.getInput().getId()).orElseThrow().status());
+
+        Mockito.when(context.getDeadLetterQueueRepository()).thenReturn(deadLetterQueue);
+        coordinator.maintain();
+
+        Mockito.verify(deadLetterQueue).save(Mockito.any());
+        Assert.assertTrue(repository.findResolved().isEmpty());
+    }
+
+    @Test
+    public void givenTheDeadLetterQueueFails_thenTheExpiredWaitStaysForALaterRun() {
+        waitFor("o-1");
+        // a run tries twice: the expiry, then the recovery of what is left resolved
+        Mockito.doThrow(new IllegalStateException("disk full")).doThrow(new IllegalStateException("disk full"))
+            .doNothing().when(deadLetterQueue).save(Mockito.any());
+
+        now = NOW.plus(Duration.ofMinutes(11));
+        coordinator.maintain();
+        Assert.assertEquals(1, repository.findResolved().size());
+
+        coordinator.maintain();
+
+        Mockito.verify(deadLetterQueue, Mockito.times(3)).save(Mockito.any());
+        Assert.assertTrue(repository.findResolved().isEmpty());
+    }
+
+    @Test
+    public void givenCompletionsNobodyCanNeedAnyMore_thenMaintainForgetsThem() {
+        coordinator.flowCompleted("step-b", "o-1");
+        coordinator.flowFailed("step-c", "o-1");
+        now = NOW.plus(Duration.ofMinutes(9));
+        coordinator.maintain();
+        Assert.assertEquals("still remembered: the waiter may yet come",
+            WaitDisposition.Kind.FAIL, repository.arrive(waiterOf("w-late", "step-c")).kind());
+
+        now = NOW.plus(Duration.ofMinutes(11));
+        coordinator.maintain();
+
+        Assert.assertEquals("forgotten, an arrival waits for them again",
+            WaitDisposition.Kind.HOLD, repository.arrive(waiterOf("w-later", "step-c")).kind());
+    }
+
+    private static Waiter waiterOf(String id, String flow) {
+        return Waiter.waiting(id, "ship-order/preparation", "ship-order", "preparation", "data", "encoding",
+            java.util.Set.of(new Pending(flow, "o-1")), NOW, NOW.plus(Duration.ofHours(1)));
     }
 }

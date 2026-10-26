@@ -22,6 +22,9 @@ import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.definition.builder.barrier.BarrierSpec;
 import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.core.flow.FlowNodeLocator;
+import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
+import io.pipelite.core.flow.execution.deadletter.DeadLetteredExchangeFactory;
 import io.pipelite.core.flow.internal.AbstractFlowNode;
 import io.pipelite.core.flow.internal.Flow;
 import io.pipelite.core.flow.internal.FlowNode;
@@ -175,6 +178,19 @@ public final class BarrierCoordinator {
         repository().fail(queueName, key, clock.get().plus(retention(queueName))).forEach(this::resume);
     }
 
+    /**
+     * What the barriers need on a schedule: gives up the waits that took longer than their barrier allows (they
+     * go to the dead letter queue), forgets the completions that are no longer needed, and resumes what is
+     * resolved but was not resumed (a crash, or a worker pool that refused it).
+     */
+    public void maintain() {
+        final BarrierRepository repository = repository();
+        final Instant now = clock.get();
+        repository.expire(now).forEach(this::resume);
+        repository.purgeCompletions(now);
+        recover();
+    }
+
     /** Resumes what a crash left resolved but not resumed. To run once the flows have started. */
     public void recover() {
         for (Waiter waiter : repository().findResolved()) {
@@ -191,6 +207,10 @@ public final class BarrierCoordinator {
             return;
         }
         try {
+            if (waiter.status() == Waiter.Status.EXPIRED) {
+                giveUp(waiter);
+                return;
+            }
             final Optional<Flow> flow = context.tryFindFlowByName(waiter.flowName());
             final FlowNode found = flow.flatMap(f -> FlowNodeLocator.findByProcessorName(f, waiter.nodeName())).orElse(null);
             if (!(found instanceof BarrierNode node)) {
@@ -219,6 +239,35 @@ public final class BarrierCoordinator {
             sysLogger.error("Unable to resume the wait {}: it stays resolved, for the recovery", waiter.id(), exception);
             resuming.remove(waiter.id());
         }
+    }
+
+    /**
+     * The exchange waited longer than its barrier allows: it goes to the dead letter queue, with the exception that
+     * says what it was waiting for, and the flows that await its own flow are told it failed. It stays where it is
+     * if there is no dead letter queue to take it, so that nothing is lost.
+     */
+    private void giveUp(Waiter waiter) {
+        final DeadLetterQueueRepository deadLetterQueue = context.getDeadLetterQueueRepository();
+        final DeadLetteredExchangeFactory entryFactory = context.getDeadLetterQueueEntryFactory();
+        if (deadLetterQueue == null || entryFactory == null) {
+            sysLogger.warn("Unable to give up the wait {}: there is no dead letter queue, it stays expired", waiter.id());
+            resuming.remove(waiter.id());
+            return;
+        }
+        final ExchangeImpl exchange = deserialize(waiter);
+        exchange.setProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, waiter.nodeName());
+        if (exchange.getProperty(IOKeys.FLOW_EXECUTION_LAST_EXECUTED_FLOW_PROPERTY_NAME, String.class) == null) {
+            exchange.setProperty(IOKeys.FLOW_EXECUTION_LAST_EXECUTED_FLOW_PROPERTY_NAME, waiter.flowName());
+        }
+        final BarrierTimeoutException timeout = new BarrierTimeoutException(waiter.barrierId(), waiter.pending(),
+            Duration.between(waiter.createdAt(), waiter.expiresAt()));
+        deadLetterQueue.save(entryFactory.create(timeout, exchange));
+        sysLogger.warn("{}: the exchange went to the dead letter queue", timeout.getMessage());
+        final ExecutionTracker tracker = ExecutionTracker.of(exchange);
+        if (tracker != null) {
+            executionExhausted(tracker);
+        }
+        finished(waiter);
     }
 
     private void finished(Waiter waiter) {

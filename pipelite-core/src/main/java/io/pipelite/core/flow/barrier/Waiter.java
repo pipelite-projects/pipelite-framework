@@ -27,8 +27,8 @@ import java.util.Set;
  * It keeps the whole exchange, serialized like the one of a retry dump or a dead letter, so that what travels with
  * it (the return address, the routing slip) survives the wait. {@link #pending()} is what it still waits for;
  * when it is empty the wait is over, and the status says how: {@link Status#RELEASED} resumes the flow on the
- * node after the barrier, {@link Status#FAILED} hands it to the error handling. A resolved waiter stays until the
- * flow has dealt with it, so a crash in between finds it again.
+ * node after the barrier, {@link Status#FAILED} hands it to the error handling, {@link Status#EXPIRED} sends it to
+ * the dead letter queue. A resolved waiter stays until it has been dealt with, so a crash in between finds it again.
  * <p>
  * Immutable: a change makes a new instance.
  */
@@ -39,7 +39,7 @@ public record Waiter(String id, String barrierId, String flowName, String nodeNa
     private static final long serialVersionUID = 1L;
 
     public enum Status {
-        WAITING, RELEASED, FAILED
+        WAITING, RELEASED, FAILED, EXPIRED
     }
 
     public Waiter {
@@ -70,6 +70,12 @@ public record Waiter(String id, String barrierId, String flowName, String nodeNa
     /** What it waited for has completed. */
     public Waiter released() {
         return new Waiter(id, barrierId, flowName, nodeName, exchangeData, encoding, Set.of(), Status.RELEASED, null,
+            createdAt, expiresAt);
+    }
+
+    /** It waited longer than its barrier allows. What it was still waiting for stays, to say so. */
+    public Waiter expired() {
+        return new Waiter(id, barrierId, flowName, nodeName, exchangeData, encoding, pending, Status.EXPIRED, null,
             createdAt, expiresAt);
     }
 

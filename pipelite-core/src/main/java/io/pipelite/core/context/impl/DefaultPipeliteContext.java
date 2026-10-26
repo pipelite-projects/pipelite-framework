@@ -44,6 +44,7 @@ import io.pipelite.core.flow.execution.deadletter.FileDeadLetterQueueRepository;
 import io.pipelite.core.flow.split.AggregateInMemoryRepository;
 import io.pipelite.core.flow.barrier.BarrierCoordinator;
 import io.pipelite.core.flow.barrier.BarrierFileRepository;
+import io.pipelite.core.flow.barrier.BarrierMaintenanceService;
 import io.pipelite.core.flow.barrier.BarrierRepository;
 import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.core.flow.execution.dump.FileFlowExecutionDumpRepository;
@@ -82,6 +83,7 @@ import io.pipelite.core.flow.execution.inbox.SegmentedLogDurableInboxProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -112,6 +114,8 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
 
     // Same "state/" namespacing convention (issue #150) - a file for each waiting exchange and for each completion.
     private static final String BARRIER_HOME_SUBFOLDER = "state/barrier";
+
+    private static final Duration DEFAULT_BARRIER_SCAN_PERIOD = Duration.ofSeconds(30);
 
     private static final int DEFAULT_MAX_SOURCE_WORKER_POOL_SIZE = 200;
     private static final String SOURCE_WORKER_POOL_THREAD_ROLE = "pool";
@@ -165,6 +169,8 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
     // setBarrierRepository(...) may replace the default before start() (issue #150).
     private BarrierRepository barrierRepository;
     private final BarrierCoordinator barrierCoordinator;
+    private Duration barrierScanPeriod = DEFAULT_BARRIER_SCAN_PERIOD;
+    private boolean barrierMaintenanceRegistered = false;
 
     // Not final: ConfigurablePipeliteContext#setFlowExecutionDumpRepository(...) may replace the
     // default before start() - see registerFlows(), which reads this field live rather than
@@ -343,6 +349,25 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
     }
 
     @Override
+    public void setBarrierScanPeriod(Duration period) {
+        Preconditions.notNull(period, "period is required and cannot be null");
+        if (period.isZero() || period.isNegative()) {
+            throw new IllegalArgumentException("the period of the maintenance of the barriers must be positive, got " + period);
+        }
+        this.barrierScanPeriod = period;
+    }
+
+    @Override
+    public DeadLetterQueueRepository getDeadLetterQueueRepository() {
+        return deadLetterQueueRepository;
+    }
+
+    @Override
+    public DeadLetteredExchangeFactory getDeadLetterQueueEntryFactory() {
+        return deadLetterQueueEntryFactory;
+    }
+
+    @Override
     public BarrierRepository getBarrierRepository() {
         return barrierRepository;
     }
@@ -413,6 +438,13 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
 
         // diagnostic-only: log the total fromSource concurrency declared across all flows
         logSourceConcurrencyGuardrail();
+
+        // the barriers are looked after on a schedule (issue #150): the waits that took too long, the old
+        // completions, what a crash left half resumed
+        if (!barrierMaintenanceRegistered) {
+            serviceManager.registerService(new BarrierMaintenanceService(barrierCoordinator, barrierScanPeriod));
+            barrierMaintenanceRegistered = true;
+        }
 
         // start services
         serviceManager.startServices();

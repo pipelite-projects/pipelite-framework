@@ -85,6 +85,19 @@ public class BarrierFileRepositoryTest extends BarrierRepositoryContractTest {
     }
 
     @Test
+    public void givenAnExpiredWaiter_thenItIsFoundAgainAfterTheRestartToBeGivenUp() {
+        repository.arrive(waiter("w-1", NOW.plusSeconds(60), pending("step-b", "o-1")));
+        repository.expire(NOW.plusSeconds(3600));
+
+        final BarrierRepository afterRestart = new BarrierFileRepository(directory());
+
+        Assert.assertEquals(Waiter.Status.EXPIRED, afterRestart.tryLoad("w-1").orElseThrow().status());
+        Assert.assertEquals(List.of("w-1"), afterRestart.findResolved().stream().map(Waiter::id).toList());
+        Assert.assertTrue("it is not waiting any more: a completion does not release it",
+            afterRestart.complete("step-b", "o-1", LATER).isEmpty());
+    }
+
+    @Test
     public void givenAWaiterThatWasRemoved_thenItIsNotThereAfterTheRestart() throws IOException {
         repository.arrive(waiter("w-1", pending("step-b", "o-1")));
         repository.complete("step-b", "o-1", LATER);

@@ -55,11 +55,15 @@ public interface BarrierRepository {
 
     Optional<Waiter> tryLoad(String waiterId);
 
-    /** The waiters whose wait is over ({@code RELEASED} or {@code FAILED}) and that the flow has not dealt with yet. */
+    /** The waiters whose wait is over ({@code RELEASED}, {@code FAILED} or {@code EXPIRED}) and that have not been dealt with yet. */
     List<Waiter> findResolved();
 
-    /** The waiters still waiting whose {@link Waiter#expiresAt()} is not after {@code now}. */
-    List<Waiter> findExpired(Instant now);
+    /**
+     * Gives up the waiters still waiting whose {@link Waiter#expiresAt()} is not after {@code now}: they become
+     * {@code EXPIRED} and are returned. Atomic with the completions, so a waiter that a flow completing releases
+     * is not also given up: it is one or the other, never both.
+     */
+    List<Waiter> expire(Instant now);
 
     /** The flow has dealt with the waiter, or it expired: it is forgotten. */
     void remove(String waiterId);

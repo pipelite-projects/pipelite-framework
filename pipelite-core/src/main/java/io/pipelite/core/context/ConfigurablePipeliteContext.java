@@ -90,4 +90,12 @@ public interface ConfigurablePipeliteContext extends PipeliteContext {
      */
     void setBarrierRepository(BarrierRepository repository);
 
+    /**
+     * How often the barriers are looked after (issue #150): the waits that took too long are given up and sent to
+     * the dead letter queue, old completions are forgotten, and what a crash left half resumed is resumed. A wait is
+     * given up at the first run after its time, so up to this long late. Defaults to thirty seconds. Must be called
+     * before {@link PipeliteContext#start()}.
+     */
+    void setBarrierScanPeriod(java.time.Duration period);
+
 }
