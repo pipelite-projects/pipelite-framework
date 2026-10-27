@@ -324,6 +324,31 @@ public class PipeliteBarrierFlowsIntegrationTest {
     }
 
     @Test
+    public void givenTheAwaitedFlowSendsAnExchangeToTheFlowThatAwaitsIt_thenItIsANewExchangeAndNobodyDeadlocks() throws Exception {
+        // B sinks into the queue of A, which awaits B: the sink hands over a new exchange, it is not a wait of B for A
+        registerA(false);
+        context.registerFlowDefinition(Pipelite.defineFlow("step-b")
+            .fromSource("queue://step-b")
+            .process("do-b", (exchange, contribution) -> processedByB.add(exchange.getInputPayloadAs(String.class)))
+            .toSink("queue://a-in")
+            .build());
+        registerC();
+        context.start();
+        supply("a-in", "o-1", "X");
+        supply("step-c", "o-1", "Z");
+        Thread.sleep(300);
+        Assert.assertTrue("X waits for B", shipped.isEmpty());
+
+        supply("step-b", "o-1", "Y");
+
+        // B completes, which releases X; the exchange B sank into A meets the same barrier and is released as well
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> shipped.size() == 2);
+        Assert.assertEquals(List.of("X", "Y"), shipped.stream().sorted().toList());
+        Assert.assertTrue(failuresOfA.isEmpty());
+        Assert.assertTrue(failuresOfB.isEmpty());
+    }
+
+    @Test
     public void givenABarrierThatAwaitsAFlowThatDoesNotExist_thenTheContextDoesNotStart() {
         registerA(false);
         registerB();   // and no flow for step-c
