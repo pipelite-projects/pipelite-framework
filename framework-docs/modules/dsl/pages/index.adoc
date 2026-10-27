@@ -16,6 +16,7 @@ FlowOperations
                                  ├─ .filter(...)
                                  ├─ .wireTap(...)
                                  ├─ .split(...)
+                                 ├─ .barrier(...)
                                  ├─ .toRoute(...)   ──► BuildOperations
                                  └─ .toSink(url)    ──► SinkOperations
                                                           extends BuildOperations
@@ -41,6 +42,9 @@ The interface hierarchy ensures that the Java compiler enforces the correct sequ
 
 |xref:split-aggregate.adoc[Split / Aggregate]
 |Splitting a collection payload into independent messages and aggregating the results.
+
+|xref:barrier.adoc[Barrier]
+|Making an exchange wait for the completion of other flows, for the same business key.
 
 |xref:expressions.adoc[Expressions]
 |Expression syntax used by `filter` and routers.

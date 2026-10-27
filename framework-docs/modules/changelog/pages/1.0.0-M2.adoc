@@ -4,6 +4,7 @@
 `1.0.0-M2` is the last milestone allowed to break the API before `1.0.0`. This page lists the breaking
 changes of the restructuring of the SPI (the runtime machinery is now hidden in `pipelite-core`, and an
 adapter author sees only the contracts it implements), for people already using `1.0.0-M1`.
+The <<New,new features>> of the milestone are at the end.
 
 == Application code
 
@@ -69,3 +70,9 @@ Adapter unit tests can no longer build the framework's `Exchange` implementation
 
 * *A bill of materials.* `pipelite-bom` manages the version of every published module: import it once and
 declare the artifacts without a version (see xref:getting-started:installation.adoc[Installation]).
+
+== New
+
+* *Barrier.* A flow can make an exchange wait until other flows have completed their work for the same
+business key, with `.barrier(...)`. It is a new step: existing flows are not affected. See
+xref:dsl:barrier.adoc[Barrier].
