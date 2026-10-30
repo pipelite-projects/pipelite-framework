@@ -29,6 +29,30 @@ Pipelite.defineFlow("dispatch")
 
 The flows `kitchen` and `payment` need nothing special: they are ordinary flows that read from `queue://kitchen` and `queue://payment`. The framework tells the barrier when one of their executions completes.
 
+== Where to place it
+
+A barrier acts where it is declared, not at the start of the flow. The exchange goes through the steps before it as usual, waits at the barrier with the payload, headers and properties those steps left on it, and goes on with the step after the barrier. The steps before the barrier are not run again.
+
+[source,java]
+----
+Pipelite.defineFlow("dispatch")
+    .fromSource("queue://dispatch-in")
+    .process("validate", validator)                  // runs first, once
+    .process("set-order-id", orderIdHeaderSetter)    // can prepare the key
+    .barrier("await-kitchen", barrier -> barrier
+        .correlateBy(c -> c.headerName("order-id"))
+        .await("queue://kitchen")
+        .timeout(Duration.ofMinutes(30)))
+    .process("dispatch-order", dispatcher)           // runs when the wait is over
+    .build();
+----
+
+* The key of the waiting exchange is read when the exchange reaches the barrier, so a previous step can set the header that the key reads.
+* The key of the awaited flow is read when an exchange enters that flow, before any of its steps: it must already be on the exchange as it arrives there.
+* The timeout counts from the arrival at the barrier.
+* A failure in a step before the barrier happens before any wait: the exchange never reaches the barrier. A retry of a step after the barrier resumes at that step, it does not wait again.
+* While the exchange waits, the execution of this flow is not complete: a flow that awaits this one keeps waiting until the exchange has gone on and finished, or has been given up at the timeout.
+
 == The key
 
 The key says *which* executions an exchange waits for. The same way of reading the key is applied to the exchange that waits and to the exchange processed by the awaited flow, so both must carry what the key reads.
@@ -96,4 +120,4 @@ Mistakes in the declaration itself, such as no `await`, no timeout, an `await` w
 
 * The awaited flow must be identified by a literal `queue://` address: placeholders are not accepted, and other kinds of source cannot be awaited.
 * A waiting exchange must be serializable (messages, headers and properties), because it is kept on disk while it waits. If it is not, the failure is reported at the barrier.
-* The state is kept by a single node: running several nodes that share the same flows is not supported.
+* A barrier works within a single running instance of the application. When you run several instances, every exchange with the same key, the one that waits and the ones it awaits, must be routed to the same instance, and each instance must have its own state folder. If a key moves to another instance while an exchange is waiting, that exchange is not released and ends at the timeout. See xref:overview:multiple-instances.adoc[Running Several Instances].
