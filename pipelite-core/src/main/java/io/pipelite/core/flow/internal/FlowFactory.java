@@ -15,6 +15,10 @@
  */
 package io.pipelite.core.flow.internal;
 
+import io.pipelite.core.channel.queue.QueueEndpoint;
+import io.pipelite.core.consumer.internal.EventDrivenConsumerService;
+import io.pipelite.core.flow.barrier.BarrierExecutionObserver;
+import io.pipelite.core.flow.barrier.BarrierCoordinator;
 import io.pipelite.core.context.internal.InternalPipeliteContext;
 
 import io.pipelite.core.context.EndpointFactory;
@@ -100,6 +104,7 @@ public class FlowFactory {
         consumer.setExceptionHandler(exceptionHandler);
         injectDependencies(consumer);
         wireDurableInbox(consumer, flowName, sourceEndpointURL);
+        wireExecutionObserver(consumer, sourceEndpoint, sourceEndpointURL);
         setPrePostProcessors(consumer);
 
         Iterator<ProcessorDefinition> processorsIterator = flowDefinition.iterateProcessorDefinitions();
@@ -224,6 +229,21 @@ public class FlowFactory {
             ? context.getDurableInboxProvider().forFlow(flowName)
             : NoOpDurableInbox.INSTANCE;
         ((DurableInboxAware) consumer).setDurableInbox(durableInbox);
+    }
+
+    /**
+     * The flows that read a queue can be awaited by a barrier (issue #150): their consumer tells the coordinator
+     * when an execution ends. Nothing is done for an execution unless some barrier awaits the flow.
+     */
+    private void wireExecutionObserver(Consumer consumer, Endpoint sourceEndpoint, EndpointURL sourceEndpointURL) {
+        if (!(consumer instanceof EventDrivenConsumerService) || !(sourceEndpoint instanceof QueueEndpoint)) {
+            return;
+        }
+        final BarrierCoordinator coordinator = context.getBarrierCoordinator();
+        if (coordinator != null) {
+            ((EventDrivenConsumerService) consumer).setExecutionObserver(
+                new BarrierExecutionObserver(sourceEndpointURL.getResource(), coordinator));
+        }
     }
 
     private void setPrePostProcessors(FlowNode flowNode){

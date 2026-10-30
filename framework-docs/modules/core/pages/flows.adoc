@@ -64,6 +64,8 @@ The `Flow` is the runtime instance of a `FlowDefinition`.
 It encapsulates the consumer that wraps the source and the chain of `FlowNode` instances.
 It is created and started automatically by `PipeliteContext.start()`.
 
+Flows can also depend on each other: a step can make the exchange wait until other flows have completed their work for the same key. See xref:dsl:barrier.adoc[Barrier].
+
 == Detailed lifecycle
 
 [source]

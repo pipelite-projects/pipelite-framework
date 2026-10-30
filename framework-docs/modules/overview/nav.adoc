@@ -2,3 +2,4 @@
 ** xref:overview:index.adoc[Introduction]
 ** xref:overview:architecture.adoc[Architecture]
 ** xref:overview:performance.adoc[Performance and Throughput]
+** xref:overview:multiple-instances.adoc[Running Several Instances]

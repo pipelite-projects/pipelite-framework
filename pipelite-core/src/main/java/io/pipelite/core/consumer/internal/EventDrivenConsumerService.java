@@ -132,6 +132,18 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
      * {@link DispatchStrategy#dispatch} — not merely been submitted), including on this fallback
      * path.
      */
+    /**
+     * Queues the resume of {@code exchange} at {@code target}, a node of this flow, to be run by the workers of
+     * this flow: the dedicated thread when it has no concurrency, the shared worker pool within its budget when it
+     * has. Unlike {@link #dispatchToNode}, which at no concurrency runs on the caller's thread, the caller never runs
+     * it and never waits for it, and the flow keeps the one-at-a-time it promised. {@code onComplete} runs once
+     * {@code target} has finished. The resume waits its turn behind what is already queued, and a resume still
+     * queued when the flow stops is not run: whoever asked for it keeps it, and asks again.
+     */
+    public void resumeAt(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
+        eventDrivenConsumer.resume(target, exchange, onComplete);
+    }
+
     public void dispatchToNode(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
         if (dispatchStrategy == null) {
             if (logger.isWarnEnabled()) {
@@ -234,6 +246,11 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
     @Override
     public void setDurableInbox(DurableInbox durableInbox) {
         eventDrivenConsumer.setDurableInbox(durableInbox);
+    }
+
+    /** Follows the executions of this flow, for the barriers that await it (issue #150). */
+    public void setExecutionObserver(ExecutionObserver executionObserver) {
+        eventDrivenConsumer.setExecutionObserver(executionObserver);
     }
 
     @Override

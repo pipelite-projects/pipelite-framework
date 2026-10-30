@@ -17,6 +17,7 @@ package io.pipelite.core.consumer.internal;
 
 import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
 import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.flow.internal.FlowNode;
 import io.pipelite.core.concurrent.internal.QueuePressureGate;
 import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.core.flow.execution.inbox.DurableInbox;
@@ -64,6 +65,9 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
      */
     private DurableInbox durableInbox = NoOpDurableInbox.INSTANCE;
 
+    /** Follows the executions of the flow, for what awaits them (issue #150); {@code null} when nothing does. */
+    private volatile ExecutionObserver executionObserver;
+
     /**
      * See {@link QueuePressureGate}: the queue above is unbounded in practice (confirmed
      * empirically, see its own comment), so nothing short of this gate ever signals "slow down"
@@ -97,6 +101,10 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
     @Override
     public void setDurableInbox(DurableInbox durableInbox) {
         this.durableInbox = durableInbox;
+    }
+
+    public void setExecutionObserver(ExecutionObserver executionObserver) {
+        this.executionObserver = executionObserver;
     }
 
     @Override
@@ -136,6 +144,9 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
                     }
                 }
             }
+            // The execution of a flow is not the one of the flow the exchange came from: it gets its own tracker, if
+            // someone awaits this flow, when it starts.
+            exchange.removeProperty(IOKeys.EXECUTION_TRACKER_PROPERTY_NAME);
             queue.put(PriorityExchange.withNormalPriority(exchange, exchangeNumber));
             /*
             synchronized (this){
@@ -171,7 +182,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
                 }
                 return 0;
             }
-            dispatchToNext(exchange);
+            dispatch(priorityExchange);
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
         }
@@ -213,6 +224,46 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
     }
 
     /**
+     * Queues the resume of an exchange at {@code target}, a node of this flow, to be run by the workers of the
+     * flow like any other exchange it received: the dedicated thread when the flow has no concurrency, the shared
+     * worker pool, within the budget of the flow, when it has. It is not a new exchange, so it is neither counted,
+     * nor written to the durable inbox (whoever resumes it keeps it durable), nor held back by the pressure gate:
+     * the caller, a flow that completed, must not wait for the queue of another. {@code onComplete} runs once
+     * {@code target} has finished with it, whether it threw or not.
+     */
+    void resume(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
+        queue.add(PriorityExchange.forResumption(exchange, exchangeCount.incrementAndGet(), target, onComplete));
+    }
+
+    /** Runs what was taken from the queue: a new exchange goes through the flow, a resumption goes to its node. */
+    void dispatch(PriorityExchange item) {
+        if (!item.isResumption()) {
+            dispatchToNext(item.getExchange());
+            return;
+        }
+        final ExchangeImpl exchange = item.getExchange();
+        final String previousCorrelationId = MDC.get(MDC_EXCHANGE_ID_KEY);
+        final String previousFlowName = MDC.get(MDC_FLOW_NAME_KEY);
+        MDC.put(MDC_EXCHANGE_ID_KEY, exchange.getInput().getId());
+        MDC.put(MDC_FLOW_NAME_KEY, getFlowName());
+        try {
+            item.getResumeTarget().process(exchange);
+        } finally {
+            if (previousCorrelationId != null) {
+                MDC.put(MDC_EXCHANGE_ID_KEY, previousCorrelationId);
+            } else {
+                MDC.remove(MDC_EXCHANGE_ID_KEY);
+            }
+            if (previousFlowName != null) {
+                MDC.put(MDC_FLOW_NAME_KEY, previousFlowName);
+            } else {
+                MDC.remove(MDC_FLOW_NAME_KEY);
+            }
+            item.getResumeOnComplete().run();
+        }
+    }
+
+    /**
      * Dispatches {@code exchange} to {@code next}, i.e. runs the pipeline attached to this
      * consumer synchronously to completion. Named distinctly from {@link #process(ExchangeImpl)}
      * (overridden in this class to mean "enqueue") so callers outside this class — which can't
@@ -238,8 +289,17 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
         // verified as a real, reproduced bug (PipeliteFlowQueueIntegrationTest's origin-flow entry
         // silently never acknowledged), not a theoretical one.
         final String entryId = exchange.getProperty(IOKeys.DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME, String.class);
+        // Kept in a local, like the entry id above: a plain sink can hand this same exchange to another flow, which
+        // has an execution, and a tracker, of its own.
+        final ExecutionObserver observer = executionObserver;
+        final Runnable onEnd = observer != null ? observer.started(exchange) : null;
         try {
             super.process(exchange);
+            // The execution returned: it went through, was filtered, or its failure was handed to the error
+            // handling. An exception that escapes is not an end: the entry stays pending and is delivered again.
+            if (onEnd != null) {
+                onEnd.run();
+            }
             // Terminal state (issue #70): super.process(...) returning at all - whether the
             // pipeline actually succeeded, or a RuntimeException was caught and routed to a retry
             // channel by AbstractProcessorNode's own exceptionHandler branch - means nothing more
@@ -267,18 +327,40 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
 
         private final ExchangeImpl exchange;
         private final long priority;
+        /** Set when this is the resume of an exchange at a node, not a new exchange. */
+        private final FlowNode resumeTarget;
+        private final Runnable resumeOnComplete;
 
         public static PriorityExchange withMaxPriority(ExchangeImpl exchange) {
-            return new PriorityExchange(exchange, Integer.MIN_VALUE);
+            return new PriorityExchange(exchange, Integer.MIN_VALUE, null, null);
         }
 
         public static PriorityExchange withNormalPriority(ExchangeImpl exchange, long ticketNumber) {
-            return new PriorityExchange(exchange, ticketNumber);
+            return new PriorityExchange(exchange, ticketNumber, null, null);
         }
 
-        private PriorityExchange(ExchangeImpl exchange, long priority) {
+        static PriorityExchange forResumption(ExchangeImpl exchange, long ticketNumber, FlowNode target, Runnable onComplete) {
+            return new PriorityExchange(exchange, ticketNumber, Objects.requireNonNull(target, "target is required and cannot be null"),
+                Objects.requireNonNull(onComplete, "onComplete is required and cannot be null"));
+        }
+
+        private PriorityExchange(ExchangeImpl exchange, long priority, FlowNode resumeTarget, Runnable resumeOnComplete) {
             this.exchange = exchange;
             this.priority = priority;
+            this.resumeTarget = resumeTarget;
+            this.resumeOnComplete = resumeOnComplete;
+        }
+
+        boolean isResumption() {
+            return resumeTarget != null;
+        }
+
+        FlowNode getResumeTarget() {
+            return resumeTarget;
+        }
+
+        Runnable getResumeOnComplete() {
+            return resumeOnComplete;
         }
 
         public ExchangeImpl getExchange() {

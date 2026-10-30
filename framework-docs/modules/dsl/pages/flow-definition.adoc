@@ -93,6 +93,20 @@ See xref:split-aggregate.adoc[Split / Aggregate] for complete documentation.
     .end())
 ----
 
+== barrier
+
+Makes the exchange wait until other flows have completed their work for the same key, and then lets it go on unchanged.
+See xref:barrier.adoc[Barrier] for complete documentation.
+
+[source,java]
+----
+.barrier("await-kitchen-and-payment", barrier -> barrier
+    .correlateBy(c -> c.headerName("order-id"))
+    .await("queue://kitchen")
+    .await("queue://payment")
+    .timeout(Duration.ofMinutes(30)))
+----
+
 == toSink
 
 Defines the destination endpoint of the flow.

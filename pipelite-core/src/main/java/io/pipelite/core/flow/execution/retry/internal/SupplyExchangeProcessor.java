@@ -15,6 +15,8 @@
  */
 package io.pipelite.core.flow.execution.retry.internal;
 
+import io.pipelite.core.flow.barrier.ExecutionTracker;
+import io.pipelite.core.flow.barrier.BarrierCoordinator;
 import io.pipelite.core.context.internal.InternalPipeliteContext;
 
 import io.pipelite.common.support.Preconditions;
@@ -152,7 +154,12 @@ class SupplyExchangeProcessor extends AbstractFlowNode implements PipeliteContex
                 // returns - dispatch is not always synchronous (see this class's own Javadoc and
                 // DispatchStrategy#dispatch), so removing here unconditionally would reopen #58's
                 // crash window whenever the target flow dispatches through a pooled strategy.
-                dispatch(flowHolder.get(), target, recoveredExchange, () -> dumpRepository.remove(dumpId));
+                // The retry is a run of the execution that failed: when it returns, the barriers that await the flow
+                // are told how it went.
+                final BarrierCoordinator coordinator = pipeliteContext.getBarrierCoordinator();
+                final Runnable onEnd = coordinator == null ? null : coordinator.endOf(ExecutionTracker.of(recoveredExchange));
+                dispatch(flowHolder.get(), BarrierCoordinator.endingWith(flowName, target, onEnd), recoveredExchange,
+                    () -> dumpRepository.remove(dumpId));
                 return;
             }
             if (sysLogger.isWarnEnabled()) {
