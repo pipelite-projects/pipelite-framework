@@ -63,6 +63,38 @@ A flow is always addressed by URL, and `queue://<queue name>` is the URL of an i
 * The queue lives in memory, inside one `PipeliteContext`: it is not a broker and does not reach another process. To leave the process, use a channel adapter such as `kafka://`.
 * Useful for splitting complex pipelines into modular, reusable flows.
 
+== Order and `concurrency`
+
+With `concurrency` greater than one the exchanges of a queue run in parallel, so two exchanges that arrived one after the other can finish in reverse order. That matters when they are, say, two updates of the same order: the effects of the second would be overwritten by the first. `concurrency` set to one keeps the order, but processes everything one at a time, even exchanges that have nothing to do with each other.
+
+`orderedBy` is the middle ground: exchanges that have the *same key* go through the flow one at a time, in the order they arrived, while exchanges with *different keys* still run in parallel, within `concurrency`.
+
+[source,java]
+----
+Pipelite.defineFlow("customer-updates")
+    .fromSource("queue://customer-updates", (SourceConcurrencyConfigurer c) -> c
+        .concurrency(4)
+        .orderedBy(k -> k.headerName("customer-id")))    // or k.expression("Payload.customerId")
+    .process("update-customer", updater)
+    .build();
+----
+
+The key says which exchanges are related, it is not a way to sort them: the order is always the order of arrival. It is read the way the key of a xref:dsl:barrier.adoc#_the_key[barrier] is: a header, or an expression.
+
+The second exchange of a key does not start until the first has really been processed, also when something goes wrong:
+
+* *Retry.* An exchange that failed and is waiting for its next attempt still holds its key: the exchanges of that key that arrive meanwhile wait, and start when it has succeeded or has been given up (sent to the dead letter queue, or taken by the error handling). The exchanges of the other keys go on. Without this, a retry would overwrite what a later exchange had already done.
+* *Barrier.* An exchange that waits at a xref:dsl:barrier.adoc[barrier] holds its key until it has gone through the rest of the flow.
+* *Restart.* A retry or a wait that was pending when the application stopped still holds its key when it starts again, so the exchanges that arrive first do not overtake it. With a retry repository or a barrier repository of your own, they must be able to list what they hold for a flow, or the order across a restart is not kept.
+
+Things to know:
+
+* *The price of an exchange that keeps failing.* It holds back its own key for the whole retry period (the attempts times the backoff), while the other keys flow. If that key has a lot of traffic, its exchanges pile up behind it, and when too many are waiting the source slows down its senders, for every key, like it does when the queue is full. Keep the retry of an ordered flow short, or let the error handling take the failure.
+* *An exchange without the key* (the header is missing, or the expression has no value) is processed without ordering, and a warning is logged. The guarantee holds for the exchanges that have a key.
+* *Without concurrency* every exchange is already processed one at a time: `orderedBy` is ignored, with a warning.
+* *Queues only.* Kafka sources keep their order within a partition.
+* *One instance.* The order is kept by the instance that receives the exchanges. When you run several, route the exchanges with the same key to the same instance, see xref:overview:multiple-instances.adoc[Running Several Instances].
+
 == Startup validation
 
 `PipeliteContext.start()` checks that every `queue://` target is a queue that a flow registered in the same context reads: the destinations of `toSink(...)`, of the routes and the recipient list, of `wireTap(...)`, and the target of `toChannel(...)`, alone or as the exhaustion action of a retry. If one is not - a typo, a rename on one side only - `start()` throws a `ContextValidationException` that lists every problem, naming the flow and the DSL construct, before anything is started.
