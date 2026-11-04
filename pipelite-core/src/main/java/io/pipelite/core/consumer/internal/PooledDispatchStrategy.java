@@ -88,10 +88,15 @@ final class PooledDispatchStrategy implements DispatchStrategy {
     private void runLoop() {
         while (isRunAllowed.getAsBoolean()) {
             try {
-                final EventDrivenConsumer.PriorityExchange priorityExchange = consumer.takeNext();
-                final ExchangeImpl exchange = priorityExchange.getExchange();
-                if (consumer.isPoisonPill(exchange)) {
+                final EventDrivenConsumer.PriorityExchange taken = consumer.takeNext();
+                if (consumer.isPoisonPill(taken.getExchange())) {
                     return;
+                }
+                // A source that orders keeps behind its key the exchange whose key is running (issue #156): it is not
+                // run, and takes no permit, until the one before it has finished.
+                final EventDrivenConsumer.PriorityExchange priorityExchange = consumer.admit(taken);
+                if (priorityExchange == null) {
+                    continue;
                 }
                 semaphore.acquire();
                 // execute(), not submit(): the Future would never be read, so submit() would only
@@ -107,7 +112,11 @@ final class PooledDispatchStrategy implements DispatchStrategy {
                             logger.error("Unhandled error dispatching an Exchange on the shared source worker pool", t);
                         }
                     } finally {
-                        semaphore.release();
+                        try {
+                            consumer.finished(priorityExchange);
+                        } finally {
+                            semaphore.release();
+                        }
                     }
                 });
             } catch (InterruptedException e) {

@@ -18,6 +18,7 @@ package io.pipelite.core.consumer.internal;
 import io.pipelite.common.support.serialization.ObjectToByteArrayConverter;
 import io.pipelite.core.context.internal.IOKeys;
 import io.pipelite.core.flow.internal.FlowNode;
+import io.pipelite.dsl.correlation.Correlation;
 import io.pipelite.core.concurrent.internal.QueuePressureGate;
 import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.core.flow.execution.inbox.DurableInbox;
@@ -68,6 +69,9 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
     /** Follows the executions of the flow, for what awaits them (issue #150); {@code null} when nothing does. */
     private volatile ExecutionObserver executionObserver;
 
+    /** Keeps the exchanges with the same key in sequence (issue #156); {@code null} when the source does not order. */
+    private volatile OrderedAdmission ordering;
+
     /**
      * See {@link QueuePressureGate}: the queue above is unbounded in practice (confirmed
      * empirically, see its own comment), so nothing short of this gate ever signals "slow down"
@@ -107,6 +111,58 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
         this.executionObserver = executionObserver;
     }
 
+    /** From now on the exchanges with the same {@code key} go through the flow one at a time (issue #156). */
+    void orderBy(Correlation key) {
+        this.ordering = new OrderedAdmission(key, getFlowName());
+    }
+
+    boolean isOrdered() {
+        return ordering != null;
+    }
+
+    /**
+     * What the pressure gate counts: the exchanges in the queue and the ones the dispatcher took out of it to keep
+     * behind their key. Without the second, a key whose exchange is stuck would let the dispatcher empty the queue
+     * into memory, and the source would never be told to slow down.
+     */
+    private int pending() {
+        final OrderedAdmission admission = ordering;
+        return admission == null ? queue.size() : queue.size() + admission.waitingCount();
+    }
+
+    /**
+     * For a dispatcher, for each exchange it took from the queue: the one to run now, or {@code null} when it has to
+     * wait behind another exchange with its key, which gives it back when it finishes (see {@link #finished}). An
+     * exchange with no key, the resume of one that already started, and an exchange that waited and now has its turn
+     * run at once.
+     */
+    PriorityExchange admit(PriorityExchange taken) {
+        final OrderedAdmission admission = ordering;
+        if (admission == null || taken.isResumption() || taken.getOrderKey() != null) {
+            return taken;
+        }
+        final String key = admission.keyOf(taken);
+        if (key == null) {
+            return taken;
+        }
+        final PriorityExchange keyed = taken.withOrderKey(key);
+        return admission.admit(key, keyed) ? keyed : null;
+    }
+
+    /** The exchange {@code item}, which {@link #admit} let run, has finished: the next one of its key, if any, is next. */
+    void finished(PriorityExchange item) {
+        final OrderedAdmission admission = ordering;
+        if (admission == null || item.getOrderKey() == null) {
+            return;
+        }
+        final PriorityExchange next = admission.release(item.getOrderKey());
+        if (next != null) {
+            // Back in the queue, like the resume of an exchange: it is not a new one, so it is neither counted, nor
+            // written to the inbox, nor held back by the gate. It already owns its key.
+            queue.add(next);
+        }
+    }
+
     @Override
     public void process(ExchangeImpl exchange) {
         final long exchangeNumber = exchangeCount.incrementAndGet();
@@ -125,7 +181,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
             // this pill is meant to stop), so pressure would eventually release on its own anyway —
             // there's no reason for doStop() to wait for that.
             if (!isPoisonPill(exchange)) {
-                pressureGate.beforeEnqueue(queue::size);
+                pressureGate.beforeEnqueue(this::pending);
                 // Durable write-through (issue #70), same happens-before reasoning as
                 // postProcessExchange above: must complete before queue.put so the dispatch thread
                 // that dequeues this Exchange already sees the entry-id property. A no-op when
@@ -198,7 +254,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
      */
     PriorityExchange takeNext() throws InterruptedException {
         final PriorityExchange result = queue.take();
-        pressureGate.afterDequeue(queue::size);
+        pressureGate.afterDequeue(this::pending);
         return result;
     }
 
@@ -330,25 +386,37 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
         /** Set when this is the resume of an exchange at a node, not a new exchange. */
         private final FlowNode resumeTarget;
         private final Runnable resumeOnComplete;
+        /** The key this exchange owns, once a source that orders admitted it (issue #156); {@code null} otherwise. */
+        private final String orderKey;
 
         public static PriorityExchange withMaxPriority(ExchangeImpl exchange) {
-            return new PriorityExchange(exchange, Integer.MIN_VALUE, null, null);
+            return new PriorityExchange(exchange, Integer.MIN_VALUE, null, null, null);
         }
 
         public static PriorityExchange withNormalPriority(ExchangeImpl exchange, long ticketNumber) {
-            return new PriorityExchange(exchange, ticketNumber, null, null);
+            return new PriorityExchange(exchange, ticketNumber, null, null, null);
         }
 
         static PriorityExchange forResumption(ExchangeImpl exchange, long ticketNumber, FlowNode target, Runnable onComplete) {
             return new PriorityExchange(exchange, ticketNumber, Objects.requireNonNull(target, "target is required and cannot be null"),
-                Objects.requireNonNull(onComplete, "onComplete is required and cannot be null"));
+                Objects.requireNonNull(onComplete, "onComplete is required and cannot be null"), null);
         }
 
-        private PriorityExchange(ExchangeImpl exchange, long priority, FlowNode resumeTarget, Runnable resumeOnComplete) {
+        private PriorityExchange(ExchangeImpl exchange, long priority, FlowNode resumeTarget, Runnable resumeOnComplete,
+                                 String orderKey) {
             this.exchange = exchange;
             this.priority = priority;
             this.resumeTarget = resumeTarget;
             this.resumeOnComplete = resumeOnComplete;
+            this.orderKey = orderKey;
+        }
+
+        PriorityExchange withOrderKey(String key) {
+            return new PriorityExchange(exchange, priority, resumeTarget, resumeOnComplete, key);
+        }
+
+        String getOrderKey() {
+            return orderKey;
         }
 
         boolean isResumption() {
