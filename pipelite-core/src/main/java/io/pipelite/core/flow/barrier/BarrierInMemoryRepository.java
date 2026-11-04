@@ -145,6 +145,16 @@ public class BarrierInMemoryRepository implements BarrierRepository {
     }
 
     @Override
+    public List<Waiter> findByFlow(String flowName) {
+        lock.lock();
+        try {
+            return waiters.values().stream().filter(waiter -> waiter.flowName().equals(flowName)).toList();
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override
     public List<Waiter> expire(Instant now) {
         lock.lock();
         try {

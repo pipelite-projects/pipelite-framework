@@ -16,6 +16,9 @@
 package io.pipelite.dsl.definition;
 
 
+import io.pipelite.dsl.correlation.Correlation;
+import io.pipelite.dsl.correlation.CorrelationConfigurator;
+
 import java.util.Map;
 
 /**
@@ -43,6 +46,7 @@ public final class SourceConcurrencyConfigurer extends SourceConfigurer {
 
     private Integer concurrency;
     private ExecutorType executorType;
+    private Correlation orderedBy;
 
     public SourceConcurrencyConfigurer concurrency(int concurrency) {
         this.concurrency = concurrency;
@@ -52,6 +56,29 @@ public final class SourceConcurrencyConfigurer extends SourceConfigurer {
     public SourceConcurrencyConfigurer executorType(ExecutorType executorType) {
         this.executorType = executorType;
         return this;
+    }
+
+    /**
+     * Makes the exchanges that have the same key go through the flow one at a time, in the order they arrived,
+     * while the exchanges with different keys still run in parallel within {@link #concurrency(int)}. The key is
+     * read the way a barrier reads its own: {@code k -> k.headerName("customer-id")} or {@code k ->
+     * k.expression("Payload.customerId")}.
+     * <p>
+     * An exchange that has no key is processed without ordering. Without {@code concurrency} greater than one
+     * every exchange is already processed one at a time, and this has no effect.
+     */
+    public SourceConcurrencyConfigurer orderedBy(CorrelationConfigurator key) {
+        this.orderedBy = Correlation.from(key);
+        return this;
+    }
+
+    /**
+     * What {@link #orderedBy} declared, or {@code null}. Not meant to be called from user code: unlike the other
+     * settings it cannot travel in the query string of the URL, which only holds simple characters, so the framework
+     * reads it from here.
+     */
+    public Correlation getOrderedBy() {
+        return orderedBy;
     }
 
     @Override

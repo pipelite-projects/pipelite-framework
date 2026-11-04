@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.dsl.barrier;
+package io.pipelite.dsl.correlation;
 
 /** The ways to read a key from an exchange. */
 public interface CorrelationOperations {

@@ -22,12 +22,14 @@ import io.pipelite.components.file.FileSourceConfigurer;
 import io.pipelite.components.http.HttpChannelAdapter;
 import io.pipelite.components.http.HttpSourceConfigurer;
 import io.pipelite.core.channel.queue.QueueChannelAdapter;
+import io.pipelite.core.channel.queue.QueueEndpoint;
 import io.pipelite.components.time.TimeChannelAdapter;
 import io.pipelite.components.time.TimeSourceConfigurer;
 import io.pipelite.core.Pipelite;
 import io.pipelite.core.config.NoOpEndpointURLPropertyResolver;
 import io.pipelite.core.context.ChannelAdapterManager;
 import io.pipelite.core.context.UnsupportedSourceConcurrencyException;
+import io.pipelite.dsl.correlation.Correlation;
 import io.pipelite.dsl.definition.FlowDefinition;
 import io.pipelite.dsl.definition.SourceDefinition;
 import io.pipelite.spi.endpoint.Endpoint;
@@ -96,6 +98,49 @@ public class DefaultEndpointFactorySourceConfigurerTest {
 
         Assert.assertEquals(Integer.valueOf(5), endpoint.getProperties().getAsInteger("concurrency"));
         Assert.assertFalse(endpoint.getProperties().getAsBooleanOrDefault("durableInbox", true));
+    }
+
+    @Test
+    public void shouldHandTheOrderingKeyOfAQueueSourceToTheEndpointAsItIs() {
+
+        // An expression has characters the query string of an endpoint URL does not admit: it is not lowered into it.
+        final FlowDefinition flowDefinition = Pipelite.defineFlow("ordered-flow")
+            .fromSource("queue://ordered", (SourceConcurrencyConfigurer c) -> c
+                .concurrency(4)
+                .orderedBy(k -> k.expression("Headers['customer']")))
+            .build();
+
+        final QueueEndpoint endpoint = (QueueEndpoint) endpointFactory.createEndpoint(sourceDefinitionOf(flowDefinition));
+
+        Assert.assertEquals(Correlation.ofExpression("Headers['customer']"), endpoint.getOrderedBy().orElseThrow());
+        Assert.assertEquals(Integer.valueOf(4), endpoint.getProperties().getAsInteger("concurrency"));
+        Assert.assertNull("nothing about it in the query string", endpoint.getProperties().get("orderedBy"));
+    }
+
+    @Test
+    public void shouldHandTheHeaderNameOfTheOrderingKeyToTheEndpoint() {
+
+        final FlowDefinition flowDefinition = Pipelite.defineFlow("ordered-by-header-flow")
+            .fromSource("queue://ordered-by-header", (SourceConcurrencyConfigurer c) -> c
+                .concurrency(2)
+                .orderedBy(k -> k.headerName("customer-id")))
+            .build();
+
+        final QueueEndpoint endpoint = (QueueEndpoint) endpointFactory.createEndpoint(sourceDefinitionOf(flowDefinition));
+
+        Assert.assertEquals(Correlation.ofHeader("customer-id"), endpoint.getOrderedBy().orElseThrow());
+    }
+
+    @Test
+    public void shouldNotOrderAQueueSourceThatDeclaresNoKey() {
+
+        final FlowDefinition flowDefinition = Pipelite.defineFlow("unordered-flow")
+            .fromSource("queue://unordered", (SourceConcurrencyConfigurer c) -> c.concurrency(4))
+            .build();
+
+        final QueueEndpoint endpoint = (QueueEndpoint) endpointFactory.createEndpoint(sourceDefinitionOf(flowDefinition));
+
+        Assert.assertTrue(endpoint.getOrderedBy().isEmpty());
     }
 
     @Test

@@ -368,6 +368,11 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
     }
 
     @Override
+    public FlowExecutionDumpRepository getFlowExecutionDumpRepository() {
+        return executionDumpRepository;
+    }
+
+    @Override
     public BarrierRepository getBarrierRepository() {
         return barrierRepository;
     }

@@ -62,6 +62,9 @@ public interface InternalPipeliteContext extends PipeliteContext {
     /** Where the barriers keep the exchanges that wait for other flows (issue #150). */
     BarrierRepository getBarrierRepository();
 
+    /** Where the failures waiting to be retried are kept. */
+    io.pipelite.core.flow.execution.FlowExecutionDumpRepository getFlowExecutionDumpRepository();
+
     /** What resumes a waiting exchange once the flows it awaits have completed (issue #150). */
     BarrierCoordinator getBarrierCoordinator();
 

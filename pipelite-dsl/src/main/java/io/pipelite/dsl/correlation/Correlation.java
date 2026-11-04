@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.dsl.barrier;
+package io.pipelite.dsl.correlation;
 
 import java.util.Objects;
 
@@ -34,6 +34,25 @@ public final class Correlation {
     private Correlation(Kind kind, String text) {
         this.kind = kind;
         this.text = text;
+    }
+
+    /**
+     * The correlation a configurator declares, {@code c -> c.headerName("order-id")}. Used by every construct that
+     * reads a key from an exchange (a barrier, an ordered source); not meant to be called from user code.
+     */
+    public static Correlation from(CorrelationConfigurator configurator) {
+        Objects.requireNonNull(configurator, "correlation is required and cannot be null");
+        return Objects.requireNonNull(configurator.configure(new CorrelationOperations() {
+            @Override
+            public Correlation headerName(String headerName) {
+                return ofHeader(headerName);
+            }
+
+            @Override
+            public Correlation expression(String expression) {
+                return ofExpression(expression);
+            }
+        }), "the correlation must be the one the CorrelationOperations it is given returns");
     }
 
     /** For {@link CorrelationOperations#headerName}; not meant to be called from user code. */

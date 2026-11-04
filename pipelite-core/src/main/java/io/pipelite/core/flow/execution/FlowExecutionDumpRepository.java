@@ -22,6 +22,16 @@ public interface FlowExecutionDumpRepository {
     Optional<FlowExecutionDump> tryLoad(String id);
 
     /**
+     * The dumps of the flow named {@code flowName} that are still there, waiting to be retried or being retried.
+     * Used when the context starts, to know which keys of an ordered source (issue #156) are held by an exchange
+     * that is waiting for its retry. A repository that cannot list them returns none, and a source that orders
+     * then keeps no order between a retry that survived a restart and the messages that arrive after it.
+     */
+    default java.util.List<FlowExecutionDump> findByFlow(String flowName) {
+        return java.util.List.of();
+    }
+
+    /**
      * The oldest still-{@link FlowExecutionDumpStatus#PENDING} dump, if any — a dump {@link
      * #tryClaim(String)} has already claimed is not eligible and must not be returned here again,
      * regardless of how many times this is called while that claim stands. This is what lets a

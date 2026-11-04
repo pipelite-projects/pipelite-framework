@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.flow.barrier;
+package io.pipelite.core.correlation;
 
 import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.core.exchange.internal.SimpleMessage;
-import io.pipelite.dsl.barrier.Correlation;
+import io.pipelite.dsl.correlation.Correlation;
 import org.junit.Assert;
 import org.junit.Test;
 

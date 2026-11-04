@@ -16,7 +16,7 @@
 package io.pipelite.core.definition.builder.barrier;
 
 import io.pipelite.dsl.barrier.BarrierConfigurator;
-import io.pipelite.dsl.barrier.Correlation;
+import io.pipelite.dsl.correlation.Correlation;
 import org.junit.Assert;
 import org.junit.Test;
 

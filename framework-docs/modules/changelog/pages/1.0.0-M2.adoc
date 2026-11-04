@@ -76,3 +76,6 @@ declare the artifacts without a version (see xref:getting-started:installation.a
 * *Barrier.* A flow can make an exchange wait until other flows have completed their work for the same
 business key, with `.barrier(...)`. It is a new step: existing flows are not affected. See
 xref:dsl:barrier.adoc[Barrier].
+* *Ordered concurrency.* A queue source with `concurrency` can keep the exchanges that have the same key in
+the order they arrived, while the others run in parallel, with `orderedBy(...)`. Nothing changes for a source
+that does not declare it. See xref:channel-adapters:queue.adoc#_order_and_concurrency[Order and `concurrency`].

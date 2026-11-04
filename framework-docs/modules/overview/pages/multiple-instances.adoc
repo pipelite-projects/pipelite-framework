@@ -84,6 +84,8 @@ A xref:dsl:barrier.adoc[barrier] makes an exchange wait for other flows, for the
 
 If a key moves to another instance while one of its exchanges is waiting, that exchange is not released and ends at the timeout of the barrier, in the dead letter queue. Keep the assignment of the keys stable, and change the number of instances at a quiet moment.
 
+A queue source that orders its exchanges with `orderedBy` (see xref:channel-adapters:queue.adoc#_order_and_concurrency[Order and `concurrency`]) keeps the order within the instance that receives them: route the exchanges with the same key to the same instance.
+
 == Sources that read the same thing
 
 Some sources are not driven by incoming messages but read something on their own: `time://` fires on a schedule, and the file adapter reads a file. If every instance runs the flow, every instance does the same work.

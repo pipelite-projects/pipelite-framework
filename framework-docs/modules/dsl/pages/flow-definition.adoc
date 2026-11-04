@@ -32,6 +32,15 @@ A queue source can also declare `?concurrency=N` to have `N` consumers of the qu
 .fromSource("queue://order-processing?concurrency=4")
 ----
 
+`concurrency` gives up the order of arrival. When exchanges that have the same key must still be processed one at a time, declare the key with `orderedBy`, and the others keep running in parallel: see xref:channel-adapters:queue.adoc#_order_and_concurrency[Order and `concurrency`].
+
+[source,java]
+----
+.fromSource("queue://order-processing", (SourceConcurrencyConfigurer c) -> c
+    .concurrency(4)
+    .orderedBy(k -> k.headerName("order-id")))
+----
+
 Every concurrent source shares one framework-owned worker pool (default 200 threads, override via `ConfigurablePipeliteContext.setMaxSourceWorkerPoolSize(int)`) instead of getting dedicated threads of its own — total thread usage stays bounded regardless of how many flows declare `concurrency`. It is rejected at startup on any source that is not a queue (`http://`, `file://`, `kafka://`, `time://`, ...).
 
 == process

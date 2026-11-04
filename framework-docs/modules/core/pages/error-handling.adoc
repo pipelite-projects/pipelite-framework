@@ -38,6 +38,8 @@ FlowDefinition flow = Pipelite.defineFlow("resilient-flow")
 <2> The delay before each attempt, counted from the previous one. `Backoff.linear(...)` grows by a constant step (2s, 4s, 6s, ...); `Backoff.exponential(...)` doubles it each time (2s, 4s, 8s, ...). Optional - with no backoff declared, a retry runs as soon as the retry channel next polls.
 <3> The exhaustion action: here, the built-in dead letter queue (see <<Custom Error Channel>>). `onExceptionHandler(handler)` invokes a supplied `ExceptionHandler` instead of routing anywhere.
 
+NOTE: On a queue source that declares `orderedBy` (see xref:channel-adapters:queue.adoc#_order_and_concurrency[Order and `concurrency`]), the exchanges with the same key as one that is waiting for its retry wait for it too, until it has succeeded or has been given up.
+
 == Custom Error Channel
 
 For error handling with no retry attempts - a single hand-off, not a schedule of them - use

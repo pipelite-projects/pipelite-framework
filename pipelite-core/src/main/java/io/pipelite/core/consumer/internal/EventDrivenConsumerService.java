@@ -15,6 +15,7 @@
  */
 package io.pipelite.core.consumer.internal;
 
+import io.pipelite.core.channel.queue.QueueEndpoint;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.core.context.internal.AbstractService;
 import io.pipelite.core.concurrent.internal.DefaultThreadFactory;
@@ -62,6 +63,7 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
     protected ExecutorService sourceWorkerPool;
 
     private DispatchStrategy dispatchStrategy;
+    private java.util.function.Supplier<java.util.List<io.pipelite.core.flow.barrier.ExecutionTracker.Ordering>> heldKeys;
 
     public EventDrivenConsumerService(EventDrivenConsumer eventDrivenConsumer) {
         this(eventDrivenConsumer, DEFAULT_ROLE);
@@ -91,11 +93,15 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
         // in ScheduledPollingConsumerService) — an unrecognized value fails fast at startup.
         ExecutorType.valueOf(properties.getOrDefault(SourceConcurrencyProperties.EXECUTOR_TYPE, ExecutorType.BOUNDED_POOL.name()));
 
+        orderByKeyIfDeclared(concurrency);
+
         if (dispatchStrategy == null) {
             dispatchStrategy = concurrency <= 1
                 ? new InlineDispatchStrategy(eventDrivenConsumer, exchangeFactory, threadFactory, this::isRunAllowed, 1)
+                // One dispatcher when ordering: the order the exchanges leave the queue in is the one that is kept,
+                // and the dispatcher only hands them over, so it is not what limits the throughput.
                 : new PooledDispatchStrategy(eventDrivenConsumer, exchangeFactory, threadFactory, this::isRunAllowed,
-                    sourceWorkerPool, dispatcherCountFor(concurrency), concurrency);
+                    sourceWorkerPool, eventDrivenConsumer.isOrdered() ? 1 : dispatcherCountFor(concurrency), concurrency);
         }
         dispatchStrategy.start();
 
@@ -103,6 +109,33 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
             logger.trace("{} successfully started for concurrency={}",
                 dispatchStrategy.getClass().getSimpleName(), concurrency);
         }
+    }
+
+    /**
+     * The key by which the source asked its exchanges to be processed in order (issue #156), if it did. It does
+     * nothing without concurrency: the exchanges of a flow that runs one at a time are in order already.
+     */
+    private void orderByKeyIfDeclared(int concurrency) {
+        if (!(eventDrivenConsumer.getEndpoint() instanceof QueueEndpoint queueEndpoint)) {
+            return;
+        }
+        queueEndpoint.getOrderedBy().ifPresent(key -> {
+            if (concurrency <= 1) {
+                logger.warn("Flow '{}' orders its exchanges by {} but has no concurrency: they are processed one at a time "
+                    + "anyway, the ordering is ignored", eventDrivenConsumer.getFlowName(), key);
+            } else {
+                eventDrivenConsumer.orderBy(key);
+                // Before the first exchange is taken: the retries and the waits that survived a restart hold their keys.
+                if (heldKeys != null) {
+                    heldKeys.get().forEach(held -> eventDrivenConsumer.reserveKey(held.key(), held.owner()));
+                }
+            }
+        });
+    }
+
+    /** The context from which, when the flow starts, the keys that exchanges held before the process stopped are read (issue #156). */
+    public void setHeldKeysOf(io.pipelite.core.context.internal.InternalPipeliteContext context) {
+        this.heldKeys = () -> HeldKeys.of(context, eventDrivenConsumer.getFlowName());
     }
 
     /**
@@ -142,6 +175,14 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
      */
     public void resumeAt(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
         eventDrivenConsumer.resume(target, exchange, onComplete);
+    }
+
+    /**
+     * The execution of the exchange {@code owner}, admitted with {@code key} by a source that orders (issue #156), is
+     * over: the next exchange of that key can start. Called by whoever ends the execution, which may be a retry.
+     */
+    public void keyFinished(String key, String owner) {
+        eventDrivenConsumer.keyFinished(key, owner);
     }
 
     public void dispatchToNode(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {

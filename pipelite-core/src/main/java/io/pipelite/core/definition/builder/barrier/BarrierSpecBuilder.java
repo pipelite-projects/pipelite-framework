@@ -18,8 +18,8 @@ package io.pipelite.core.definition.builder.barrier;
 import io.pipelite.core.context.internal.ChannelURL;
 import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.dsl.barrier.BarrierOperations;
-import io.pipelite.dsl.barrier.Correlation;
-import io.pipelite.dsl.barrier.CorrelationConfigurator;
+import io.pipelite.dsl.correlation.Correlation;
+import io.pipelite.dsl.correlation.CorrelationConfigurator;
 import io.pipelite.spi.endpoint.EndpointURL;
 
 import java.time.Duration;
@@ -97,9 +97,7 @@ public final class BarrierSpecBuilder implements BarrierOperations {
     }
 
     private static Correlation configure(CorrelationConfigurator configurator) {
-        Objects.requireNonNull(configurator, "correlation is required and cannot be null");
-        return Objects.requireNonNull(configurator.configure(new CorrelationBuilder()),
-            "the correlation must be the one the CorrelationOperations it is given returns");
+        return Correlation.from(configurator);
     }
 
     /**

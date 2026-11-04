@@ -151,6 +151,24 @@ public class FileFlowExecutionDumpRepository implements FlowExecutionDumpReposit
     }
 
     @Override
+    public java.util.List<FlowExecutionDump> findByFlow(String flowName) {
+        if (!Files.isDirectory(directory)) {
+            return java.util.List.of();
+        }
+        try (Stream<Path> files = Files.list(directory)) {
+            return files
+                .filter(path -> path.getFileName().toString().endsWith(FILE_EXTENSION))
+                .map(path -> store.readLocked(path.getFileName().toString()))
+                .flatMap(Optional::stream)
+                .map(FileFlowExecutionDumpRepository::parse)
+                .filter(dump -> flowName.equals(dump.getFlowName()))
+                .toList();
+        } catch (IOException exception) {
+            throw new IllegalStateException(String.format("Unable to list directory '%s'", directory), exception);
+        }
+    }
+
+    @Override
     public Optional<FlowExecutionDump> poll() {
         // Piggybacked here (issue #76) rather than on tryClaim(id): poll() is what the retry
         // channel's scheduled loop calls unconditionally on every tick (RetryPollingConsumer#

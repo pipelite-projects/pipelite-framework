@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.flow.barrier;
+package io.pipelite.core.correlation;
 
 import io.pipelite.dsl.Exchange;
-import io.pipelite.dsl.barrier.Correlation;
+import io.pipelite.dsl.correlation.Correlation;
 import io.pipelite.expression.ExpressionParser;
 
 import static io.pipelite.core.flow.ExpressionVariables.HEADERS_VARIABLE_NAME;
