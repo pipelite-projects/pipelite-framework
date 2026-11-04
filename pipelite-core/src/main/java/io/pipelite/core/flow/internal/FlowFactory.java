@@ -239,6 +239,7 @@ public class FlowFactory {
         if (!(consumer instanceof EventDrivenConsumerService) || !(sourceEndpoint instanceof QueueEndpoint)) {
             return;
         }
+        ((EventDrivenConsumerService) consumer).setHeldKeysOf(context);
         final BarrierCoordinator coordinator = context.getBarrierCoordinator();
         if (coordinator != null) {
             ((EventDrivenConsumerService) consumer).setExecutionObserver(

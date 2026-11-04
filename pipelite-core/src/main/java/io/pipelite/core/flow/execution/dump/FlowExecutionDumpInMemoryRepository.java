@@ -68,6 +68,11 @@ public class FlowExecutionDumpInMemoryRepository implements FlowExecutionDumpRep
     }
 
     @Override
+    public java.util.List<FlowExecutionDump> findByFlow(String flowName) {
+        return dumps.values().stream().filter(dump -> flowName.equals(dump.getFlowName())).toList();
+    }
+
+    @Override
     public Optional<FlowExecutionDump> poll() {
         return dumps.values()
             .stream()

@@ -59,6 +59,16 @@ public interface BarrierRepository {
     List<Waiter> findResolved();
 
     /**
+     * Every waiter of the flow named {@code flowName}, whatever its state, that has not been dealt with yet. Used
+     * when the context starts, to know which keys of an ordered source (issue #156) are held by an exchange that
+     * waits at a barrier. A repository that cannot list them returns none, and a source that orders then keeps no
+     * order between an exchange that waited through a restart and the messages that arrive after it.
+     */
+    default List<Waiter> findByFlow(String flowName) {
+        return List.of();
+    }
+
+    /**
      * Gives up the waiters still waiting whose {@link Waiter#expiresAt()} is not after {@code now}: they become
      * {@code EXPIRED} and are returned. Atomic with the completions, so a waiter that a flow completing releases
      * is not also given up: it is one or the other, never both.

@@ -63,6 +63,7 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
     protected ExecutorService sourceWorkerPool;
 
     private DispatchStrategy dispatchStrategy;
+    private java.util.function.Supplier<java.util.List<io.pipelite.core.flow.barrier.ExecutionTracker.Ordering>> heldKeys;
 
     public EventDrivenConsumerService(EventDrivenConsumer eventDrivenConsumer) {
         this(eventDrivenConsumer, DEFAULT_ROLE);
@@ -124,8 +125,17 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
                     + "anyway, the ordering is ignored", eventDrivenConsumer.getFlowName(), key);
             } else {
                 eventDrivenConsumer.orderBy(key);
+                // Before the first exchange is taken: the retries and the waits that survived a restart hold their keys.
+                if (heldKeys != null) {
+                    heldKeys.get().forEach(held -> eventDrivenConsumer.reserveKey(held.key(), held.owner()));
+                }
             }
         });
+    }
+
+    /** The context from which, when the flow starts, the keys that exchanges held before the process stopped are read (issue #156). */
+    public void setHeldKeysOf(io.pipelite.core.context.internal.InternalPipeliteContext context) {
+        this.heldKeys = () -> HeldKeys.of(context, eventDrivenConsumer.getFlowName());
     }
 
     /**

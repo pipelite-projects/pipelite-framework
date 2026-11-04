@@ -94,9 +94,24 @@ final class OrderedAdmission {
                 busy.put(key, new Slot(ownerOf(item)));
                 return true;
             }
+            if (slot.owner.equals(ownerOf(item))) {
+                // The owner itself, handed back to the source to start again: it already holds the key.
+                return true;
+            }
             slot.behind.addLast(item);
             waitingCount++;
             return false;
+        }
+    }
+
+    /**
+     * {@code key} is held by the exchange {@code owner}, which is not in the queue: it was waiting for a retry or at a
+     * barrier when the process stopped (see {@link HeldKeys}). The exchanges of the key that come now wait for it.
+     * Does nothing if the key is held already.
+     */
+    void reserve(String key, String owner) {
+        synchronized (lock) {
+            busy.putIfAbsent(key, new Slot(owner));
         }
     }
 

@@ -120,6 +120,14 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
         return ordering != null;
     }
 
+    /** The key is held by an exchange that is not in the queue, see {@link HeldKeys}. */
+    void reserveKey(String key, String owner) {
+        final OrderedAdmission admission = ordering;
+        if (admission != null) {
+            admission.reserve(key, owner);
+        }
+    }
+
     /**
      * What the pressure gate counts: the exchanges in the queue and the ones the dispatcher took out of it to keep
      * behind their key. Without the second, a key whose exchange is stuck would let the dispatcher empty the queue

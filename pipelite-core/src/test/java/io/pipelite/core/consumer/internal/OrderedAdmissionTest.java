@@ -127,4 +127,36 @@ public class OrderedAdmissionTest {
         Assert.assertNull(admission.release("A", OrderedAdmission.ownerOf(waiting)));
         Assert.assertEquals(1, admission.waitingCount());
     }
+
+    @Test
+    public void givenAKeyIsReservedForAnExchangeThatIsNotInTheQueue_thenTheExchangesOfTheKeyWaitUntilItLetsGo() {
+        admission.reserve("A", "exchange-from-before-the-restart");
+
+        final PriorityExchange first = exchange("A");
+        Assert.assertFalse(admit(first));
+        Assert.assertTrue("another key is not affected", admit(exchange("B")));
+
+        Assert.assertNull("someone else cannot let go of it", admission.release("A", "somebody-else"));
+        Assert.assertSame(first, admission.release("A", "exchange-from-before-the-restart"));
+    }
+
+    @Test
+    public void givenAKeyIsAlreadyHeld_thenReservingItDoesNotTakeItOver() {
+        final PriorityExchange owner = exchange("A");
+        Assert.assertTrue(admit(owner));
+
+        admission.reserve("A", "someone-else");
+
+        Assert.assertNull(admission.release("A", "someone-else"));
+        Assert.assertNull("the owner is still the owner", admission.release("A", OrderedAdmission.ownerOf(owner)));
+    }
+
+    @Test
+    public void givenTheOwnerComesBackToTheSourceToStartAgain_thenItIsNotHeldBehindItself() {
+        final PriorityExchange owner = exchange("A");
+        Assert.assertTrue(admit(owner));
+
+        Assert.assertTrue(admission.admit("A", owner));
+        Assert.assertEquals(0, admission.waitingCount());
+    }
 }
