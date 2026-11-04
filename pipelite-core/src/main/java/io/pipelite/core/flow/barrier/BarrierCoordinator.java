@@ -28,7 +28,7 @@ import io.pipelite.core.flow.execution.deadletter.DeadLetteredExchangeFactory;
 import io.pipelite.core.flow.internal.AbstractFlowNode;
 import io.pipelite.core.flow.internal.Flow;
 import io.pipelite.core.flow.internal.FlowNode;
-import io.pipelite.dsl.barrier.Correlation;
+import io.pipelite.dsl.correlation.Correlation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

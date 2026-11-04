@@ -15,6 +15,7 @@
  */
 package io.pipelite.core.flow.barrier;
 
+import io.pipelite.core.correlation.CorrelationKeys;
 import io.pipelite.common.support.serialization.Base64ObjectSerializer;
 import io.pipelite.common.support.serialization.ByteArrayWriteException;
 import io.pipelite.common.support.serialization.ObjectSerializer;

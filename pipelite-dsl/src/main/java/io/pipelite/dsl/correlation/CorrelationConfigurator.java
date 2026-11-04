@@ -13,21 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.pipelite.core.definition.builder.barrier;
+package io.pipelite.dsl.correlation;
 
-import io.pipelite.dsl.barrier.Correlation;
-import io.pipelite.dsl.barrier.CorrelationOperations;
+/** Chooses how a key is read from an exchange: {@code c -> c.headerName("order-id")}. */
+@FunctionalInterface
+public interface CorrelationConfigurator {
 
-/** Builds the {@link Correlation} a user declares with {@code c -> c.headerName(...)} or {@code c.expression(...)}. */
-final class CorrelationBuilder implements CorrelationOperations {
-
-    @Override
-    public Correlation headerName(String headerName) {
-        return Correlation.ofHeader(headerName);
-    }
-
-    @Override
-    public Correlation expression(String expression) {
-        return Correlation.ofExpression(expression);
-    }
+    Correlation configure(CorrelationOperations correlation);
 }

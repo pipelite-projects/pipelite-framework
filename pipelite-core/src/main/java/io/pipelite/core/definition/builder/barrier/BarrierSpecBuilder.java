@@ -15,11 +15,12 @@
  */
 package io.pipelite.core.definition.builder.barrier;
 
+import io.pipelite.core.correlation.CorrelationBuilder;
 import io.pipelite.core.context.internal.ChannelURL;
 import io.pipelite.dsl.ChannelProtocols;
 import io.pipelite.dsl.barrier.BarrierOperations;
-import io.pipelite.dsl.barrier.Correlation;
-import io.pipelite.dsl.barrier.CorrelationConfigurator;
+import io.pipelite.dsl.correlation.Correlation;
+import io.pipelite.dsl.correlation.CorrelationConfigurator;
 import io.pipelite.spi.endpoint.EndpointURL;
 
 import java.time.Duration;

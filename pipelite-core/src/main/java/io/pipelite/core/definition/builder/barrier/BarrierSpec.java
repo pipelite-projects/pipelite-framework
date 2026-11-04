@@ -15,7 +15,7 @@
  */
 package io.pipelite.core.definition.builder.barrier;
 
-import io.pipelite.dsl.barrier.Correlation;
+import io.pipelite.dsl.correlation.Correlation;
 
 import java.time.Duration;
 import java.util.List;

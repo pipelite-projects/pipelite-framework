@@ -15,10 +15,11 @@
  */
 package io.pipelite.core.flow.barrier;
 
+import io.pipelite.core.correlation.CorrelationKeys;
 import io.pipelite.core.consumer.internal.ExecutionObserver;
 import io.pipelite.core.context.internal.IOKeys;
 import io.pipelite.core.exchange.internal.ExchangeImpl;
-import io.pipelite.dsl.barrier.Correlation;
+import io.pipelite.dsl.correlation.Correlation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
