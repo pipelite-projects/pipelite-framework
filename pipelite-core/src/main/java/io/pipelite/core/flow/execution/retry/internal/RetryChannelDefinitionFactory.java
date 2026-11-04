@@ -15,6 +15,7 @@
  */
 package io.pipelite.core.flow.execution.retry.internal;
 
+import io.pipelite.core.flow.barrier.BarrierCoordinator;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.definition.internal.EndpointDefinitionImpl;
@@ -48,15 +49,17 @@ public class RetryChannelDefinitionFactory {
     private final FlowExecutionDumpRepository dumpRepository;
     private final PipeliteContext pipeliteContext;
     private final DeadLetterQueueRepository deadLetterQueueRepository;
+    private final BarrierCoordinator barrierCoordinator;
 
     public RetryChannelDefinitionFactory(FlowExecutionDumpRepository dumpRepository, PipeliteContext pipeliteContext,
-                                          DeadLetterQueueRepository deadLetterQueueRepository) {
+                                          DeadLetterQueueRepository deadLetterQueueRepository, BarrierCoordinator barrierCoordinator) {
         Preconditions.notNull(dumpRepository, "dumpRepository is required and cannot be null");
         Preconditions.notNull(pipeliteContext, "pipeliteContext is required and cannot be null");
         Preconditions.notNull(deadLetterQueueRepository, "deadLetterQueueRepository is required and cannot be null");
         this.dumpRepository = dumpRepository;
         this.pipeliteContext = pipeliteContext;
         this.deadLetterQueueRepository = deadLetterQueueRepository;
+        this.barrierCoordinator = Preconditions.notNull(barrierCoordinator, "barrierCoordinator is required and cannot be null");
     }
 
     public FlowDefinition createDefinition(String retryChannelName){
@@ -68,7 +71,7 @@ public class RetryChannelDefinitionFactory {
 
         setSourceDefinition(builder, retryChannelName);
         addDefaultProcessorNodeDefinition(builder, "resolve-execution-dump", new ResolveExecutionDumpProcessor(dumpRepository));
-        addDefaultProcessorNodeDefinition(builder, "retry-strategy-filter", new RetryStrategyFilter(pipeliteContext, dumpRepository, deadLetterQueueRepository));
+        addDefaultProcessorNodeDefinition(builder, "retry-strategy-filter", new RetryStrategyFilter(pipeliteContext, dumpRepository, deadLetterQueueRepository, barrierCoordinator));
         addFlowNodeDefinition(builder, "supply-exchange", new SupplyExchangeProcessor(dumpRepository));
 
         return builder.build();

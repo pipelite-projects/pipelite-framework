@@ -1,0 +1,99 @@
+= Running Several Instances
+:description: Guidelines for running Pipelite on more than one node, for scalability and availability
+
+A single Pipelite instance can process a large number of exchanges, but you may want several instances of the same application, for more capacity or for availability. This page collects the guidelines to follow so that every feature of Pipelite behaves as it does on a single instance.
+
+The approach is simple, and it has two parts:
+
+. *Each instance keeps its own state.* Waiting exchanges, pending retries and the inbox live in a folder that belongs to that instance alone.
+. *The work must be distributed by business key.* Every exchange that belongs to the same order, customer or document must reach the same instance, so that everything that concerns it happens in one place. Pipelite does not distribute the work: it is up to you to route the exchanges, as described below.
+
+With these two in place, each instance is a complete Pipelite that works on its share of the keys.
+
+== A state folder for each instance
+
+Pipelite keeps its durable state in a folder, by default `.pipelite` in the home directory of the user that runs the application. You can choose another one with the `PIPELITE_HOME` environment variable or the `pipelite.home` system property.
+
+The folder holds, among other things, the exchanges waiting at a xref:dsl:barrier.adoc[barrier], the failures waiting to be retried, the inbox that protects what a source has received but not yet processed, the dead letter queue, and the position reached in the files being read.
+
+Give every instance a folder of its own, and let an instance find the same folder again when it restarts: that is how it picks up where it left off after a restart or a crash.
+
+On Kubernetes this is what a `StatefulSet` with a volume for each pod provides:
+
+[source,yaml]
+----
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: orders
+spec:
+  serviceName: orders
+  replicas: 3
+  selector:
+    matchLabels:
+      app: orders
+  template:
+    metadata:
+      labels:
+        app: orders
+    spec:
+      containers:
+        - name: orders
+          image: my-registry/orders:1.0.0
+          env:
+            - name: PIPELITE_HOME
+              value: /var/pipelite
+          volumeMounts:
+            - name: pipelite-state
+              mountPath: /var/pipelite
+  volumeClaimTemplates:
+    - metadata:
+        name: pipelite-state
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 1Gi
+----
+
+Each pod gets its own volume, and keeps it when it is restarted or rescheduled. Avoid mounting one shared volume on all the pods.
+
+== Distribute the work by key
+
+What matters is that the exchanges that belong together are handled by the same instance. How you obtain it depends on where the exchanges come from.
+
+[cols="1,3"]
+|===
+|Entry point |What to do
+
+|HTTP
+|Put a load balancer in front of the instances with affinity on the key, for example on a header or on a part of the path.
+
+|Kafka
+|Use the business key as the key of the messages, with the same number of partitions on the topics that are involved, so that equal keys fall in partitions with the same number. Then make sure that those partitions are assigned to the same instance for every flow involved: a consumer group alone does not guarantee it when the flows read different topics, so consider assigning the partitions statically. A stable assignment across restarts matters most when the key is used to wait for other flows.
+
+|`queue://`
+|Nothing to do: an exchange that goes from one flow to another through a queue stays in the same instance.
+|===
+
+When a flow hands an exchange to another application through Kafka or HTTP, and it comes back, apply the same rule at that hop: the key decides the instance.
+
+== Features that group exchanges by key
+
+A xref:dsl:barrier.adoc[barrier] makes an exchange wait for other flows, for the same key. The exchange that waits and the exchanges of the flows it awaits must therefore reach the same instance: distribute them with the same key, as described above, and the barrier works in each instance exactly as it does in a single one.
+
+If a key moves to another instance while one of its exchanges is waiting, that exchange is not released and ends at the timeout of the barrier, in the dead letter queue. Keep the assignment of the keys stable, and change the number of instances at a quiet moment.
+
+== Sources that read the same thing
+
+Some sources are not driven by incoming messages but read something on their own: `time://` fires on a schedule, and the file adapter reads a file. If every instance runs the flow, every instance does the same work.
+
+* Run these flows on *one instance*. A separate deployment with a single replica, containing only the flows that start from a timer or from a file, is a simple way to do it.
+* When the files are different for each instance, for example one directory each, every instance can read its own.
+
+== Operating the instances
+
+* *Dead letter queue.* Each instance has its own. When you look for failed exchanges, look in the state folder of every instance.
+* *Restarts.* An instance that restarts with its own folder resumes what it was doing: the retries, the exchanges waiting at a barrier, the input that had been received but not processed.
+* *Removing an instance.* Before you remove one for good, let it finish its work: waits, retries and the inbox are in its folder, and nobody else will process them.
+* *Adding an instance.* New instances receive the keys that the distribution assigns to them. As said above, do it when no barrier is waiting for a key that is going to move.

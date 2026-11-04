@@ -50,9 +50,10 @@ public class FoodDeliveryChannelConfiguration implements PipeliteContextInitiali
 
         final ConfigurablePipeliteContext configurableContext = (ConfigurablePipeliteContext) context;
 
-        // The kitchen (concurrency=4) and dispatch (concurrency=3) stages share this one budget
-        // rather than each getting a dedicated pool — 20 gives comfortable headroom over the
-        // 7 declared concurrent slots while still demonstrating a framework-owned, bounded cap.
+        // The kitchen (concurrency=4), payment (concurrency=2) and dispatch (concurrency=3) stages
+        // share this one budget rather than each getting a dedicated pool — 20 gives comfortable
+        // headroom over the 9 declared concurrent slots while still demonstrating a framework-owned,
+        // bounded cap.
         configurableContext.setMaxSourceWorkerPoolSize(20);
 
         configurableContext.addChannelConfigurer(

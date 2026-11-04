@@ -15,6 +15,8 @@
  */
 package io.pipelite.core.flow.execution.retry.internal;
 
+import io.pipelite.core.flow.barrier.ExecutionTracker;
+import io.pipelite.core.flow.barrier.BarrierCoordinator;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.PipeliteContext;
 import io.pipelite.core.flow.RetryChannelExceptionHandler;
@@ -58,17 +60,19 @@ class RetryStrategyFilter implements Processor {
     private final PipeliteContext pipeliteContext;
     private final FlowExecutionDumpRepository dumpRepository;
     private final DeadLetterQueueRepository deadLetterQueueRepository;
+    private final BarrierCoordinator barrierCoordinator;
     private final ByteArrayToObjectConverter converter;
     private final ObjectSerializer objectSerializer;
 
     RetryStrategyFilter(PipeliteContext pipeliteContext, FlowExecutionDumpRepository dumpRepository,
-                         DeadLetterQueueRepository deadLetterQueueRepository) {
+                         DeadLetterQueueRepository deadLetterQueueRepository, BarrierCoordinator barrierCoordinator) {
         Preconditions.notNull(pipeliteContext, "pipeliteContext is required and cannot be null");
         Preconditions.notNull(dumpRepository, "dumpRepository is required and cannot be null");
         Preconditions.notNull(deadLetterQueueRepository, "deadLetterQueueRepository is required and cannot be null");
         this.pipeliteContext = pipeliteContext;
         this.dumpRepository = dumpRepository;
         this.deadLetterQueueRepository = deadLetterQueueRepository;
+        this.barrierCoordinator = Preconditions.notNull(barrierCoordinator, "barrierCoordinator is required and cannot be null");
         this.converter = new ByteArrayToObjectConverter();
         this.objectSerializer = new Base64ObjectSerializer();
     }
@@ -100,9 +104,23 @@ class RetryStrategyFilter implements Processor {
             // Execution stops here either way - every outcome above is final for this dump, so
             // it is now safe to remove (see #58: removing any earlier, before the outcome was
             // known, is exactly the gap this filter exists to close).
+            notifyExhausted(executionDump);
             dumpRepository.remove(executionDump.getId());
         }
 
+    }
+
+    /** The attempts are over: for the barriers that await the flow it is a definitive failure. Never affects the retry channel. */
+    private void notifyExhausted(FlowExecutionDump executionDump) {
+        try {
+            final ExchangeImpl recoveredExchange = tryDecodeExchange(executionDump);
+            final ExecutionTracker tracker = recoveredExchange == null ? null : ExecutionTracker.of(recoveredExchange);
+            if (tracker != null) {
+                barrierCoordinator.executionExhausted(tracker);
+            }
+        } catch (RuntimeException failure) {
+            sysLogger.warn("The barriers could not be told that FlowExecutionDump {} was exhausted", executionDump.getId(), failure);
+        }
     }
 
     private void routeToDeadLetterTarget(FlowExecutionDump executionDump) {

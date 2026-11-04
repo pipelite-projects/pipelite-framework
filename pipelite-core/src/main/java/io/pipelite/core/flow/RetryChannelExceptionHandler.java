@@ -15,6 +15,7 @@
  */
 package io.pipelite.core.flow;
 
+import io.pipelite.core.flow.barrier.ExecutionTracker;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.internal.DeclaredDestination;
 import io.pipelite.core.context.internal.DeclaresDestinations;
@@ -149,6 +150,8 @@ public class RetryChannelExceptionHandler implements ExceptionHandler, DeclaresD
         exchangeImpl.setProperty(IOKeys.FLOW_EXECUTION_DUMP_ID_PROPERTY_NAME, executionDumpId);
 
         dumpRepository.save(executionDump);
+        // Saved to be retried: not a definitive failure, the retry is a new run that will end or fail again.
+        ExecutionTracker.markRetrying(exchangeImpl);
 
     }
 

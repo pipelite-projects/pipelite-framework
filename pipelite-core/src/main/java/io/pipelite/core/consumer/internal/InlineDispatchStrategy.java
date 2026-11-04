@@ -87,7 +87,7 @@ final class InlineDispatchStrategy implements DispatchStrategy {
                     return;
                 }
                 try {
-                    consumer.dispatchToNext(exchange);
+                    consumer.dispatch(priorityExchange);
                 } catch (Throwable t) {
                     if (logger.isErrorEnabled()) {
                         logger.error("Unhandled error dispatching an Exchange inline", t);

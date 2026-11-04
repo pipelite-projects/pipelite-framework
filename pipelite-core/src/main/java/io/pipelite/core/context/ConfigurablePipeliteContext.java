@@ -16,6 +16,7 @@
 package io.pipelite.core.context;
 
 import io.pipelite.core.config.EndpointURLPropertyResolver;
+import io.pipelite.core.flow.barrier.BarrierRepository;
 import io.pipelite.core.flow.execution.FlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
 import io.pipelite.core.flow.execution.inbox.DurableInboxDeadLetterWriter;
@@ -81,5 +82,20 @@ public interface ConfigurablePipeliteContext extends PipeliteContext {
      * wired up.
      */
     void setDeadLetterQueueRepository(DeadLetterQueueRepository repository);
+
+    /**
+     * Overrides where the barriers keep the exchanges that wait for other flows (issue #150) - by default a
+     * file-backed one under {@code PipeliteHome}, which survives a restart. {@code BarrierInMemoryRepository} is the
+     * zero-I/O alternative, for a short-lived test. Must be called before {@link PipeliteContext#start()}.
+     */
+    void setBarrierRepository(BarrierRepository repository);
+
+    /**
+     * How often the barriers are looked after (issue #150): the waits that took too long are given up and sent to
+     * the dead letter queue, old completions are forgotten, and what a crash left half resumed is resumed. A wait is
+     * given up at the first run after its time, so up to this long late. Defaults to thirty seconds. Must be called
+     * before {@link PipeliteContext#start()}.
+     */
+    void setBarrierScanPeriod(java.time.Duration period);
 
 }

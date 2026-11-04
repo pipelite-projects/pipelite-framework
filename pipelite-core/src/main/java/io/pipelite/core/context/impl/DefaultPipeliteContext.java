@@ -28,6 +28,7 @@ import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.internal.ReservedNames;
 import io.pipelite.core.context.internal.validation.ContextValidatorChain;
 import io.pipelite.core.context.internal.validation.FlowReferenceValidator;
+import io.pipelite.core.context.internal.validation.BarrierReferenceValidator;
 import io.pipelite.core.context.internal.validation.QueueSourceUniquenessValidator;
 import io.pipelite.core.context.internal.validation.ReservedFlowNameValidator;
 import io.pipelite.core.context.internal.validation.ContextValidator;
@@ -41,6 +42,10 @@ import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
 import io.pipelite.core.flow.execution.deadletter.DeadLetteredExchangeFactory;
 import io.pipelite.core.flow.execution.deadletter.FileDeadLetterQueueRepository;
 import io.pipelite.core.flow.split.AggregateInMemoryRepository;
+import io.pipelite.core.flow.barrier.BarrierCoordinator;
+import io.pipelite.core.flow.barrier.BarrierFileRepository;
+import io.pipelite.core.flow.barrier.BarrierMaintenanceService;
+import io.pipelite.core.flow.barrier.BarrierRepository;
 import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.core.flow.execution.dump.FileFlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpFactory;
@@ -78,6 +83,7 @@ import io.pipelite.core.flow.execution.inbox.SegmentedLogDurableInboxProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -105,6 +111,11 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
     // Same "state/" namespacing convention as the two subfolders above, its own sibling
     // subfolder (issue #93) - one file per dead-lettered exchange.
     private static final String DEAD_LETTER_QUEUE_HOME_SUBFOLDER = "state/dlq";
+
+    // Same "state/" namespacing convention (issue #150) - a file for each waiting exchange and for each completion.
+    private static final String BARRIER_HOME_SUBFOLDER = "state/barrier";
+
+    private static final Duration DEFAULT_BARRIER_SCAN_PERIOD = Duration.ofSeconds(30);
 
     private static final int DEFAULT_MAX_SOURCE_WORKER_POOL_SIZE = 200;
     private static final String SOURCE_WORKER_POOL_THREAD_ROLE = "pool";
@@ -154,6 +165,12 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
     private final FlowFactory flowFactory;
     private final ExchangeFactory exchangeFactory;
     private final AggregateRepository aggregateRepository;
+    // Not final, same reasoning as deadLetterQueueRepository below: ConfigurablePipeliteContext#
+    // setBarrierRepository(...) may replace the default before start() (issue #150).
+    private BarrierRepository barrierRepository;
+    private final BarrierCoordinator barrierCoordinator;
+    private Duration barrierScanPeriod = DEFAULT_BARRIER_SCAN_PERIOD;
+    private boolean barrierMaintenanceRegistered = false;
 
     // Not final: ConfigurablePipeliteContext#setFlowExecutionDumpRepository(...) may replace the
     // default before start() - see registerFlows(), which reads this field live rather than
@@ -189,6 +206,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
         contextValidatorChain = new ContextValidatorChain();
         contextValidatorChain.add(new FlowReferenceValidator());
         contextValidatorChain.add(new QueueSourceUniquenessValidator());
+        contextValidatorChain.add(new BarrierReferenceValidator());
         contextValidatorChain.add(new ReservedFlowNameValidator());
 
         dependencyRegistry = new DefaultDependencyRegistry();
@@ -197,6 +215,10 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
         final MessageFactory messageFactory = new DefaultMessageFactory(new DistributedIdentityGeneratorImpl());
         exchangeFactory = new DefaultExchangeFactory(messageFactory);
         aggregateRepository = new AggregateInMemoryRepository();
+        // Durable by default (issue #150), like the retry dumps and the inbox: an exchange that waits at a barrier
+        // has been acknowledged to its inbox, so losing it in a restart would lose the order.
+        barrierRepository = new BarrierFileRepository(PipeliteHome.resolve(BARRIER_HOME_SUBFOLDER));
+        barrierCoordinator = new BarrierCoordinator(this);
 
         flowRegistry = new DefaultFlowRegistry();
         serviceManager = new DefaultServiceManager();
@@ -322,6 +344,40 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
     }
 
     @Override
+    public void setBarrierRepository(BarrierRepository repository) {
+        this.barrierRepository = Preconditions.notNull(repository, "repository is required and cannot be null");
+    }
+
+    @Override
+    public void setBarrierScanPeriod(Duration period) {
+        Preconditions.notNull(period, "period is required and cannot be null");
+        if (period.isZero() || period.isNegative()) {
+            throw new IllegalArgumentException("the period of the maintenance of the barriers must be positive, got " + period);
+        }
+        this.barrierScanPeriod = period;
+    }
+
+    @Override
+    public DeadLetterQueueRepository getDeadLetterQueueRepository() {
+        return deadLetterQueueRepository;
+    }
+
+    @Override
+    public DeadLetteredExchangeFactory getDeadLetterQueueEntryFactory() {
+        return deadLetterQueueEntryFactory;
+    }
+
+    @Override
+    public BarrierRepository getBarrierRepository() {
+        return barrierRepository;
+    }
+
+    @Override
+    public BarrierCoordinator getBarrierCoordinator() {
+        return barrierCoordinator;
+    }
+
+    @Override
     public void registerFlowDefinition(FlowDefinition flowDefinition) {
         if(isRegistered(flowDefinition.getFlowName())){
             throw new DuplicateFlowDefinitionException(flowDefinition.getFlowName());
@@ -383,6 +439,13 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
         // diagnostic-only: log the total fromSource concurrency declared across all flows
         logSourceConcurrencyGuardrail();
 
+        // the barriers are looked after on a schedule (issue #150): the waits that took too long, the old
+        // completions, what a crash left half resumed
+        if (!barrierMaintenanceRegistered) {
+            serviceManager.registerService(new BarrierMaintenanceService(barrierCoordinator, barrierScanPeriod));
+            barrierMaintenanceRegistered = true;
+        }
+
         // start services
         serviceManager.startServices();
 
@@ -403,6 +466,10 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
             }
             throw startFailure;
         }
+
+        // the flows are running: resume the exchanges that were released, or whose wait failed, when the process
+        // stopped (issue #150)
+        barrierCoordinator.recover();
 
         if(sysLogger.isDebugEnabled()){
             sysLogger.debug("PipeliteContext started");
@@ -570,7 +637,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
                     // start(), and this factory must bake in whatever is current now, not
                     // whatever was current at construction time (see #68).
                     final RetryChannelDefinitionFactory retryChannelDefinitionFactory =
-                        new RetryChannelDefinitionFactory(executionDumpRepository, this, deadLetterQueueRepository);
+                        new RetryChannelDefinitionFactory(executionDumpRepository, this, deadLetterQueueRepository, barrierCoordinator);
                     final FlowDefinition retryChannelDefinition = retryChannelDefinitionFactory.createDefinition(ReservedNames.RETRY_CHANNEL);
                     final Flow retryChannel = flowFactory.createFlow(retryChannelDefinition);
                     flowRegistry.addFlow(retryChannel);

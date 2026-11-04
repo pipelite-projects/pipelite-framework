@@ -33,16 +33,17 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Seven flows: a {@code time://}-driven load generator, two ingress channels (HTTP + tailed file)
- * feeding one link-chained, concurrent kitchen stage, a Kafka hop into a second concurrent
- * dispatch stage, which finally routes each delivery to one of several per-courier output files
- * — plus a dead letter flow for orders the dispatch stage refuses to auto-approve:
+ * Eight flows: a {@code time://}-driven load generator, two ingress channels (HTTP + tailed file)
+ * feeding one link-chained, concurrent kitchen stage and, in parallel, a payment authorization,
+ * a Kafka hop into a second concurrent dispatch stage that waits for the kitchen and the payment
+ * of each order at a barrier, which finally routes each delivery to one of several per-courier
+ * output files — plus a dead letter flow for orders the dispatch stage refuses to auto-approve:
  *
  * <pre>
  * time://order-generator-tick ─► [random ~40% drop] ─► OrderGenerator.generateAndEmitNextOrder()
  *                                                            │ (emits via HTTP or partner file)
  *                                                            ▼
- * http://orders               ─┐
+ * http://orders               ─┐   (each also hands a copy of the order to queue://payment-start)
  * file://.../partner-orders   ─┼─► queue://kitchen-start   (concurrency=4, "kitchen stations")
  *                               │       │  .withRetry(maxAttempts=3).onErrorChannel(toDLQ()) —
  *                               │       │  transient "equipment glitch" (see KitchenService),
@@ -54,7 +55,12 @@ import java.util.concurrent.TimeUnit;
  *                               │       ▼
  *                               │   kafka://order-events, groupId=dispatch-service  (consume)
  *                               │       │
+ *                               │                                                     queue://payment-start (concurrency=2)
+ *                               │                                                          │  authorize-payment: slower than the
+ *                               │                                                          │  kitchen, ~5% of cards declined
  *                               └─► queue://dispatch-start (concurrency=3, "dispatch coordinators")
+ *                                       │  barrier("await-kitchen-and-payment"): the order waits, correlated by
+ *                                       │  its orderId, for the kitchen flow AND the payment flow to complete
  *                                       │  .withRetry(maxAttempts=2)
  *                                       │  .onErrorChannel(toChannel("queue://dispatch-dead-letter"))
  *                                       │  validate-order-amount: orders over the manual-review
@@ -99,6 +105,19 @@ import java.util.concurrent.TimeUnit;
  * times it's retried, so after {@code maxAttempts} the dead letter channel — not silent drop —
  * is what makes the order visible again, in {@code dispatchDeadLetterFlow}.
  *
+ * <p><b>Barrier demo (issue #150)</b>: the payment of an order is authorized in parallel with the kitchen
+ * preparing it, and {@code dispatchProcessingFlow} must not assign a driver before both have finished with
+ * that order. Its first step, {@code barrier("await-kitchen-and-payment", ...)}, makes the order wait until
+ * the flow that reads {@code queue://kitchen-start} and the flow that reads {@code queue://payment-start}
+ * have completed for the same {@code orderId}, then lets it go on unchanged, on the workers of the dispatch
+ * flow. Nothing is blocked while it waits: the order is kept by the framework, the worker is free for
+ * the next one (which is why {@code concurrency=3} is not three orders stuck waiting for a card), and the
+ * wait survives a restart. The flows that are awaited know nothing about the barrier. The key is read the
+ * same way on both sides, here with an expression over the payload ({@code Payload.orderId}): it could be
+ * a header as well, with {@code headerName(...)}. A declined card is a flow that failed for that key, so the
+ * order does not wait for the rest and takes the error handling of the dispatch flow, the dead letter
+ * channel, like an order over the manual-review threshold does.
+ *
  * <p>Registered via {@code @EnablePipelite(flowConfigurations = FoodDeliveryFlowConfiguration.class)}
  * on {@link Application}, so Spring constructs this class as a regular bean — constructor
  * injection applies.
@@ -112,6 +131,11 @@ public class FoodDeliveryFlowConfiguration {
     private static final double TICK_DROP_PROBABILITY = 0.4;
     private static final int KITCHEN_CONCURRENCY = 4;
     private static final int DISPATCH_CONCURRENCY = 3;
+    private static final int PAYMENT_CONCURRENCY = 2;
+    private static final String KITCHEN_SOURCE = "kitchen-start";
+    private static final String PAYMENT_SOURCE = "payment-start";
+    // How long an order waits at the dispatch stage for the kitchen and the payment before it is given up.
+    private static final Duration KITCHEN_AND_PAYMENT_TIMEOUT = Duration.ofMinutes(2);
     private static final String ORDER_EVENTS_TOPIC = "order-events";
     private static final String DISPATCH_CONSUMER_GROUP = "dispatch-service";
     private static final String TICK_ROLL_HEADER = "tickRoll";
@@ -126,15 +150,17 @@ public class FoodDeliveryFlowConfiguration {
 
     private final KitchenService kitchenService;
     private final DispatchService dispatchService;
+    private final PaymentService paymentService;
     private final ObjectMapper objectMapper;
     private final OrderGenerator orderGenerator;
     private final DeliveryLogWriter deliveryLogWriter;
 
     public FoodDeliveryFlowConfiguration(KitchenService kitchenService, DispatchService dispatchService,
-                                          ObjectMapper objectMapper, OrderGenerator orderGenerator,
-                                          DeliveryLogWriter deliveryLogWriter) {
+                                          PaymentService paymentService, ObjectMapper objectMapper,
+                                          OrderGenerator orderGenerator, DeliveryLogWriter deliveryLogWriter) {
         this.kitchenService = kitchenService;
         this.dispatchService = dispatchService;
+        this.paymentService = paymentService;
         this.objectMapper = objectMapper;
         this.orderGenerator = orderGenerator;
         this.deliveryLogWriter = deliveryLogWriter;
@@ -170,7 +196,8 @@ public class FoodDeliveryFlowConfiguration {
             .fromSource("http://orders", (HttpSourceConfigurer c) -> c.method("POST"))
             .transformPayload("parse-http-order", payload -> Order.fromHttpPayload(payload.getPayloadAs(String.class)))
             .wireTap("log-incoming-http-order", "slf4j://orders-received")
-            .toSink("queue://kitchen-start")
+            .wireTap("request-payment-authorization", "queue://" + PAYMENT_SOURCE)
+            .toSink("queue://" + KITCHEN_SOURCE)
             .build();
     }
 
@@ -182,14 +209,15 @@ public class FoodDeliveryFlowConfiguration {
                 .period(250))
             .transformPayload("parse-partner-order", payload -> Order.fromCsvLine(payload.getPayloadAs(String.class)))
             .wireTap("log-incoming-partner-order", "slf4j://orders-received")
-            .toSink("queue://kitchen-start")
+            .wireTap("request-payment-authorization", "queue://" + PAYMENT_SOURCE)
+            .toSink("queue://" + KITCHEN_SOURCE)
             .build();
     }
 
     @DefineFlow
     public FlowDefinition kitchenProcessingFlow() {
         return Pipelite.defineFlow("kitchen-processing-flow")
-            .fromSource("queue://kitchen-start", (SourceConcurrencyConfigurer c) -> c.concurrency(KITCHEN_CONCURRENCY))
+            .fromSource("queue://" + KITCHEN_SOURCE, (SourceConcurrencyConfigurer c) -> c.concurrency(KITCHEN_CONCURRENCY))
             .process("prepare-order", (exchange, contribution) -> {
                 final Order order = exchange.getInputPayloadAs(Order.class);
                 kitchenService.prepareOrder(order);
@@ -208,6 +236,23 @@ public class FoodDeliveryFlowConfiguration {
             .build();
     }
 
+    /**
+     * Authorizes the card of each order, in parallel with the kitchen. It knows nothing of the barrier that
+     * awaits it: it just ends, and a declined card is a failure handled here (logged), which is what tells the
+     * waiting order that it can stop waiting.
+     */
+    @DefineFlow
+    public FlowDefinition paymentAuthorizationFlow() {
+        return Pipelite.defineFlow("payment-authorization-flow")
+            .fromSource("queue://" + PAYMENT_SOURCE, (SourceConcurrencyConfigurer c) -> c.concurrency(PAYMENT_CONCURRENCY))
+            .process("authorize-payment", (exchange, contribution) ->
+                paymentService.authorize(exchange.getInputPayloadAs(Order.class)))
+            // PaymentService already logs the decline. Handling the failure here, instead of letting it escape, is what
+            // makes it a failure of this flow that the barriers awaiting it are told about.
+            .withExceptionHandler((exception, exchange) -> { })
+            .build();
+    }
+
     @DefineFlow
     public FlowDefinition dispatchIngressFlow() {
         return Pipelite.defineFlow("dispatch-ingress-flow")
@@ -222,6 +267,14 @@ public class FoodDeliveryFlowConfiguration {
     public FlowDefinition dispatchProcessingFlow() {
         return Pipelite.defineFlow("dispatch-processing-flow")
             .fromSource("queue://dispatch-start", (SourceConcurrencyConfigurer c) -> c.concurrency(DISPATCH_CONCURRENCY))
+            // The order is not dispatched before the kitchen has prepared it and the payment is authorized:
+            // it waits here until the flows that read these two queues have completed for the same orderId.
+            // Both are awaited by the URL of the queue they read, and keyed by the order id in the payload.
+            .barrier("await-kitchen-and-payment", barrier -> barrier
+                .correlateBy(c -> c.expression("Payload.orderId"))
+                .await("queue://" + KITCHEN_SOURCE)
+                .await("queue://" + PAYMENT_SOURCE)
+                .timeout(KITCHEN_AND_PAYMENT_TIMEOUT))
             .process("validate-order-amount", (exchange, contribution) -> {
                 final Order order = exchange.getInputPayloadAs(Order.class);
                 if (order.getTotalAmount().compareTo(MANUAL_REVIEW_THRESHOLD) > 0) {

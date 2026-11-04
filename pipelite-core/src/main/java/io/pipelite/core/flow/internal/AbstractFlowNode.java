@@ -15,6 +15,7 @@
  */
 package io.pipelite.core.flow.internal;
 
+import io.pipelite.core.flow.barrier.ExecutionTracker;
 import io.pipelite.common.support.Preconditions;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.core.context.internal.IOKeys;
@@ -165,6 +166,9 @@ public abstract class AbstractFlowNode implements FlowNode {
             throw exception;
         }
         exchange.setProperty(IOKeys.FLOW_EXECUTION_FAILED_PROCESSOR_PROPERTY_NAME, getProcessorName());
+        // The failure is handed to the error handling: for what awaits this execution it is a failure, unless the
+        // handler says it will be retried.
+        ExecutionTracker.markFailed(exchange);
         exceptionHandler.handleException(exception, exchange);
     }
 }
