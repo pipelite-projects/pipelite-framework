@@ -49,9 +49,23 @@ final class OrderedAdmission {
     private final String flowName;
 
     private final Object lock = new Object();
-    /** The busy keys, each with the exchanges that wait behind its owner. */
-    private final Map<String, Deque<PriorityExchange>> waiting = new HashMap<>();
+    /** The busy keys: who owns each one, and the exchanges that wait behind the owner. */
+    private final Map<String, Slot> busy = new HashMap<>();
     private int waitingCount;
+
+    private static final class Slot {
+        private String owner;
+        private final Deque<PriorityExchange> behind = new ArrayDeque<>();
+
+        private Slot(String owner) {
+            this.owner = owner;
+        }
+    }
+
+    /** The exchange that owns a key is identified by its input message. */
+    static String ownerOf(PriorityExchange item) {
+        return item.getExchange().getInput().getId();
+    }
 
     OrderedAdmission(Correlation correlation, String flowName) {
         this.correlation = Objects.requireNonNull(correlation, "correlation is required and cannot be null");
@@ -75,33 +89,35 @@ final class OrderedAdmission {
      */
     boolean admit(String key, PriorityExchange item) {
         synchronized (lock) {
-            final Deque<PriorityExchange> behind = waiting.get(key);
-            if (behind == null) {
-                waiting.put(key, new ArrayDeque<>());
+            final Slot slot = busy.get(key);
+            if (slot == null) {
+                busy.put(key, new Slot(ownerOf(item)));
                 return true;
             }
-            behind.addLast(item);
+            slot.behind.addLast(item);
             waitingCount++;
             return false;
         }
     }
 
     /**
-     * The exchange that owned {@code key} has finished. Returns the one that waited the longest, which now owns
-     * the key and has to run, or {@code null} when nothing waited and the key is free.
+     * The exchange {@code owner} has finished with {@code key}. Returns the one that waited the longest, which now
+     * owns the key and has to run, or {@code null} when nothing waited and the key is free. Letting go of a key that
+     * {@code owner} does not own, because it already did or because the process restarted since, does nothing.
      */
-    PriorityExchange release(String key) {
+    PriorityExchange release(String key, String owner) {
         synchronized (lock) {
-            final Deque<PriorityExchange> behind = waiting.get(key);
-            if (behind == null) {
+            final Slot slot = busy.get(key);
+            if (slot == null || !slot.owner.equals(owner)) {
                 return null;
             }
-            final PriorityExchange next = behind.pollFirst();
+            final PriorityExchange next = slot.behind.pollFirst();
             if (next == null) {
-                waiting.remove(key);
+                busy.remove(key);
                 return null;
             }
             waitingCount--;
+            slot.owner = ownerOf(next);
             return next;
         }
     }

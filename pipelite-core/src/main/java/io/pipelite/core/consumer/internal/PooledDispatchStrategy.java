@@ -112,11 +112,7 @@ final class PooledDispatchStrategy implements DispatchStrategy {
                             logger.error("Unhandled error dispatching an Exchange on the shared source worker pool", t);
                         }
                     } finally {
-                        try {
-                            consumer.finished(priorityExchange);
-                        } finally {
-                            semaphore.release();
-                        }
+                        semaphore.release();
                     }
                 });
             } catch (InterruptedException e) {

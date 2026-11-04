@@ -39,19 +39,27 @@ public final class BarrierExecutionObserver implements ExecutionObserver {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
+    private final String flowName;
     private final String queueName;
     private final BarrierCoordinator coordinator;
 
     public BarrierExecutionObserver(String queueName, BarrierCoordinator coordinator) {
+        this(null, queueName, coordinator);
+    }
+
+    /** {@code flowName} is the flow that reads the queue: where the key of an ordered source is let go. */
+    public BarrierExecutionObserver(String flowName, String queueName, BarrierCoordinator coordinator) {
+        this.flowName = flowName;
         this.queueName = Objects.requireNonNull(queueName, "queueName is required and cannot be null");
         this.coordinator = Objects.requireNonNull(coordinator, "coordinator is required and cannot be null");
     }
 
     @Override
-    public Runnable started(ExchangeImpl exchange) {
+    public Runnable started(ExchangeImpl exchange, String orderKey) {
         try {
             final Set<Correlation> correlations = coordinator.correlationsAwaiting(queueName);
-            if (correlations.isEmpty()) {
+            final boolean ordered = orderKey != null && flowName != null;
+            if (correlations.isEmpty() && !ordered) {
                 return null;
             }
             final Set<Pending> pendings = new LinkedHashSet<>();
@@ -63,10 +71,12 @@ public final class BarrierExecutionObserver implements ExecutionObserver {
                         + "wait for it wait until their timeout. {}", queueName, correlation, unreadable.getMessage());
                 }
             }
-            if (pendings.isEmpty()) {
+            if (pendings.isEmpty() && !ordered) {
                 return null;
             }
-            final ExecutionTracker tracker = new ExecutionTracker(pendings);
+            final ExecutionTracker tracker = new ExecutionTracker(pendings, ordered
+                ? new ExecutionTracker.Ordering(flowName, orderKey, exchange.getInput().getId())
+                : null);
             exchange.setProperty(IOKeys.EXECUTION_TRACKER_PROPERTY_NAME, tracker);
             return coordinator.endOf(tracker);
         } catch (RuntimeException failure) {

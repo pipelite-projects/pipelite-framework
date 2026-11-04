@@ -76,16 +76,17 @@ public class OrderedAdmissionTest {
         Assert.assertFalse(admit(second));
         Assert.assertFalse(admit(third));
 
-        Assert.assertSame(second, admission.release("A"));
+        Assert.assertSame(second, admission.release("A", OrderedAdmission.ownerOf(first)));
         Assert.assertFalse("a new arrival does not overtake the ones that waited", admit(exchange("A")));
-        Assert.assertSame(third, admission.release("A"));
+        Assert.assertSame(third, admission.release("A", OrderedAdmission.ownerOf(second)));
     }
 
     @Test
     public void givenNothingWaits_thenTheKeyIsFreeAndForgotten() {
-        Assert.assertTrue(admit(exchange("A")));
+        final PriorityExchange owner = exchange("A");
+        Assert.assertTrue(admit(owner));
 
-        Assert.assertNull(admission.release("A"));
+        Assert.assertNull(admission.release("A", OrderedAdmission.ownerOf(owner)));
 
         Assert.assertTrue("free again", admit(exchange("A")));
         Assert.assertEquals(0, admission.waitingCount());
@@ -98,6 +99,32 @@ public class OrderedAdmissionTest {
 
     @Test
     public void givenAKeyThatWasNeverAdmitted_thenReleasingItDoesNothing() {
-        Assert.assertNull(admission.release("never-seen"));
+        Assert.assertNull(admission.release("never-seen", "nobody"));
+    }
+
+    @Test
+    public void givenTheOwnerLetsGoTwice_thenTheSecondTimeDoesNothingAndNobodyOvertakes() {
+        final PriorityExchange first = exchange("A");
+        final PriorityExchange second = exchange("A");
+        final PriorityExchange third = exchange("A");
+        Assert.assertTrue(admit(first));
+        Assert.assertFalse(admit(second));
+        Assert.assertFalse(admit(third));
+
+        Assert.assertSame(second, admission.release("A", OrderedAdmission.ownerOf(first)));
+        Assert.assertNull("the first no longer owns the key: the third must not start with the second running",
+            admission.release("A", OrderedAdmission.ownerOf(first)));
+        Assert.assertEquals(1, admission.waitingCount());
+    }
+
+    @Test
+    public void givenAnExchangeThatDoesNotOwnTheKey_thenItCannotLetGoOfIt() {
+        final PriorityExchange owner = exchange("A");
+        final PriorityExchange waiting = exchange("A");
+        Assert.assertTrue(admit(owner));
+        Assert.assertFalse(admit(waiting));
+
+        Assert.assertNull(admission.release("A", OrderedAdmission.ownerOf(waiting)));
+        Assert.assertEquals(1, admission.waitingCount());
     }
 }

@@ -149,13 +149,16 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
         return admission.admit(key, keyed) ? keyed : null;
     }
 
-    /** The exchange {@code item}, which {@link #admit} let run, has finished: the next one of its key, if any, is next. */
-    void finished(PriorityExchange item) {
+    /**
+     * The execution of the exchange {@code owner}, which {@link #admit} let run with {@code key}, is over: the next
+     * exchange of its key, if any, is next. Does nothing when {@code owner} does not own the key (any more).
+     */
+    void keyFinished(String key, String owner) {
         final OrderedAdmission admission = ordering;
-        if (admission == null || item.getOrderKey() == null) {
+        if (admission == null || key == null) {
             return;
         }
-        final PriorityExchange next = admission.release(item.getOrderKey());
+        final PriorityExchange next = admission.release(key, owner);
         if (next != null) {
             // Back in the queue, like the resume of an exchange: it is not a new one, so it is neither counted, nor
             // written to the inbox, nor held back by the gate. It already owns its key.
@@ -294,7 +297,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
     /** Runs what was taken from the queue: a new exchange goes through the flow, a resumption goes to its node. */
     void dispatch(PriorityExchange item) {
         if (!item.isResumption()) {
-            dispatchToNext(item.getExchange());
+            dispatchToNext(item.getExchange(), item.getOrderKey());
             return;
         }
         final ExchangeImpl exchange = item.getExchange();
@@ -333,6 +336,14 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
      * MDC value instead of renaming the thread per message).
      */
     void dispatchToNext(ExchangeImpl exchange) {
+        dispatchToNext(exchange, null);
+    }
+
+    /**
+     * As {@link #dispatchToNext(ExchangeImpl)} for an exchange a source that orders admitted with {@code orderKey}
+     * (issue #156): the key is held until the execution has really ended, see {@link ExecutionObserver}.
+     */
+    void dispatchToNext(ExchangeImpl exchange, String orderKey) {
         final String previousCorrelationId = MDC.get(MDC_EXCHANGE_ID_KEY);
         final String previousFlowName = MDC.get(MDC_FLOW_NAME_KEY);
         MDC.put(MDC_EXCHANGE_ID_KEY, exchange.getInput().getId());
@@ -348,13 +359,16 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
         // Kept in a local, like the entry id above: a plain sink can hand this same exchange to another flow, which
         // has an execution, and a tracker, of its own.
         final ExecutionObserver observer = executionObserver;
-        final Runnable onEnd = observer != null ? observer.started(exchange) : null;
+        final Runnable onEnd = observer != null ? observer.started(exchange, orderKey) : null;
+        final String owner = exchange.getInput().getId();
+        boolean ended = false;
         try {
             super.process(exchange);
             // The execution returned: it went through, was filtered, or its failure was handed to the error
             // handling. An exception that escapes is not an end: the entry stays pending and is delivered again.
             if (onEnd != null) {
                 onEnd.run();
+                ended = true;
             }
             // Terminal state (issue #70): super.process(...) returning at all - whether the
             // pipeline actually succeeded, or a RuntimeException was caught and routed to a retry
@@ -366,6 +380,12 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
                 durableInbox.acknowledge(entryId);
             }
         } finally {
+            // The key is let go by whoever ends the execution (see ExecutionTracker), which is not this thread when the
+            // exchange went to a retry. Here only when nobody will: an exception escaped the flow, or there is nothing
+            // that follows the execution. Letting go twice does nothing.
+            if (orderKey != null && !ended) {
+                keyFinished(orderKey, owner);
+            }
             if (previousCorrelationId != null) {
                 MDC.put(MDC_EXCHANGE_ID_KEY, previousCorrelationId);
             } else {

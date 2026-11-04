@@ -56,12 +56,26 @@ public final class ExecutionTracker implements Serializable {
         RUNNING, FAILED, RETRYING, WAITING, SETTLED
     }
 
+    /**
+     * The key a source that orders holds while this execution is not over (issue #156): the flow, the key, and the
+     * exchange that owns it. It travels with the exchange, so the key is let go when the execution ends wherever it
+     * does: on the thread of the flow, on the retry thread, after a restart.
+     */
+    public record Ordering(String flowName, String key, String owner) implements Serializable {
+    }
+
     private final Set<Pending> pendings;
+    private final Ordering ordering;
     /** {@code null} after the exchange was read back from storage: a new run, which is running. */
     private transient volatile State state;
 
     public ExecutionTracker(Set<Pending> pendings) {
+        this(pendings, null);
+    }
+
+    public ExecutionTracker(Set<Pending> pendings, Ordering ordering) {
         this.pendings = Set.copyOf(pendings);
+        this.ordering = ordering;
     }
 
     /** The tracker of the run {@code exchange} is in, or {@code null} when no barrier awaits this flow. */
@@ -96,6 +110,11 @@ public final class ExecutionTracker implements Serializable {
     /** The flows and keys the barriers wait for. */
     public Set<Pending> pendings() {
         return pendings;
+    }
+
+    /** The key of an ordered source that this execution holds, or {@code null}. */
+    public Ordering ordering() {
+        return ordering;
     }
 
     /** The run ended: what to tell. Only once: a second call, and a run that was retried or waits, tell nothing. */

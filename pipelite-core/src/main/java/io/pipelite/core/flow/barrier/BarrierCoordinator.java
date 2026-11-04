@@ -18,6 +18,7 @@ package io.pipelite.core.flow.barrier;
 import io.pipelite.common.support.serialization.BaseEncoding;
 import io.pipelite.common.support.serialization.ByteArrayToObjectConverter;
 import io.pipelite.core.consumer.internal.EventDrivenConsumerService;
+import io.pipelite.core.consumer.internal.EventDrivenConsumerService;
 import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.definition.builder.barrier.BarrierSpec;
 import io.pipelite.core.exchange.internal.ExchangeImpl;
@@ -116,6 +117,28 @@ public final class BarrierCoordinator {
             case FAILED -> tracker.pendings().forEach(pending -> flowFailed(pending.flow(), pending.key()));
             case NONE -> {
             }
+        }
+        if (outcome != ExecutionTracker.Outcome.NONE) {
+            releaseOrderedKey(tracker);
+        }
+    }
+
+    /**
+     * The execution is over: the source that orders lets go of the key it held for it, and the next exchange of that
+     * key, if one waits, can start (issue #156).
+     */
+    private void releaseOrderedKey(ExecutionTracker tracker) {
+        final ExecutionTracker.Ordering ordering = tracker.ordering();
+        if (ordering == null) {
+            return;
+        }
+        try {
+            context.tryFindFlowByName(ordering.flowName())
+                .filter(flow -> flow.isConsumerOfType(EventDrivenConsumerService.class))
+                .ifPresent(flow -> flow.getConsumerAs(EventDrivenConsumerService.class)
+                    .keyFinished(ordering.key(), ordering.owner()));
+        } catch (RuntimeException failure) {
+            sysLogger.error("The key '{}' of the flow '{}' could not be let go", ordering.key(), ordering.flowName(), failure);
         }
     }
 

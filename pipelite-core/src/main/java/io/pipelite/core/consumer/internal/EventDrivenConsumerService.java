@@ -167,6 +167,14 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
         eventDrivenConsumer.resume(target, exchange, onComplete);
     }
 
+    /**
+     * The execution of the exchange {@code owner}, admitted with {@code key} by a source that orders (issue #156), is
+     * over: the next exchange of that key can start. Called by whoever ends the execution, which may be a retry.
+     */
+    public void keyFinished(String key, String owner) {
+        eventDrivenConsumer.keyFinished(key, owner);
+    }
+
     public void dispatchToNode(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
         if (dispatchStrategy == null) {
             if (logger.isWarnEnabled()) {

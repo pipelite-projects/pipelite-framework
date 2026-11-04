@@ -104,7 +104,7 @@ public class FlowFactory {
         consumer.setExceptionHandler(exceptionHandler);
         injectDependencies(consumer);
         wireDurableInbox(consumer, flowName, sourceEndpointURL);
-        wireExecutionObserver(consumer, sourceEndpoint, sourceEndpointURL);
+        wireExecutionObserver(consumer, flowName, sourceEndpoint, sourceEndpointURL);
         setPrePostProcessors(consumer);
 
         Iterator<ProcessorDefinition> processorsIterator = flowDefinition.iterateProcessorDefinitions();
@@ -235,14 +235,14 @@ public class FlowFactory {
      * The flows that read a queue can be awaited by a barrier (issue #150): their consumer tells the coordinator
      * when an execution ends. Nothing is done for an execution unless some barrier awaits the flow.
      */
-    private void wireExecutionObserver(Consumer consumer, Endpoint sourceEndpoint, EndpointURL sourceEndpointURL) {
+    private void wireExecutionObserver(Consumer consumer, String flowName, Endpoint sourceEndpoint, EndpointURL sourceEndpointURL) {
         if (!(consumer instanceof EventDrivenConsumerService) || !(sourceEndpoint instanceof QueueEndpoint)) {
             return;
         }
         final BarrierCoordinator coordinator = context.getBarrierCoordinator();
         if (coordinator != null) {
             ((EventDrivenConsumerService) consumer).setExecutionObserver(
-                new BarrierExecutionObserver(sourceEndpointURL.getResource(), coordinator));
+                new BarrierExecutionObserver(flowName, sourceEndpointURL.getResource(), coordinator));
         }
     }
 

@@ -29,5 +29,14 @@ import io.pipelite.core.exchange.internal.ExchangeImpl;
 public interface ExecutionObserver {
 
     /** An execution starts for {@code exchange}. Returns what to run when it ends, or {@code null}. */
-    Runnable started(ExchangeImpl exchange);
+    default Runnable started(ExchangeImpl exchange) {
+        return started(exchange, null);
+    }
+
+    /**
+     * As {@link #started(ExchangeImpl)}, for an exchange the source admitted with {@code orderKey} (issue #156): the
+     * key stays held until the execution has really ended, which is not when the flow returns if the exchange went to
+     * a retry or waits at a barrier. {@code orderKey} is {@code null} when the source does not order.
+     */
+    Runnable started(ExchangeImpl exchange, String orderKey);
 }
