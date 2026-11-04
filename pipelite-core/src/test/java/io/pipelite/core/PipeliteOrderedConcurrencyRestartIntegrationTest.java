@@ -163,6 +163,50 @@ public class PipeliteOrderedConcurrencyRestartIntegrationTest {
         Assert.assertTrue("A1 is updated before A2 enters: " + trace, trace.indexOf("update:A1") < trace.indexOf("enter:A2"));
     }
 
+    @Test
+    public void givenMessagesWereUnacknowledgedWhenTheProcessStopped_thenTheInboxGivesThemBackAndTheOrderOfEachKeyIsKept() throws Exception {
+        // What a process that stopped in the middle of its work leaves in the durable inbox: the messages it had
+        // received and not finished, in the order they arrived.
+        final Path inbox = temporaryFolder.getRoot().toPath().resolve("inbox");
+        final var identity = new io.pipelite.core.exchange.internal.DistributedIdentityGeneratorImpl();
+        final var leftBehind = new io.pipelite.core.flow.execution.inbox.SegmentedLogDurableInboxProvider(inbox, identity)
+            .forFlow("customer-updates");
+        final var toBytes = new io.pipelite.common.support.serialization.ObjectToByteArrayConverter();
+        final var exchangeFactory = new io.pipelite.core.context.impl.DefaultExchangeFactory(
+            new io.pipelite.core.context.impl.DefaultMessageFactory(identity));
+        final List<String> arrivals = List.of("A1", "B1", "A2", "A3", "B2", "A4", "A5", "B3", "A6");
+        for (String payload : arrivals) {
+            final var exchange = exchangeFactory.createExchange(payload);
+            exchange.putHeader("customer-id", payload.substring(0, 1));
+            leftBehind.enqueue(toBytes.convert(exchange), java.util.Map.of());
+        }
+
+        context = newContext();
+        context.setDurableInboxProvider(new io.pipelite.core.flow.execution.inbox.SegmentedLogDurableInboxProvider(inbox, identity));
+        context.registerFlowDefinition(Pipelite.defineFlow("customer-updates")
+            .fromSource("queue://customer-updates", (SourceConcurrencyConfigurer c) ->
+                c.concurrency(4).orderedBy(k -> k.headerName("customer-id")))
+            .process("update", (exchange, contribution) -> {
+                final String payload = exchange.getInputPayloadAs(String.class);
+                try {
+                    // the first of each customer is the slowest: without ordering, the next ones would overtake it
+                    Thread.sleep(payload.endsWith("1") ? 150 : 5);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                }
+                trace.add("update:" + payload);
+            })
+            .build());
+        context.start();
+
+        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(() -> updated().size() == arrivals.size());
+        for (String customer : List.of("A", "B")) {
+            final List<String> expected = arrivals.stream().filter(payload -> payload.startsWith(customer)).toList();
+            final List<String> actual = updated().stream().filter(payload -> payload.startsWith(customer)).toList();
+            Assert.assertEquals("the messages of " + customer + " in the order they arrived", expected, actual);
+        }
+    }
+
     private void registerWithBarrier() {
         context.registerFlowDefinition(Pipelite.defineFlow("customer-updates")
             .fromSource("queue://customer-updates", (SourceConcurrencyConfigurer c) -> {
