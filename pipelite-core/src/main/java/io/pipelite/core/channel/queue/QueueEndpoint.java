@@ -22,7 +22,10 @@ import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.core.consumer.internal.EventDrivenConsumer;
 import io.pipelite.core.consumer.internal.EventDrivenConsumerService;
+import io.pipelite.dsl.correlation.Correlation;
 import io.pipelite.spi.endpoint.Producer;
+
+import java.util.Optional;
 
 /**
  * The endpoint of a queue, on both sides. Its consumer is the framework's own event-driven one: nothing is
@@ -32,6 +35,7 @@ public class QueueEndpoint implements Endpoint, ConsumerEndpoint {
 
     private final EndpointURL endpointURL;
     private final QueueChannelAdapter channel;
+    private volatile Correlation orderedBy;
 
     public QueueEndpoint(EndpointURL endpointURL, QueueChannelAdapter channel) {
         this.endpointURL = Preconditions.notNull(endpointURL, "endpointURL is required and cannot be null");
@@ -41,6 +45,15 @@ public class QueueEndpoint implements Endpoint, ConsumerEndpoint {
     @Override
     public EndpointURL getEndpointURL() {
         return endpointURL;
+    }
+
+    /** The key by which the exchanges of a flow that reads this queue are processed in order, if it declared one. */
+    public Optional<Correlation> getOrderedBy() {
+        return Optional.ofNullable(orderedBy);
+    }
+
+    public void setOrderedBy(Correlation orderedBy) {
+        this.orderedBy = orderedBy;
     }
 
     @Override

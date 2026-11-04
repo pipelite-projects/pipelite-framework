@@ -16,6 +16,7 @@
 package io.pipelite.core.context.impl;
 
 import io.pipelite.common.support.Preconditions;
+import io.pipelite.core.channel.queue.QueueEndpoint;
 import io.pipelite.core.config.EndpointURLPropertyResolver;
 import io.pipelite.core.context.ChannelAdapterManager;
 import io.pipelite.core.context.EndpointFactory;
@@ -82,8 +83,27 @@ public class DefaultEndpointFactory implements EndpointFactory {
         final ChannelURL channelURL = ChannelURL.parse(resolvedUrl);
         final ChannelAdapter channel = channelAdapterManager.resolveChannel(channelURL.getProtocol());
         rejectSourceConcurrencyParams(channel, channelURL.getProtocol(), channelURL.getEndpointURL());
-        final String endpointURL = applySourceConfigurer(endpointDefinition, channel, channelURL.getEndpointURL());
-        return channel.createEndpoint(endpointURL);
+        final ConfiguredSource configured = applySourceConfigurer(endpointDefinition, channel, channelURL.getEndpointURL());
+        final Endpoint endpoint = channel.createEndpoint(configured.endpointURL());
+        handOverTypedSettings(configured.settings(), endpoint);
+        return endpoint;
+    }
+
+    /** The URL of a source with what its configurer put in it, and the configurer itself, for what cannot travel in a URL. */
+    private record ConfiguredSource(String endpointURL, SourceConfigurer settings) {
+    }
+
+    /**
+     * What a configurer holds that is not a simple value, so cannot be written in the query string (which only
+     * admits simple characters), is handed to the endpoint as it is. Today the key by which a queue source is
+     * ordered, a header name or an expression.
+     */
+    private static void handOverTypedSettings(SourceConfigurer settings, Endpoint endpoint) {
+        if (settings instanceof SourceConcurrencyConfigurer concurrencySettings
+            && concurrencySettings.getOrderedBy() != null
+            && endpoint instanceof QueueEndpoint queueEndpoint) {
+            queueEndpoint.setOrderedBy(concurrencySettings.getOrderedBy());
+        }
     }
 
     /**
@@ -105,10 +125,10 @@ public class DefaultEndpointFactory implements EndpointFactory {
      * default) still resolves the endpoint unchanged when no callback was given - the "does not
      * support a SourceConfigurer" failure is only for a caller that actually tried to use one.
      */
-    private static String applySourceConfigurer(EndpointDefinition endpointDefinition, ChannelAdapter channel, String endpointURL) {
+    private static ConfiguredSource applySourceConfigurer(EndpointDefinition endpointDefinition, ChannelAdapter channel, String endpointURL) {
 
         if (!(endpointDefinition instanceof SourceDefinition sourceDefinition)) {
-            return endpointURL;
+            return new ConfiguredSource(endpointURL, null);
         }
         final Consumer<SourceConfigurer> configurerCallback = sourceDefinition.getConfigurerCallback();
         final SourceConfigurer settings = channel.newSourceConfigurer();
@@ -117,7 +137,7 @@ public class DefaultEndpointFactory implements EndpointFactory {
                 throw new IllegalStateException(String.format(
                     "Endpoint '%s' does not support a SourceConfigurer", endpointURL));
             }
-            return endpointURL;
+            return new ConfiguredSource(endpointURL, null);
         }
         if (configurerCallback != null) {
             try {
@@ -129,7 +149,7 @@ public class DefaultEndpointFactory implements EndpointFactory {
             }
         }
 
-        return mergeQueryParameters(endpointURL, settings.toQueryParameters());
+        return new ConfiguredSource(mergeQueryParameters(endpointURL, settings.toQueryParameters()), settings);
     }
 
     private static String mergeQueryParameters(String endpointURL, Map<String, String> extraParameters) {
