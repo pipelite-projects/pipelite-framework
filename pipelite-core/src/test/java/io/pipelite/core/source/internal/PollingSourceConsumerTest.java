@@ -79,6 +79,25 @@ public class PollingSourceConsumerTest {
     }
 
     @Test
+    public void givenNothingDeclared_thenWhatTheSourcePollsGetsAGeneratedKey() {
+        payloadsToPoll.add("polled");
+
+        final ExchangeImpl exchange = subject.receive();
+
+        Assert.assertEquals(exchange.getInput().getId(), exchange.getIdempotencyKey());
+    }
+
+    @Test
+    public void givenTheSourceDeclaresTheKey_thenItIsReadFromWhatItPollsAndFromWhatItQueues() {
+        subject.setIdempotencyKey(io.pipelite.dsl.correlation.Correlation.ofHeader("Idempotency-Key"));
+        final ExchangeImpl queued = exchangeFactory.createExchange("queued");
+        queued.putHeader("Idempotency-Key", "client-key-queued");
+        subject.consume(queued);
+
+        Assert.assertEquals("client-key-queued", subject.receive().getIdempotencyKey());
+    }
+
+    @Test
     public void givenTheSourceHasNothing_thenReceiveReturnsNull() {
         Assert.assertNull(subject.receive());
         Assert.assertNull(subject.receive(0));

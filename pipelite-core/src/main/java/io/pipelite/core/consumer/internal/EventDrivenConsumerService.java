@@ -38,7 +38,7 @@ import java.util.concurrent.ThreadFactory;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointProperties;
 
-public class EventDrivenConsumerService extends AbstractService implements Consumer, ExchangeFactoryAware, SourceWorkerPoolAware, DurableInboxAware {
+public class EventDrivenConsumerService extends AbstractService implements Consumer, ExchangeFactoryAware, SourceWorkerPoolAware, DurableInboxAware, IdempotencyKeyAware {
 
     private static final String DEFAULT_ROLE = "event";
     private static final long SHUTDOWN_TIMEOUT_MILLIS = 30_000L;
@@ -287,6 +287,11 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
     @Override
     public void setDurableInbox(DurableInbox durableInbox) {
         eventDrivenConsumer.setDurableInbox(durableInbox);
+    }
+
+    @Override
+    public void setIdempotencyKey(io.pipelite.dsl.correlation.Correlation key) {
+        eventDrivenConsumer.setIdempotencyKey(key);
     }
 
     /** Follows the executions of this flow, for the barriers that await it (issue #150). */

@@ -42,6 +42,10 @@ import java.util.function.Consumer;
 
 public class DefaultEndpointFactory implements EndpointFactory {
 
+    /** By identity: two endpoints can be equal and have declared different keys. */
+    private final Map<Endpoint, io.pipelite.dsl.correlation.Correlation> idempotencyKeys =
+        java.util.Collections.synchronizedMap(new java.util.IdentityHashMap<>());
+
     private final ChannelAdapterManager channelAdapterManager;
     private EndpointURLPropertyResolver endpointURLPropertyResolver;
 
@@ -86,7 +90,15 @@ public class DefaultEndpointFactory implements EndpointFactory {
         final ConfiguredSource configured = applySourceConfigurer(endpointDefinition, channel, channelURL.getEndpointURL());
         final Endpoint endpoint = channel.createEndpoint(configured.endpointURL());
         handOverTypedSettings(configured.settings(), endpoint);
+        if (configured.settings() != null && configured.settings().getIdempotencyKey() != null) {
+            idempotencyKeys.put(endpoint, configured.settings().getIdempotencyKey());
+        }
         return endpoint;
+    }
+
+    @Override
+    public java.util.Optional<io.pipelite.dsl.correlation.Correlation> idempotencyKeyOf(Endpoint endpoint) {
+        return java.util.Optional.ofNullable(idempotencyKeys.get(endpoint));
     }
 
     /** The URL of a source with what its configurer put in it, and the configurer itself, for what cannot travel in a URL. */

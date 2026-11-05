@@ -38,6 +38,7 @@ import io.pipelite.core.source.internal.SourceConsumers;
 import io.pipelite.core.context.internal.ChannelURL;
 import io.pipelite.core.consumer.internal.Consumer;
 import io.pipelite.core.consumer.internal.DurableInboxAware;
+import io.pipelite.core.consumer.internal.IdempotencyKeyAware;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
@@ -104,6 +105,7 @@ public class FlowFactory {
         consumer.setExceptionHandler(exceptionHandler);
         injectDependencies(consumer);
         wireDurableInbox(consumer, flowName, sourceEndpointURL);
+        wireIdempotencyKey(consumer, sourceEndpoint);
         wireExecutionObserver(consumer, flowName, sourceEndpoint, sourceEndpointURL);
         setPrePostProcessors(consumer);
 
@@ -229,6 +231,13 @@ public class FlowFactory {
             ? context.getDurableInboxProvider().forFlow(flowName)
             : NoOpDurableInbox.INSTANCE;
         ((DurableInboxAware) consumer).setDurableInbox(durableInbox);
+    }
+
+    /** What the source declared to identify the requests it receives, for the consumer to fix the key of each (issue #40). */
+    private void wireIdempotencyKey(Consumer consumer, Endpoint sourceEndpoint) {
+        if (consumer instanceof IdempotencyKeyAware aware) {
+            endpointFactory.idempotencyKeyOf(sourceEndpoint).ifPresent(aware::setIdempotencyKey);
+        }
     }
 
     /**

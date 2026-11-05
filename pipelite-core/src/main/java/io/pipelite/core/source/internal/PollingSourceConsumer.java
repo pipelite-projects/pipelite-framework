@@ -64,7 +64,9 @@ final class PollingSourceConsumer extends DefaultPollingConsumer implements Exch
         }
         final Exchange polled = source.poll();
         if (polled != null) {
-            return SourceExchanges.asExchangeImpl(polled);
+            final ExchangeImpl exchange = SourceExchanges.asExchangeImpl(polled);
+            fixIdempotencyKey(exchange);
+            return exchange;
         }
         return super.receive(0);
     }

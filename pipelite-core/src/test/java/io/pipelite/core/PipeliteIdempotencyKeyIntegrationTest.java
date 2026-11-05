@@ -191,4 +191,103 @@ public class PipeliteIdempotencyKeyIntegrationTest {
         Assert.assertEquals(List.of(key + "-0", key + "-1", key + "-2"), keysOf("charge"));
         Assert.assertEquals("after the split it is the work of the exchange again", key, keysOf("after").get(0));
     }
+
+    private void supplyWith(String queue, String payload, String headerName, String headerValue) {
+        final Exchange exchange = context.createExchange(payload);
+        if (headerValue != null) {
+            exchange.putHeader(headerName, headerValue);
+        }
+        context.supplyExchange("queue://" + queue, exchange);
+    }
+
+    private void registerFlowWithDeclaredKey() {
+        context.registerFlowDefinition(Pipelite.defineFlow("checkout")
+            .fromSource("queue://checkout", (SourceConcurrencyConfigurer c) -> {
+                c.durableInbox(false);
+                c.idempotencyKey(k -> k.headerName("Idempotency-Key"));
+            })
+            .process("charge", (exchange, contribution) -> seen.add("charge=" + exchange.getIdempotencyKey()))
+            .build());
+        context.start();
+    }
+
+    @Test
+    public void givenTheSourceDeclaresAHeaderAsTheKey_thenARequestSentAgainHasTheSameKey() {
+        registerFlowWithDeclaredKey();
+
+        supplyWith("checkout", "order-1", "Idempotency-Key", "client-key-1");
+        supplyWith("checkout", "order-1 again", "Idempotency-Key", "client-key-1");
+        supplyWith("checkout", "order-2", "Idempotency-Key", "client-key-2");
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> keysOf("charge").size() == 3);
+        Assert.assertEquals(List.of("client-key-1", "client-key-1", "client-key-2"), keysOf("charge"));
+    }
+
+    @Test
+    public void givenTheDeclaredKeyHasNoValueForARequest_thenItGetsAGeneratedKeyOfItsOwn() {
+        registerFlowWithDeclaredKey();
+
+        supplyWith("checkout", "no key 1", "Idempotency-Key", null);
+        supplyWith("checkout", "no key 2", "Idempotency-Key", null);
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> keysOf("charge").size() == 2);
+        Assert.assertNotEquals("each one is a piece of work of its own", keysOf("charge").get(0), keysOf("charge").get(1));
+        Assert.assertTrue(keysOf("charge").stream().noneMatch(key -> key == null || key.isBlank()));
+    }
+
+    @Test
+    public void givenTheSourceDeclaresAnExpressionAsTheKey_thenItIsWhatTheExpressionGives() {
+        context.registerFlowDefinition(Pipelite.defineFlow("checkout")
+            .fromSource("queue://checkout", (SourceConcurrencyConfigurer c) -> {
+                c.durableInbox(false);
+                c.idempotencyKey(k -> k.expression("Headers['order-id']"));
+            })
+            .process("charge", (exchange, contribution) -> seen.add("charge=" + exchange.getIdempotencyKey()))
+            .build());
+        context.start();
+
+        supplyWith("checkout", "order-1", "order-id", "o-77");
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> keysOf("charge").size() == 1);
+        Assert.assertEquals("o-77", keysOf("charge").get(0));
+    }
+
+    @Test
+    public void givenAFlowThatReceivesTheExchangeFromAnotherDeclaresAKey_thenTheKeyOfTheWorkIsKept() {
+        context.registerFlowDefinition(Pipelite.defineFlow("checkout")
+            .fromSource("queue://checkout", PipeliteIdempotencyKeyIntegrationTest::durableInboxOff)
+            .process("reserve", (exchange, contribution) -> seen.add("reserve=" + exchange.getIdempotencyKey()))
+            .toSink("queue://billing")
+            .build());
+        context.registerFlowDefinition(Pipelite.defineFlow("billing")
+            .fromSource("queue://billing", (SourceConcurrencyConfigurer c) -> {
+                c.durableInbox(false);
+                c.idempotencyKey(k -> k.headerName("Idempotency-Key"));
+            })
+            .process("charge", (exchange, contribution) -> seen.add("charge=" + exchange.getIdempotencyKey()))
+            .build());
+        context.start();
+
+        supplyWith("checkout", "order-1", "Idempotency-Key", "client-key-1");
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> keysOf("charge").size() == 1);
+        Assert.assertEquals("the work was identified where it entered the application, in the first flow",
+            keysOf("reserve").get(0), keysOf("charge").get(0));
+    }
+
+    @Test
+    public void givenAPollingSource_thenItsExchangesGetAKeyEach() {
+        context.registerFlowDefinition(Pipelite.defineFlow("ticker")
+            .fromSource("time://ticker", (io.pipelite.components.time.TimeSourceConfigurer c) -> {
+                c.period(100);
+                c.timeUnit(TimeUnit.MILLISECONDS);
+            })
+            .process("work", (exchange, contribution) -> seen.add("work=" + exchange.getIdempotencyKey()))
+            .build());
+        context.start();
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> keysOf("work").size() >= 3);
+        Assert.assertTrue(keysOf("work").stream().noneMatch(key -> key == null || key.isBlank() || key.equals("null")));
+        Assert.assertEquals("every tick is a piece of work of its own", keysOf("work").size(), keysOf("work").stream().distinct().count());
+    }
 }

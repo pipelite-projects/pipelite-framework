@@ -16,7 +16,11 @@
 package io.pipelite.core.consumer.internal;
 
 import io.pipelite.core.context.internal.IOKeys;
+import io.pipelite.core.correlation.CorrelationKeys;
 import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.dsl.correlation.Correlation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Fixes the idempotency key of an exchange (issue #40) where it enters a flow. An exchange that already has one keeps
@@ -25,13 +29,34 @@ import io.pipelite.core.exchange.internal.ExchangeImpl;
  */
 final class IdempotencyKeys {
 
+    private static final Logger SYS_LOGGER = LoggerFactory.getLogger(IdempotencyKeys.class);
+
     private IdempotencyKeys() {
     }
 
     /** Gives {@code exchange} a key, if it has none: the id of the message it came in with. */
     static void ensure(ExchangeImpl exchange) {
-        if (exchange.getProperty(IOKeys.IDEMPOTENCY_KEY_PROPERTY_NAME, String.class) == null) {
-            exchange.setProperty(IOKeys.IDEMPOTENCY_KEY_PROPERTY_NAME, exchange.getInput().getId());
+        ensure(exchange, null, null);
+    }
+
+    /**
+     * Gives {@code exchange} a key, if it has none: what {@code declared} reads from it, when the source declared how, or
+     * else the id of the message it came in with. A request the declaration gives no value for gets the generated key,
+     * and a warning: the guarantee of the declared key holds for the requests that have it.
+     */
+    static void ensure(ExchangeImpl exchange, Correlation declared, String flowName) {
+        if (exchange.getProperty(IOKeys.IDEMPOTENCY_KEY_PROPERTY_NAME, String.class) != null) {
+            return;
         }
+        String key = null;
+        if (declared != null) {
+            try {
+                key = CorrelationKeys.keyOf(declared, exchange);
+            } catch (RuntimeException unreadable) {
+                SYS_LOGGER.warn("Flow '{}': an exchange has no idempotency key to read from it ({}), a generated one is used. {}",
+                    flowName, declared, unreadable.getMessage());
+            }
+        }
+        exchange.setProperty(IOKeys.IDEMPOTENCY_KEY_PROPERTY_NAME, key != null ? key : exchange.getInput().getId());
     }
 }

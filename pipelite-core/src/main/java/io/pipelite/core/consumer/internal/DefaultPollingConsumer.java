@@ -28,7 +28,7 @@ import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import io.pipelite.spi.endpoint.Endpoint;
 
-public non-sealed class DefaultPollingConsumer extends AbstractConsumer implements PollingConsumer, DurableInboxAware {
+public non-sealed class DefaultPollingConsumer extends AbstractConsumer implements PollingConsumer, DurableInboxAware, IdempotencyKeyAware {
 
     /**
      * Independent of the queue's own JDK capacity (which defaults to {@code Integer.MAX_VALUE} —
@@ -51,6 +51,9 @@ public non-sealed class DefaultPollingConsumer extends AbstractConsumer implemen
     protected final BlockingQueue<ExchangeImpl> queue;
 
     private final QueuePressureGate pressureGate;
+
+    /** How the source says the idempotency key is read from a request (issue #40); {@code null}: it is generated. */
+    private volatile io.pipelite.dsl.correlation.Correlation idempotencyKey;
 
     /**
      * Defaults to a no-op so {@link #consume}/{@link #process} can call it unconditionally (see
@@ -107,6 +110,19 @@ public non-sealed class DefaultPollingConsumer extends AbstractConsumer implemen
     }
 
     @Override
+    public void setIdempotencyKey(io.pipelite.dsl.correlation.Correlation key) {
+        this.idempotencyKey = key;
+    }
+
+    /**
+     * For a source that hands an exchange over without queueing it ({@link #consume} does it for the others): fixes its
+     * idempotency key, if it has none (issue #40).
+     */
+    protected final void fixIdempotencyKey(ExchangeImpl exchange) {
+        IdempotencyKeys.ensure(exchange, idempotencyKey, getFlowName());
+    }
+
+    @Override
     public void consume(ExchangeImpl exchange) {
         // Deliberately outside the synchronized(LOCK) block below: blocking here while holding
         // LOCK would deadlock against receive()/receive(timeout), which need that same lock to
@@ -118,7 +134,7 @@ public non-sealed class DefaultPollingConsumer extends AbstractConsumer implemen
             return;
         }
         // Before the write to the inbox, so that the entry carries it (issue #40).
-        IdempotencyKeys.ensure(exchange);
+        IdempotencyKeys.ensure(exchange, idempotencyKey, getFlowName());
         // Durable write-through (issue #70): must complete before queue.put, same reasoning as
         // EventDrivenConsumer#process - a no-op when durability is disabled for this source.
         final String resupliedEntryId = exchange.getProperty(IOKeys.DURABLE_INBOX_RESUPPLIED_ENTRY_ID_PROPERTY_NAME, String.class);

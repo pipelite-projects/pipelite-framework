@@ -35,7 +35,7 @@ import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointProperties;
 import io.pipelite.spi.endpoint.PollingProperties;
 
-public class ScheduledPollingConsumerService extends AbstractService implements PollingConsumer, DurableInboxAware {
+public class ScheduledPollingConsumerService extends AbstractService implements PollingConsumer, DurableInboxAware, IdempotencyKeyAware {
 
     /**
      * Default of 1 reproduces today's exact behavior for every existing consumer built on this
@@ -224,6 +224,13 @@ public class ScheduledPollingConsumerService extends AbstractService implements 
     public void setDurableInbox(DurableInbox durableInbox) {
         if (pollingConsumer instanceof DurableInboxAware) {
             ((DurableInboxAware) pollingConsumer).setDurableInbox(durableInbox);
+        }
+    }
+
+    @Override
+    public void setIdempotencyKey(io.pipelite.dsl.correlation.Correlation key) {
+        if (pollingConsumer instanceof IdempotencyKeyAware) {
+            ((IdempotencyKeyAware) pollingConsumer).setIdempotencyKey(key);
         }
     }
 }

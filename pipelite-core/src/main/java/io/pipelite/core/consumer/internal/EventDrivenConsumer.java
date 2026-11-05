@@ -34,7 +34,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import io.pipelite.spi.endpoint.Endpoint;
 
-public class EventDrivenConsumer extends DefaultConsumer implements DurableInboxAware {
+public class EventDrivenConsumer extends DefaultConsumer implements DurableInboxAware, IdempotencyKeyAware {
 
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
@@ -68,6 +68,9 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
 
     /** Follows the executions of the flow, for what awaits them (issue #150); {@code null} when nothing does. */
     private volatile ExecutionObserver executionObserver;
+
+    /** How the source says the idempotency key is read from a request (issue #40); {@code null}: it is generated. */
+    private volatile Correlation idempotencyKey;
 
     /** Keeps the exchanges with the same key in sequence (issue #156); {@code null} when the source does not order. */
     private volatile OrderedAdmission ordering;
@@ -109,6 +112,11 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
 
     public void setExecutionObserver(ExecutionObserver executionObserver) {
         this.executionObserver = executionObserver;
+    }
+
+    @Override
+    public void setIdempotencyKey(Correlation key) {
+        this.idempotencyKey = key;
     }
 
     /** From now on the exchanges with the same {@code key} go through the flow one at a time (issue #156). */
@@ -194,7 +202,7 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
             if (!isPoisonPill(exchange)) {
                 // Before the write to the inbox, so that the entry carries it: what is given back after a restart has the
                 // same key as the first time (issue #40).
-                IdempotencyKeys.ensure(exchange);
+                IdempotencyKeys.ensure(exchange, idempotencyKey, getFlowName());
                 pressureGate.beforeEnqueue(this::pending);
                 // Durable write-through (issue #70), same happens-before reasoning as
                 // postProcessExchange above: must complete before queue.put so the dispatch thread
