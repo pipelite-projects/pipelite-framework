@@ -122,6 +122,7 @@ public class PollingSourceConsumerTest {
             @Override public void putHeader(String headerName, Object headerValue) { }
             @Override public void removeHeader(String headerName) { }
             @Override public boolean hasHeader(String headerName) { return false; }
+            @Override public String getIdempotencyKey() { return null; }
             @Override public Class<?> getInputPayloadType() { return null; }
             @Override public Object getInputPayload() { return null; }
             @Override public <T> T getInputPayloadAs(Class<T> expectedType) { return null; }

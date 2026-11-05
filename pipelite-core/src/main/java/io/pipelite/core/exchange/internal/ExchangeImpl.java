@@ -76,6 +76,11 @@ public class ExchangeImpl implements Exchange, Serializable {
         headers.removeHeader(headerName);
     }
 
+    @Override
+    public String getIdempotencyKey() {
+        return getProperty(io.pipelite.core.context.internal.IOKeys.IDEMPOTENCY_KEY_PROPERTY_NAME, String.class);
+    }
+
     public Set<Map.Entry<String, Object>> propertySet(){
         return properties.entrySet();
     }

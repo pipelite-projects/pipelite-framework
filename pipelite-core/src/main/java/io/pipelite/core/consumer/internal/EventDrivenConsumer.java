@@ -192,6 +192,9 @@ public class EventDrivenConsumer extends DefaultConsumer implements DurableInbox
             // this pill is meant to stop), so pressure would eventually release on its own anyway —
             // there's no reason for doStop() to wait for that.
             if (!isPoisonPill(exchange)) {
+                // Before the write to the inbox, so that the entry carries it: what is given back after a restart has the
+                // same key as the first time (issue #40).
+                IdempotencyKeys.ensure(exchange);
                 pressureGate.beforeEnqueue(this::pending);
                 // Durable write-through (issue #70), same happens-before reasoning as
                 // postProcessExchange above: must complete before queue.put so the dispatch thread

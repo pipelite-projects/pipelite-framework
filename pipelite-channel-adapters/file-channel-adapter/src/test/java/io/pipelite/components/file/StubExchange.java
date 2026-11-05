@@ -41,6 +41,11 @@ final class StubExchange implements Exchange, Headers {
     }
 
     @Override
+    public String getIdempotencyKey() {
+        return null;
+    }
+
+    @Override
     public Headers getHeaders() {
         return this;
     }

@@ -48,6 +48,24 @@ public interface Exchange {
 
     boolean hasHeader(String headerName);
 
+    /**
+     * The key that identifies the piece of work this exchange carries, to hand to an external system that recognizes a
+     * repetition by it (an {@code Idempotency-Key} HTTP header, a deduplication key on a write).
+     * <p>
+     * It is the same in every step of the flow, in a retry of a step, after the exchange waited at a barrier, after
+     * the application restarted and the durable inbox gave the message back, and in the flow the exchange is handed to
+     * through a {@code queue://}. It is fixed where the work enters the application: a source can declare how it is
+     * read from the request, otherwise it is generated. The elements of a split get the key of the exchange followed by
+     * their position.
+     * <p>
+     * Two calls to the same system from different steps of a flow must not use the same key: add the name of the flow and
+     * of the step. A request that is sent again by its caller without a key of its own is a new piece of work, with a new
+     * key.
+     *
+     * @return the key; {@code null} only for an exchange that never entered a flow, such as one built by hand in a test
+     */
+    String getIdempotencyKey();
+
     Class<?> getInputPayloadType();
 
     Object getInputPayload();

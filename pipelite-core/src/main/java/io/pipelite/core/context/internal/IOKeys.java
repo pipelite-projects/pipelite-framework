@@ -77,6 +77,15 @@ public class IOKeys {
      */
     public static final String EXECUTION_TRACKER_PROPERTY_NAME = "X-Barrier-Execution-Tracker";
 
+    /**
+     * The key that identifies the piece of work an exchange carries, for the {@code Processor}s to hand to the external
+     * systems they call, which recognize a repetition by it (issue #40). Set once, where the work enters the
+     * application, and carried by the exchange from there: through the steps, the retries, a barrier, the durable
+     * inbox, and from a flow to the one it hands the exchange to. A property and not a header, so that user code cannot
+     * overwrite or remove it. Read with {@code Exchange#getIdempotencyKey()}.
+     */
+    public static final String IDEMPOTENCY_KEY_PROPERTY_NAME = "X-Idempotency-Key";
+
     private IOKeys(){
     }
 }

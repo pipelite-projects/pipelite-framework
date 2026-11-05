@@ -117,6 +117,8 @@ public non-sealed class DefaultPollingConsumer extends AbstractConsumer implemen
             Thread.currentThread().interrupt();
             return;
         }
+        // Before the write to the inbox, so that the entry carries it (issue #40).
+        IdempotencyKeys.ensure(exchange);
         // Durable write-through (issue #70): must complete before queue.put, same reasoning as
         // EventDrivenConsumer#process - a no-op when durability is disabled for this source.
         final String resupliedEntryId = exchange.getProperty(IOKeys.DURABLE_INBOX_RESUPPLIED_ENTRY_ID_PROPERTY_NAME, String.class);
