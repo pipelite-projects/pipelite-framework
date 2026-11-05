@@ -1,1 +1,2 @@
 producer-lifecycle=io.pipelite.core.ProducerLifecycleChannelAdapter
+headers-sink=io.pipelite.core.HeadersSinkChannelAdapter

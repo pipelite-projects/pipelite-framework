@@ -122,6 +122,60 @@ public class DefaultHttpHandlerTest {
         Assert.assertEquals("the body", context.accepted.get(0).getInputPayload());
     }
 
+    /**
+     * Issue #171: the handler does not choose which headers go on the exchange (the framework does, by what the flow
+     * declared): it hands over all of them, as the client wrote them, and what is known of the request.
+     */
+    @Test
+    public void shouldHandOverEveryHeaderOfTheRequestAndItsMethodPathAndQuery() throws IOException, InterruptedException {
+        final RecordingContext context = new RecordingContext(false);
+        startSource("headers", context);
+
+        final HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create("http://127.0.0.1:" + port + "/headers?token=abc&x=1"))
+            .header("Idempotency-Key", "req-1")
+            .header("Authorization", "Bearer secret")
+            .header("X-Many", "one")
+            .header("X-Many", "two")
+            .POST(HttpRequest.BodyPublishers.ofString("body"))
+            .build();
+        Assert.assertEquals(201, httpClient.send(request, HttpResponse.BodyHandlers.ofString()).statusCode());
+
+        final java.util.Map<String, String> handed = context.transportHeaders.get(0);
+        Assert.assertEquals("req-1", valueOf(handed, "Idempotency-Key"));
+        Assert.assertEquals("Bearer secret", valueOf(handed, "Authorization"));
+        Assert.assertEquals("the headers with several values are joined", "one, two", valueOf(handed, "X-Many"));
+        Assert.assertEquals("POST", handed.get(io.pipelite.components.http.HttpConstants.METHOD_HEADER_NAME));
+        Assert.assertEquals("/headers", handed.get(io.pipelite.components.http.HttpConstants.PATH_HEADER_NAME));
+        Assert.assertEquals("token=abc&x=1", handed.get(io.pipelite.components.http.HttpConstants.QUERY_HEADER_NAME));
+    }
+
+    @Test
+    public void shouldNotLetTheClientForgeWhatTheSourceKnowsOfTheRequest() throws IOException, InterruptedException {
+        final RecordingContext context = new RecordingContext(false);
+        startSource("forged", context);
+
+        final HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create("http://127.0.0.1:" + port + "/forged"))
+            .header(io.pipelite.components.http.HttpConstants.METHOD_HEADER_NAME, "DELETE")
+            .header(io.pipelite.components.http.HttpConstants.QUERY_HEADER_NAME, "admin=true")
+            .POST(HttpRequest.BodyPublishers.ofString("body"))
+            .build();
+        Assert.assertEquals(201, httpClient.send(request, HttpResponse.BodyHandlers.ofString()).statusCode());
+
+        final java.util.Map<String, String> handed = context.transportHeaders.get(0);
+        Assert.assertEquals("POST", handed.get(io.pipelite.components.http.HttpConstants.METHOD_HEADER_NAME));
+        Assert.assertFalse("a request without a query has none", handed.containsKey(io.pipelite.components.http.HttpConstants.QUERY_HEADER_NAME));
+    }
+
+    private static String valueOf(java.util.Map<String, String> headers, String name) {
+        return headers.entrySet().stream()
+            .filter(header -> header.getKey().equalsIgnoreCase(name))
+            .map(java.util.Map.Entry::getValue)
+            .findFirst()
+            .orElse(null);
+    }
+
     private void startSource(String resource, RecordingContext context) {
         final EventSource source = (EventSource) new HttpEndpoint(EndpointURL.parse(resource), adapter).createSource();
         source.start(context);
@@ -137,6 +191,7 @@ public class DefaultHttpHandlerTest {
 
     /** What the framework gives a source, reduced to recording what is handed over, or refusing it. */
     private static final class RecordingContext implements SourceContext {
+        private final List<java.util.Map<String, String>> transportHeaders = new ArrayList<>();
         private final boolean refuse;
         private final List<Exchange> accepted = new ArrayList<>();
 
@@ -150,7 +205,8 @@ public class DefaultHttpHandlerTest {
         }
 
         @Override
-        public Exchange newExchange(Object payload) {
+        public Exchange newExchange(Object payload, java.util.Map<String, String> headers) {
+            transportHeaders.add(headers);
             final StubExchange exchange = new StubExchange();
             exchange.setInputPayload(payload);
             return exchange;

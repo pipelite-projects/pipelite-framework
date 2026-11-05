@@ -16,11 +16,13 @@
 package io.pipelite.components.http.undertow;
 
 import io.pipelite.components.http.HttpChannelAdapter;
+import io.pipelite.components.http.HttpConstants;
 import io.pipelite.components.http.HttpSource;
 import io.undertow.server.BlockingHttpExchange;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.RequestTooBigException;
+import io.undertow.util.HeaderValues;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -89,7 +93,7 @@ public class DefaultHttpHandler implements HttpHandler {
                     .collect(Collectors.joining("\n"));
 
                 try {
-                    source.accept(requestBodyAsText);
+                    source.accept(requestBodyAsText, transportHeadersOf(httpServerExchange));
                     httpServerExchange.setStatusCode(201);
                 } catch (RuntimeException notAccepted) {
                     // The request could not be accepted (the durable inbox could not be written): it was not
@@ -117,6 +121,27 @@ public class DefaultHttpHandler implements HttpHandler {
             httpServerExchange.endExchange();
         }
 
+    }
+
+    /**
+     * Every header of the request, as it was sent (the ones with several values joined with a comma), and what is known of
+     * the request: its method, its path and its query. The handler does not choose: the flow does, with {@code
+     * propagateHeaders}, and the source of the request cannot forge the last three, which are written after its own headers.
+     */
+    static Map<String, String> transportHeadersOf(HttpServerExchange httpServerExchange) {
+        final Map<String, String> headers = new LinkedHashMap<>();
+        for (HeaderValues values : httpServerExchange.getRequestHeaders()) {
+            headers.put(values.getHeaderName().toString(), String.join(", ", values));
+        }
+        headers.put(HttpConstants.METHOD_HEADER_NAME, httpServerExchange.getRequestMethod().toString());
+        headers.put(HttpConstants.PATH_HEADER_NAME, httpServerExchange.getRequestPath());
+        final String query = httpServerExchange.getQueryString();
+        if (query == null || query.isEmpty()) {
+            headers.remove(HttpConstants.QUERY_HEADER_NAME);
+        } else {
+            headers.put(HttpConstants.QUERY_HEADER_NAME, query);
+        }
+        return headers;
     }
 
     /**

@@ -38,7 +38,9 @@ import io.pipelite.core.source.internal.SourceConsumers;
 import io.pipelite.core.context.internal.ChannelURL;
 import io.pipelite.core.consumer.internal.Consumer;
 import io.pipelite.core.consumer.internal.DurableInboxAware;
+import io.pipelite.core.consumer.internal.HeaderPropagationAware;
 import io.pipelite.core.consumer.internal.IdempotencyKeyAware;
+import io.pipelite.core.exchange.internal.HeaderSelection;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.spi.endpoint.EndpointURL;
 import io.pipelite.spi.endpoint.Producer;
@@ -106,6 +108,7 @@ public class FlowFactory {
         injectDependencies(consumer);
         wireDurableInbox(consumer, flowName, sourceEndpointURL);
         wireIdempotencyKey(consumer, sourceEndpoint);
+        wireHeaderPropagation(consumer, sourceEndpoint);
         wireExecutionObserver(consumer, flowName, sourceEndpoint, sourceEndpointURL);
         setPrePostProcessors(consumer);
 
@@ -149,7 +152,8 @@ public class FlowFactory {
             // The adapter's Producer knows nothing of flows: it is wrapped in the node that ends the chain.
             final Producer adapterProducer = toEndpoint.createProducer();
             producerRegistrar.accept(adapterProducer);
-            final ProducerNode producer = new ProducerNode(adapterProducer);
+            final HeaderSelection sinkHeaders = new HeaderSelection(endpointFactory.headerPropagationOf(toEndpoint));
+            final ProducerNode producer = new ProducerNode(adapterProducer, sinkHeaders);
 
             producer.setFlowName(flowName);
             producer.setSourceEndpointResource(sourceEndpointURL.getResource());
@@ -237,6 +241,13 @@ public class FlowFactory {
     private void wireIdempotencyKey(Consumer consumer, Endpoint sourceEndpoint) {
         if (consumer instanceof IdempotencyKeyAware aware) {
             endpointFactory.idempotencyKeyOf(sourceEndpoint).ifPresent(aware::setIdempotencyKey);
+        }
+    }
+
+    /** Which headers of what the source receives go on the exchange, as the flow declared (issue #171). */
+    private void wireHeaderPropagation(Consumer consumer, Endpoint sourceEndpoint) {
+        if (consumer instanceof HeaderPropagationAware aware) {
+            aware.setHeaderSelection(new HeaderSelection(endpointFactory.headerPropagationOf(sourceEndpoint)));
         }
     }
 

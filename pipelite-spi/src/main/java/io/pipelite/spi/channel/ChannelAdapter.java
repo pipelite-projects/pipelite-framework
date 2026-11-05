@@ -15,6 +15,7 @@
  */
 package io.pipelite.spi.channel;
 
+import io.pipelite.dsl.definition.SinkConfigurer;
 import io.pipelite.dsl.definition.SourceConfigurer;
 import io.pipelite.spi.endpoint.Endpoint;
 
@@ -37,6 +38,16 @@ public interface ChannelAdapter {
      * settings it carries (e.g. a Kafka consumer group id) are per-endpoint, not adapter-wide.
      */
     default SourceConfigurer newSourceConfigurer(){
+        return null;
+    }
+
+    /**
+     * A fresh, adapter-specific {@link SinkConfigurer} for a {@code toSink(url, configurer)} callback: the counterpart of
+     * {@link #newSourceConfigurer()} on the other side of a flow, constructed per {@code toSink(...)} call. It implements
+     * the capabilities the endpoint supports as a sink (for example {@code PropagatesHeaders}). {@code null} (the default)
+     * means this adapter has no settings for a sink.
+     */
+    default SinkConfigurer newSinkConfigurer(){
         return null;
     }
 

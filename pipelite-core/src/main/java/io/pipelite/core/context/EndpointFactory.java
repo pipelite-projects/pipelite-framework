@@ -30,4 +30,13 @@ public interface EndpointFactory {
         return java.util.Optional.empty();
     }
 
+    /**
+     * Which headers cross the border at this endpoint (issue #171): those of what a source receives that go on the exchange,
+     * those of the exchange that a sink hands to the other system. What the flow declared with {@code propagateHeaders(...)}
+     * on the configurer of the endpoint, none by default. Not a simple value, so it does not travel in the URL of the endpoint.
+     */
+    default io.pipelite.dsl.headers.HeaderPropagation headerPropagationOf(Endpoint endpoint) {
+        return io.pipelite.dsl.headers.HeaderPropagation.none();
+    }
+
 }

@@ -19,6 +19,15 @@ public final class HttpConstants {
 
     public static final String METHOD_PROPERTY_NAME = "method";
 
+    /** The method of the request, a header the source hands over with the ones the request carries: {@code POST}. */
+    public static final String METHOD_HEADER_NAME = "Http-Method";
+
+    /** The path of the request, without the query: {@code /orders}. */
+    public static final String PATH_HEADER_NAME = "Http-Path";
+
+    /** The query string of the request as it was sent, without the question mark; absent when the request has none. */
+    public static final String QUERY_HEADER_NAME = "Http-Query";
+
     private HttpConstants() {
     }
 

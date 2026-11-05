@@ -18,6 +18,8 @@ package io.pipelite.components.http;
 import io.pipelite.spi.source.EventSource;
 import io.pipelite.spi.source.SourceContext;
 
+import java.util.Map;
+
 /**
  * The {@code http://<resource>} source of a flow: the adapter's server hands it the body of every request
  * made to its resource, and it hands the body over to the flow as the payload of a new exchange.
@@ -51,10 +53,18 @@ public final class HttpSource implements EventSource {
      * accepted.
      */
     public void accept(String body) {
+        accept(body, Map.of());
+    }
+
+    /**
+     * Hands the body of a request to the flow, with all the headers of the request and what is known of it (see {@link
+     * HttpConstants}): the framework puts on the exchange only the ones the flow asked for with {@code propagateHeaders}.
+     */
+    public void accept(String body, Map<String, String> transportHeaders) {
         final SourceContext started = context;
         if (started == null) {
             throw new IllegalStateException("The http source has not been started");
         }
-        started.accept(started.newExchange(body));
+        started.accept(started.newExchange(body, transportHeaders));
     }
 }

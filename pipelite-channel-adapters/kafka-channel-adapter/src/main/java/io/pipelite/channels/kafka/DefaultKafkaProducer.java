@@ -25,7 +25,12 @@ import io.pipelite.spi.endpoint.Producer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.internals.RecordHeader;
 
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class DefaultKafkaProducer implements Producer {
@@ -52,18 +57,33 @@ public class DefaultKafkaProducer implements Producer {
 
     @Override
     public void produce(Exchange exchange) {
+        produce(exchange, Map.of());
+    }
+
+    /**
+     * Sends the record with the headers the flow chose to hand over: the headers of a Kafka record are bytes, and these
+     * are written as UTF-8 text.
+     */
+    @Override
+    public void produce(Exchange exchange, Map<String, String> headers) {
 
         final Object recordValue = exchange.getInputPayloadAs(Object.class);
         if(recordValue != null) {
             final Object recordKey = exchange
                 .tryGetHeaderAs(KafkaConstants.KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME, Object.class)
                 .orElse(null);
-            final ProducerRecord<Object, Object> producerRecord = new ProducerRecord<>(topicName, recordKey, recordValue);
+            final ProducerRecord<Object, Object> producerRecord = new ProducerRecord<>(topicName, null, null, recordKey, recordValue, recordHeadersOf(headers));
             kafkaProducer.send(producerRecord);
             kafkaProducer.flush();
 
         }
 
+    }
+
+    private static List<Header> recordHeadersOf(Map<String, String> headers) {
+        final List<Header> recordHeaders = new ArrayList<>(headers.size());
+        headers.forEach((name, value) -> recordHeaders.add(new RecordHeader(name, value.getBytes(StandardCharsets.UTF_8))));
+        return recordHeaders;
     }
 
     /**

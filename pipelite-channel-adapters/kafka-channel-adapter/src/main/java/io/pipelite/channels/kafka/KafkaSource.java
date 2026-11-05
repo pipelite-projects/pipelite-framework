@@ -30,11 +30,14 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.errors.WakeupException;
+import org.apache.kafka.common.header.Header;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -138,7 +141,7 @@ final class KafkaSource implements EventSource {
         for (ConsumerRecord<?, ?> record : records) {
             final Object recordKey = record.key();
             final Object recordValue = record.value();
-            final Exchange exchange = context.newExchange(recordValue);
+            final Exchange exchange = context.newExchange(recordValue, transportHeadersOf(record));
             exchange.putHeader(KafkaConstants.KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME, recordKey);
             try {
                 context.accept(exchange);
@@ -157,6 +160,25 @@ final class KafkaSource implements EventSource {
             sysLogger.warn("Skipping offset commit for this poll batch: at least one record could not " +
                 "be durably written to the inbox");
         }
+    }
+
+    /**
+     * Every header of the record, as text (UTF-8, the last one when a name is repeated, none when it has no value), and what
+     * is known of the record: its topic, partition, offset and timestamp, written after its own headers. The source does not
+     * choose: the flow does, with {@code propagateHeaders}.
+     */
+    static Map<String, String> transportHeadersOf(ConsumerRecord<?, ?> record) {
+        final Map<String, String> headers = new LinkedHashMap<>();
+        for (Header header : record.headers()) {
+            if (header.value() != null) {
+                headers.put(header.key(), new String(header.value(), StandardCharsets.UTF_8));
+            }
+        }
+        headers.put(KafkaConstants.TOPIC_HEADER_NAME, record.topic());
+        headers.put(KafkaConstants.PARTITION_HEADER_NAME, String.valueOf(record.partition()));
+        headers.put(KafkaConstants.OFFSET_HEADER_NAME, String.valueOf(record.offset()));
+        headers.put(KafkaConstants.TIMESTAMP_HEADER_NAME, String.valueOf(record.timestamp()));
+        return headers;
     }
 
     private static Duration pollDurationOf(EndpointProperties endpointProperties) {

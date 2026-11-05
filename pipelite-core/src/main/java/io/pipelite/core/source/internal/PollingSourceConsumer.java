@@ -22,7 +22,10 @@ import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.core.exchange.internal.ExchangeFactory;
 import io.pipelite.core.exchange.internal.ExchangeFactoryAware;
 import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.HeaderSelection;
 import io.pipelite.spi.source.PollingSource;
+
+import java.util.Map;
 
 /**
  * What the polling service asks for the next exchange: first what is already queued (an entry recovered
@@ -35,6 +38,7 @@ final class PollingSourceConsumer extends DefaultPollingConsumer implements Exch
 
     private final PollingSource source;
     private ExchangeFactory exchangeFactory;
+    private volatile HeaderSelection headerSelection = HeaderSelection.none();
 
     PollingSourceConsumer(Endpoint endpoint, PollingSource source) {
         super(endpoint);
@@ -46,9 +50,15 @@ final class PollingSourceConsumer extends DefaultPollingConsumer implements Exch
         this.exchangeFactory = exchangeFactory;
     }
 
-    Exchange newExchange(Object payload) {
+    void setHeaderSelection(HeaderSelection headerSelection) {
+        this.headerSelection = headerSelection;
+    }
+
+    Exchange newExchange(Object payload, Map<String, String> transportHeaders) {
         Preconditions.notNull(exchangeFactory, "ExchangeFactory is required and cannot be null");
-        return exchangeFactory.createExchange(payload);
+        final Exchange exchange = exchangeFactory.createExchange(payload);
+        headerSelection.select(transportHeaders).forEach(exchange::putHeader);
+        return exchange;
     }
 
     @Override

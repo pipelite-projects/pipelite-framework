@@ -73,6 +73,30 @@ public class DefaultKafkaProducerTest {
         verify(kafkaProducer).flush();
     }
 
+    /** Issue #171: the headers the flow chose to hand over are the headers of the record, written as UTF-8 text. */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void givenHeadersChosenByTheFlow_thenTheyAreTheHeadersOfTheRecord() {
+        subject.produce(exchangeWith("a value", "a key"), java.util.Map.of("Idempotency-Key", "req-1"));
+
+        final ArgumentCaptor<ProducerRecord<Object, Object>> record = ArgumentCaptor.forClass(ProducerRecord.class);
+        verify(kafkaProducer).send(record.capture());
+        final org.apache.kafka.common.header.Header header = record.getValue().headers().lastHeader("Idempotency-Key");
+        Assert.assertNotNull(header);
+        Assert.assertEquals("req-1", new String(header.value(), java.nio.charset.StandardCharsets.UTF_8));
+        Assert.assertEquals("a key", record.getValue().key());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void givenNoHeadersChosen_thenTheRecordHasNone() {
+        subject.produce(exchangeWith("a value", "a key"), java.util.Map.of());
+
+        final ArgumentCaptor<ProducerRecord<Object, Object>> record = ArgumentCaptor.forClass(ProducerRecord.class);
+        verify(kafkaProducer).send(record.capture());
+        Assert.assertFalse(record.getValue().headers().iterator().hasNext());
+    }
+
     @Test
     public void givenAnExchangeWithoutPayload_thenNothingIsSent() {
         subject.produce(exchangeWith(null, "a key"));

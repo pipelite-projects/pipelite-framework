@@ -62,7 +62,7 @@ final class PollingSourceHarness implements SourceContext {
     }
 
     @Override
-    public Exchange newExchange(Object payload) {
+    public Exchange newExchange(Object payload, java.util.Map<String, String> transportHeaders) {
         final StubExchange exchange = new StubExchange();
         if (payload != null) {
             exchange.setInputPayload(payload);

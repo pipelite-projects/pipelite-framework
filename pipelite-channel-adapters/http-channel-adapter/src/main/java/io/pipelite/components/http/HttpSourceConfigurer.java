@@ -16,6 +16,8 @@
 package io.pipelite.components.http;
 
 import io.pipelite.dsl.definition.SourceConfigurer;
+import io.pipelite.dsl.headers.HeaderPropagation;
+import io.pipelite.dsl.headers.PropagatesHeaders;
 
 import java.util.Map;
 
@@ -31,13 +33,24 @@ import java.util.Map;
  * was declared but never actually consulted anywhere (issue #62) - a single hardcoded
  * {@code [POST, PUT]} allow-list shared by every resource, not a real per-endpoint restriction.
  */
-public final class HttpSourceConfigurer extends SourceConfigurer {
+public final class HttpSourceConfigurer extends SourceConfigurer implements PropagatesHeaders {
 
     private String method;
+    private HeaderPropagation headerPropagation = HeaderPropagation.none();
 
     public HttpSourceConfigurer method(String method) {
         this.method = method;
         return this;
+    }
+
+    @Override
+    public HeaderPropagation headerPropagation() {
+        return headerPropagation;
+    }
+
+    @Override
+    public void setHeaderPropagation(HeaderPropagation propagation) {
+        this.headerPropagation = propagation;
     }
 
     @Override

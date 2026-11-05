@@ -17,6 +17,8 @@ package io.pipelite.spi.endpoint;
 
 import io.pipelite.dsl.Exchange;
 
+import java.util.Map;
+
 /**
  * What an adapter implements to write an exchange to its destination (a {@code toSink(...)} or a route
  * destination). The framework wraps it in its own node of the flow, which applies the flow's error
@@ -31,6 +33,19 @@ import io.pipelite.dsl.Exchange;
 public interface Producer extends AutoCloseable {
 
     void produce(Exchange exchange);
+
+    /**
+     * Writes the exchange together with the headers the flow chose to hand to the other system with {@code
+     * propagateHeaders(...)} on its sink: none by default. The framework calls this method, never {@link
+     * #produce(Exchange)}. It is already filtered, with the names the flow wrote, and the values are text: the producer
+     * sends them in the form of its protocol (the headers of a Kafka record, of an HTTP request) and does not choose.
+     * <p>
+     * A producer of a protocol that has headers overrides it; the default ignores them and writes the exchange as
+     * {@link #produce(Exchange)} does.
+     */
+    default void produce(Exchange exchange, Map<String, String> headers) {
+        produce(exchange);
+    }
 
     /** Releases what the producer holds. Does nothing by default. */
     @Override

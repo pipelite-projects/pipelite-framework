@@ -198,6 +198,19 @@ public class FlowDefinitionBuilder implements FlowOperations {
         return this;
     }
 
+    @Override
+    public <C extends SinkConfigurer> SinkOperations toSink(String url, java.util.function.Consumer<C> configurer) {
+        Objects.requireNonNull(configurer, "configurer is required and cannot be null");
+        DestinationURLs.requireSink(url);
+        // Erased, like the one of fromSource: the concrete configurer is known once the adapter of the URL is, when the
+        // context starts, and a callback written for another one fails there with a clear message.
+        @SuppressWarnings("unchecked")
+        final java.util.function.Consumer<SinkConfigurer> erasedConfigurer = (java.util.function.Consumer<SinkConfigurer>) configurer;
+        final SinkDefinition sinkDefinition = new SinkDefinitionImpl(url, erasedConfigurer);
+        builder.with(target -> target.setEndpointDefinition(sinkDefinition));
+        return this;
+    }
+
     /**
      * The retry entry point (issue #91) - unlike before, an exhaustion action is mandatory: the
      * configurator lambda can only return a value by calling

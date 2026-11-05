@@ -16,10 +16,25 @@
 package io.pipelite.core.definition.internal;
 
 import io.pipelite.dsl.definition.SinkDefinition;
+import io.pipelite.dsl.definition.SinkConfigurer;
+
+import java.util.function.Consumer;
 
 public class SinkDefinitionImpl extends EndpointDefinitionImpl implements SinkDefinition {
 
+    private final Consumer<SinkConfigurer> configurerCallback;
+
     public SinkDefinitionImpl(String url) {
+        this(url, null);
+    }
+
+    public SinkDefinitionImpl(String url, Consumer<SinkConfigurer> configurerCallback) {
         super(url);
+        this.configurerCallback = configurerCallback;
+    }
+
+    @Override
+    public Consumer<SinkConfigurer> getConfigurerCallback() {
+        return configurerCallback;
     }
 }
