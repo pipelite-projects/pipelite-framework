@@ -79,6 +79,25 @@ public class PollingSourceConsumerTest {
     }
 
     @Test
+    public void givenNothingDeclared_thenWhatTheSourcePollsGetsAGeneratedKey() {
+        payloadsToPoll.add("polled");
+
+        final ExchangeImpl exchange = subject.receive();
+
+        Assert.assertEquals(exchange.getInput().getId(), exchange.getIdempotencyKey());
+    }
+
+    @Test
+    public void givenTheSourceDeclaresTheKey_thenItIsReadFromWhatItPollsAndFromWhatItQueues() {
+        subject.setIdempotencyKey(io.pipelite.dsl.correlation.Correlation.ofHeader("Idempotency-Key"));
+        final ExchangeImpl queued = exchangeFactory.createExchange("queued");
+        queued.putHeader("Idempotency-Key", "client-key-queued");
+        subject.consume(queued);
+
+        Assert.assertEquals("client-key-queued", subject.receive().getIdempotencyKey());
+    }
+
+    @Test
     public void givenTheSourceHasNothing_thenReceiveReturnsNull() {
         Assert.assertNull(subject.receive());
         Assert.assertNull(subject.receive(0));
@@ -122,6 +141,7 @@ public class PollingSourceConsumerTest {
             @Override public void putHeader(String headerName, Object headerValue) { }
             @Override public void removeHeader(String headerName) { }
             @Override public boolean hasHeader(String headerName) { return false; }
+            @Override public String getIdempotencyKey() { return null; }
             @Override public Class<?> getInputPayloadType() { return null; }
             @Override public Object getInputPayload() { return null; }
             @Override public <T> T getInputPayloadAs(Class<T> expectedType) { return null; }

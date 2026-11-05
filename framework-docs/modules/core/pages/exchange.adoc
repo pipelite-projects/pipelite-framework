@@ -40,3 +40,49 @@ Optional<Integer> count = exchange.tryGetHeaderAs("retry-count", Integer.class);
 // Removal
 exchange.removeHeader("temp-header");
 ----
+
+== Idempotency key
+
+A flow runs *at least once*: a retry, a restart that gives back a message that had not been confirmed, or a flow that is replayed and hands the same order over again, can run a step that calls an external system (a payment, a stock reservation, an email) more than once for the same piece of work. Pipelite cannot know whether the first call had an effect, so it cannot avoid the repetition. What it gives you is a key that identifies the piece of work and stays the same each time it is repeated, to hand to the external system, which recognizes the repetition and answers with the result of the first call.
+
+[source,java]
+----
+.process("charge-payment", (exchange, contribution) -> {
+    String key = exchange.getIdempotencyKey() + ":checkout:charge-payment";   // <1>
+    paymentGateway.charge(exchange.getInputPayloadAs(Order.class), key);       // <2>
+})
+----
+<1> The key of the work, with the name of the flow and of the step.
+<2> A call that carries the same key twice is answered with the result of the first one by a system that supports it: an `Idempotency-Key` HTTP header, a deduplication key on a database write.
+
+The key is fixed where the work enters the application and is the same:
+
+* in every step of the flow;
+* in a retry of a step, after the exchange waited at a xref:dsl:barrier.adoc[barrier], and after the application restarted and the durable inbox gave the message back;
+* in the flow that receives the exchange through a `queue://`, also when the flow before it is replayed and hands the exchange over again.
+
+Each element of a xref:dsl:split-aggregate.adoc[split] is a piece of work of its own, with the key of the exchange followed by its position (`<key>-0`, `<key>-1`, ...): the same ones each time the split is run again.
+
+[NOTE]
+====
+*Add the name of the flow and of the step.* Two steps that call the same system with the same key would be taken for one call: the second would get the answer of the first.
+====
+
+=== What the key does not do
+
+* *Pipelite does not skip work that was done.* A call that had an effect before a failure is repeated; only the external system, recognizing the key, avoids the second effect.
+* *A request that its caller sends again is a new piece of work*, unless the source declares what identifies it, see below. The same holds for an exchange you create in code and hand to a source.
+
+=== A key from the request
+
+When the requests carry something that identifies them, a header such as `Idempotency-Key` or an id in the payload, declare it on the source: a request that its caller sends again with the same value is then the same piece of work, and has the same key.
+
+[source,java]
+----
+.fromSource("queue://orders", (SourceConcurrencyConfigurer c) -> c
+    .idempotencyKey(k -> k.headerName("request-id")))      // or k.expression("Payload.orderId")
+----
+
+The key is read the way the key of a xref:dsl:barrier.adoc#_the_key[barrier] is: a header, or an expression. It applies to the exchanges the source creates: an exchange that comes from another flow keeps the key it already has. When the header is missing or the expression gives no value for a request, a generated key is used, and a warning is logged.
+
+NOTE: What can be read depends on what the source puts on the exchange. The `http://` source does not turn the headers of a request into headers of the exchange. The `kafka://` source puts the record key in the header `org.apache.kafka.record_key`, but a record key often identifies an entity that has many events, not a single request: use it only when each key is one request.

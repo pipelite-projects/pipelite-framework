@@ -22,4 +22,12 @@ public interface EndpointFactory {
 
     Endpoint createEndpoint(EndpointDefinition endpointDefinition);
 
+    /**
+     * The key the source declared to identify the requests it receives (issue #40), if it did: not a simple value, so
+     * it does not travel in the URL of the endpoint.
+     */
+    default java.util.Optional<io.pipelite.dsl.correlation.Correlation> idempotencyKeyOf(Endpoint endpoint) {
+        return java.util.Optional.empty();
+    }
+
 }

@@ -19,6 +19,7 @@ import io.pipelite.core.context.internal.InternalPipeliteContext;
 
 import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
+import io.pipelite.core.context.internal.IOKeys;
 import io.pipelite.core.flow.FlowNodeConfigurer;
 import io.pipelite.core.flow.process.ProcessorNodeFactory;
 import io.pipelite.dsl.Headers;
@@ -133,9 +134,16 @@ class SplitterNode extends AbstractFlowNode implements PipeliteContextAware {
             final Collection<?> items = exchange.getInputPayloadAs(Collection.class);
             final List<Object> results = new ArrayList<>();
 
+            final String idempotencyKey = exchange.getIdempotencyKey();
+            int position = 0;
             for (Object item : items) {
                 final Headers childHeaders = new HeadersImpl((HeadersImpl) exchange.getHeaders());
                 final ExchangeImpl child = exchangeFactory.createExchange(childHeaders, item);
+                if (idempotencyKey != null) {
+                    // A piece of work of its own within the step: the same one every time the split is run again.
+                    child.setProperty(IOKeys.IDEMPOTENCY_KEY_PROPERTY_NAME, idempotencyKey + "-" + position);
+                }
+                position++;
                 segmentHead.process(child);
                 final ExchangeImpl collected = collector.consumeResult();
                 results.add(collected.getOutput().getPayloadAs(Object.class));

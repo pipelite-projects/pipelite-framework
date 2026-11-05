@@ -13,6 +13,8 @@ A `Processor` never needs to hold a `Message` reference directly: `exchange.getI
 `getInputPayloadAs(Class)` read the input message's payload, and `exchange.setOutputPayload(Object)`
 writes the output message's payload - see xref:core:exchange.adoc[Exchange].
 
+NOTE: The id of a message changes from one step of the flow to the next, and is not the same when the application restarts and gives a message back: it is not a key to hand to an external system. For that, see the xref:exchange.adoc#_idempotency_key[idempotency key] of the exchange.
+
 == Headers
 
 `Headers` are string key-value pairs that live on the `Exchange` itself, not on the `Message` -

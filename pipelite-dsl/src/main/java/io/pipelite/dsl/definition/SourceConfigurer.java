@@ -15,6 +15,9 @@
  */
 package io.pipelite.dsl.definition;
 
+import io.pipelite.dsl.correlation.Correlation;
+import io.pipelite.dsl.correlation.CorrelationConfigurator;
+
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -53,6 +56,7 @@ public abstract class SourceConfigurer {
     private static final String DURABLE_INBOX_PROPERTY_NAME = "durableInbox";
 
     private Boolean durableInboxEnabled;
+    private Correlation idempotencyKey;
 
     /**
      * Opts this source in or out of the durable inbox (default: enabled, same as today's {@code
@@ -61,6 +65,29 @@ public abstract class SourceConfigurer {
      */
     public final void durableInbox(boolean enabled) {
         this.durableInboxEnabled = enabled;
+    }
+
+    /**
+     * Declares what identifies a request that this source receives, for the {@code Processor}s to hand to the external
+     * systems they call as {@code Exchange#getIdempotencyKey()}: a header ({@code k -> k.headerName("Idempotency-Key")}),
+     * or an expression ({@code k -> k.expression("Payload.orderId")}), read the way the key of a barrier is. Available on
+     * every concrete configurer.
+     * <p>
+     * Without it the key is generated, and is the same each time the framework repeats the work (a retry, a restart);
+     * with it, a request that its caller sends again with the same value is the same piece of work. It applies to the
+     * exchanges the source creates: an exchange that comes from another flow keeps the key it already has. When the
+     * header or the expression gives no value for a request, the generated key is used, with a warning.
+     */
+    public final void idempotencyKey(CorrelationConfigurator key) {
+        this.idempotencyKey = Correlation.from(key);
+    }
+
+    /**
+     * What {@link #idempotencyKey} declared, or {@code null}. Not meant to be called from user code: like the other typed
+     * settings it cannot travel in the query string of the URL, so the framework reads it from here.
+     */
+    public final Correlation getIdempotencyKey() {
+        return idempotencyKey;
     }
 
     /**
