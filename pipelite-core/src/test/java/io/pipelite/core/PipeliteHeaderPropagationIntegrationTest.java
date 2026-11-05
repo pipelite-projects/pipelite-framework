@@ -76,7 +76,7 @@ public class PipeliteHeaderPropagationIntegrationTest {
                 exchange.tryGetHeader("X-Tenant-Id").orElse(null),
                 exchange.tryGetHeader("Http-Method").orElse(null),
                 exchange.tryGetHeader("Http-Path").orElse(null),
-                exchange.tryGetHeader("Http-Query").orElse(null),
+                exchange.tryGetHeader("Http-Query-token").orElse(null),
                 exchange.getIdempotencyKey(),
                 exchange.getInputPayloadAs(String.class))))
             .build();
@@ -102,7 +102,7 @@ public class PipeliteHeaderPropagationIntegrationTest {
     @Test
     public void givenAFilter_thenOnlyTheNamedHeadersReachTheExchange_whateverTheCaseTheClientUsed() throws Exception {
         start(capturing("orders", "http://orders", c -> c.propagateHeaders(
-            h -> h.filter("Idempotency-Key", "X-Tenant-Id", "Http-Method", "Http-Path", "Http-Query"))));
+            h -> h.filter("Idempotency-Key", "X-Tenant-Id", "Http-Method", "Http-Path", "Http-Query-token"))));
 
         send("POST", "/orders?token=abc", "an order",
             "Authorization", "Bearer secret", "idempotency-key", "req-1", "X-TENANT-ID", "t-1");
@@ -114,7 +114,7 @@ public class PipeliteHeaderPropagationIntegrationTest {
         Assert.assertEquals("t-1", only.tenant());
         Assert.assertEquals("POST", only.method());
         Assert.assertEquals("/orders", only.path());
-        Assert.assertEquals("token=abc", only.query());
+        Assert.assertEquals("abc", only.query());
     }
 
     @Test

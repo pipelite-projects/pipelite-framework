@@ -127,12 +127,12 @@ public class DefaultHttpHandlerTest {
      * declared): it hands over all of them, as the client wrote them, and what is known of the request.
      */
     @Test
-    public void shouldHandOverEveryHeaderOfTheRequestAndItsMethodPathAndQuery() throws IOException, InterruptedException {
+    public void shouldHandOverEveryHeaderAndQueryParameterOfTheRequestAndItsMethodAndPath() throws IOException, InterruptedException {
         final RecordingContext context = new RecordingContext(false);
         startSource("headers", context);
 
         final HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create("http://127.0.0.1:" + port + "/headers?token=abc&x=1"))
+            .uri(URI.create("http://127.0.0.1:" + port + "/headers?token=abc&x=1&x=2&name=a%20b"))
             .header("Idempotency-Key", "req-1")
             .header("Authorization", "Bearer secret")
             .header("X-Many", "one")
@@ -147,7 +147,9 @@ public class DefaultHttpHandlerTest {
         Assert.assertEquals("the headers with several values are joined", "one, two", valueOf(handed, "X-Many"));
         Assert.assertEquals("POST", handed.get(io.pipelite.components.http.HttpConstants.METHOD_HEADER_NAME));
         Assert.assertEquals("/headers", handed.get(io.pipelite.components.http.HttpConstants.PATH_HEADER_NAME));
-        Assert.assertEquals("token=abc&x=1", handed.get(io.pipelite.components.http.HttpConstants.QUERY_HEADER_NAME));
+        Assert.assertEquals("abc", handed.get(io.pipelite.components.http.HttpConstants.QUERY_PREFIX + "token"));
+        Assert.assertEquals("the parameters repeated are joined", "1, 2", handed.get(io.pipelite.components.http.HttpConstants.QUERY_PREFIX + "x"));
+        Assert.assertEquals("the parameters are decoded", "a b", handed.get(io.pipelite.components.http.HttpConstants.QUERY_PREFIX + "name"));
     }
 
     @Test
@@ -156,16 +158,16 @@ public class DefaultHttpHandlerTest {
         startSource("forged", context);
 
         final HttpRequest request = HttpRequest.newBuilder()
-            .uri(URI.create("http://127.0.0.1:" + port + "/forged"))
+            .uri(URI.create("http://127.0.0.1:" + port + "/forged?token=from-the-query"))
             .header(io.pipelite.components.http.HttpConstants.METHOD_HEADER_NAME, "DELETE")
-            .header(io.pipelite.components.http.HttpConstants.QUERY_HEADER_NAME, "admin=true")
+            .header(io.pipelite.components.http.HttpConstants.QUERY_PREFIX + "token", "from-a-header")
             .POST(HttpRequest.BodyPublishers.ofString("body"))
             .build();
         Assert.assertEquals(201, httpClient.send(request, HttpResponse.BodyHandlers.ofString()).statusCode());
 
         final java.util.Map<String, String> handed = context.transportHeaders.get(0);
         Assert.assertEquals("POST", handed.get(io.pipelite.components.http.HttpConstants.METHOD_HEADER_NAME));
-        Assert.assertFalse("a request without a query has none", handed.containsKey(io.pipelite.components.http.HttpConstants.QUERY_HEADER_NAME));
+        Assert.assertEquals("from-the-query", handed.get(io.pipelite.components.http.HttpConstants.QUERY_PREFIX + "token"));
     }
 
     private static String valueOf(java.util.Map<String, String> headers, String name) {

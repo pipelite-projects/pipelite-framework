@@ -124,23 +124,21 @@ public class DefaultHttpHandler implements HttpHandler {
     }
 
     /**
-     * Every header of the request, as it was sent (the ones with several values joined with a comma), and what is known of
-     * the request: its method, its path and its query. The handler does not choose: the flow does, with {@code
-     * propagateHeaders}, and the source of the request cannot forge the last three, which are written after its own headers.
+     * Every header of the request, with the name the client wrote (the ones with several values joined with a comma), and what
+     * is known of the request: every parameter of the query, decoded, with the prefix {@link HttpConstants#QUERY_PREFIX}, its
+     * method and its path. The handler does not choose: the flow does, with {@code propagateHeaders}. What the adapter writes is
+     * written after the headers of the request, so a client cannot forge it by sending a header with the same name.
      */
     static Map<String, String> transportHeadersOf(HttpServerExchange httpServerExchange) {
         final Map<String, String> headers = new LinkedHashMap<>();
         for (HeaderValues values : httpServerExchange.getRequestHeaders()) {
             headers.put(values.getHeaderName().toString(), String.join(", ", values));
         }
+        for (Map.Entry<String, java.util.Deque<String>> parameter : httpServerExchange.getQueryParameters().entrySet()) {
+            headers.put(HttpConstants.QUERY_PREFIX + parameter.getKey(), String.join(", ", parameter.getValue()));
+        }
         headers.put(HttpConstants.METHOD_HEADER_NAME, httpServerExchange.getRequestMethod().toString());
         headers.put(HttpConstants.PATH_HEADER_NAME, httpServerExchange.getRequestPath());
-        final String query = httpServerExchange.getQueryString();
-        if (query == null || query.isEmpty()) {
-            headers.remove(HttpConstants.QUERY_HEADER_NAME);
-        } else {
-            headers.put(HttpConstants.QUERY_HEADER_NAME, query);
-        }
         return headers;
     }
 

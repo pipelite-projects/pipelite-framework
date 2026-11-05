@@ -87,7 +87,7 @@ xref:core:exchange.adoc#_idempotency_key[Idempotency key].
 * *Headers from and to the outside.* A source puts on the exchange the headers of the request or of the record,
 and a sink sends the headers of the exchange to the other system, for the ones the flow chooses with
 `propagateHeaders(h -> h.filter("Idempotency-Key"))` (or `h.all()`), none by default. It is the same for every
-channel adapter that has headers: `propagateHeaders` is a capability (`PropagatesHeaders`) of the settings of the endpoints that have them, so it is not offered on a file, a timer, a log or a queue. A sink now has typed settings too, `toSink(url, (KafkaSinkConfigurer c) -> ...)`, and an adapter offers them with `ChannelAdapter#newSinkConfigurer()`. The `http://` source also offers the method, the path and the query of the request, and the
+channel adapter that has headers: `propagateHeaders` is a capability (`PropagatesHeaders`) of the settings of the endpoints that have them, so it is not offered on a file, a timer, a log or a queue. A sink now has typed settings too, `toSink(url, (KafkaSinkConfigurer c) -> ...)`, and an adapter offers them with `ChannelAdapter#newSinkConfigurer()`. The `http://` source also offers the method and the path of the request, and each parameter of the query (`Http-Query-<name>`), and the
 `kafka://` source the topic, the partition, the offset and the timestamp of the record. See
 xref:core:messages.adoc#_headers_from_and_to_the_outside[Headers from and to the outside].
 * *Ordered concurrency.* A queue source with `concurrency` can keep the exchanges that have the same key in
