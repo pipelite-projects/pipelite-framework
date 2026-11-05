@@ -22,8 +22,8 @@ durable inbox, the error handling, the threads - belongs to the framework and is
 |`Producer`
 |What writes one exchange to the external system.
 
-|`ChannelConfigurer`, `SourceConfigurer`
-|Optional typed configuration, adapter-wide and per `fromSource`.
+|`ChannelConfigurer`, `SourceConfigurer`, `SinkConfigurer`
+|Optional typed configuration, adapter-wide and per `fromSource` and `toSink`.
 
 |`ContextEventListener`
 |Optional: told when the context starts and stops.
@@ -104,6 +104,9 @@ itself.
 
 |`newExchange(Object payload)`
 |A new `Exchange` whose input payload is `payload`.
+
+|`newExchange(Object payload, Map<String, String> transportHeaders)`
+|A new `Exchange` whose input payload is `payload`, with the headers of what the source received (the headers of a request or of a record, and what else the protocol says about it that a flow may want: the method, the topic, the offset...). Hand over *all* of them, with the names the protocol gives them, as text: the source does not choose. The framework puts on the exchange only the ones the flow declared with `propagateHeaders(...)`, so every adapter behaves the same way.
 
 |`accept(Exchange)`
 |Hands an exchange to the framework. It returns once the exchange is *accepted*: written to the durable inbox and queued, applying the backpressure of the flow. It throws when the exchange cannot be accepted, and the source must then *not* acknowledge its input.
@@ -225,6 +228,8 @@ public class MyCustomProducer implements Producer {
 <1> A `RuntimeException` thrown here is a failure of the step: the framework applies the flow's error handling around `produce`, so it is retried, dead-lettered or handled like the failure of any processor.
 <2> Optional (the default does nothing). The framework calls it once the producer is no longer needed: when the context stops, for a producer that ends a flow; right after the exchange is delivered, for one created to deliver a single exchange (for example by `supplyExchange`).
 
+A protocol that has headers (the headers of a record, of a request) overrides `produce(Exchange, Map<String, String> headers)` too. The framework calls this method, never `produce(Exchange)`, with the headers the flow chose with `propagateHeaders(...)` on its sink, already filtered and as text: the producer sends them in the form of its protocol and does not choose. The default of the method ignores them and calls `produce(Exchange)`, so a producer of a protocol without headers needs nothing.
+
 == Typed configuration
 
 An adapter that needs configuration offers it in two places, both optional:
@@ -238,6 +243,40 @@ the framework passes the configurers registered with `addChannelConfigurer(...)`
 `timeUnit` and `batchSize`), contribute the query parameters in `contributeQueryParameters`, and return
 a fresh instance from `ChannelAdapter#newSourceConfigurer()`. An adapter may pre-seed defaults there:
 the `time` adapter turns the durable inbox off that way.
+* *Per `toSink(...)`*: implement `SinkConfigurer` (a marker interface, a sink has no base class), and return a fresh instance
+from `ChannelAdapter#newSinkConfigurer()`. A sink with no settings returns nothing, and a flow that gives it a configurer
+fails when the context starts.
+
+=== Capabilities
+
+What a source or a sink can be configured with that is not specific to one adapter is a *capability*: an interface that a
+concrete configurer implements, as many as its endpoint supports. The framework does not know any adapter, it asks each
+configurer which capabilities it has. Today there is one:
+
+`PropagatesHeaders`::
+The endpoint has headers, so the flow can choose which of them cross the border with `propagateHeaders(...)`. Implement it in
+the configurer of a protocol that has headers (the headers of a request, of a record) and keep the value in a field, through
+the two accessors the interface asks for; a protocol without headers does not implement it, and so a flow cannot declare
+them. The source passes all the headers to `SourceContext#newExchange` and the producer overrides
+`produce(Exchange, Map<String, String>)`, as described above: the filter is the framework's.
+
+[source,java]
+----
+public final class MySinkConfigurer implements SinkConfigurer, PropagatesHeaders {
+
+    private HeaderPropagation headerPropagation = HeaderPropagation.none();
+
+    @Override
+    public HeaderPropagation headerPropagation() {
+        return headerPropagation;
+    }
+
+    @Override
+    public void setHeaderPropagation(HeaderPropagation propagation) {
+        this.headerPropagation = propagation;
+    }
+}
+----
 
 == Registration via classpath scan
 

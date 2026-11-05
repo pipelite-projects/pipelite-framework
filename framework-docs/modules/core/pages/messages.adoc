@@ -52,6 +52,36 @@ Headers survive across the whole flow: whenever an `Exchange` advances to the ne
 framework carries a copy of the current headers into the new `Exchange` - a header set at any
 step is still visible in every step downstream.
 
+== Headers from and to the outside
+
+A request that arrives, a Kafka record that is read, and the message a flow writes to another system carry headers of their own: `Idempotency-Key`, `X-Tenant-Id`, a trace id. A flow chooses which of them cross the border, with `propagateHeaders(...)` on the settings of the source for the ones that come in, and on the settings of the sink for the ones that go out. It is the same for every channel adapter that has headers.
+
+[source,java]
+----
+Pipelite.defineFlow("orders")
+    .fromSource("http://orders", (HttpSourceConfigurer c) -> c
+        .propagateHeaders(h -> h.filter("Idempotency-Key", "X-Tenant-Id")))   // <1>
+    .process("charge", (exchange, contribution) -> {
+        String tenant = exchange.expectHeader("X-Tenant-Id");
+        // ...
+    })
+    .toSink("kafka://paid-orders", (KafkaSinkConfigurer c) -> c
+        .propagateHeaders(h -> h.filter("Idempotency-Key")))                   // <2>
+    .build();
+----
+<1> Only these two headers of the request go on the exchange.
+<2> Only this header of the exchange is sent with the record.
+
+* *By default no header crosses the border.* The headers of a request carry credentials (`Authorization`, cookies, tokens), and the headers of an exchange are written to disk with it: they end up in the durable inbox, in the dumps of a failure and in the dead letter queue. A flow takes the ones it needs.
+* *`filter(...)` names the headers, and the case of the name is ignored.* The header has on the other side the name written in the flow, so the flow does not depend on how a client spelled it: `idempotency-key` arrives as `Idempotency-Key`.
+* *`all()` lets every header cross.* Use it only when the flow really needs them all, and know that credentials will be among them.
+* *A header is text.* A number, a boolean or an enum on the exchange is sent as its text; any other value is not sent.
+* *A header that is not there is not an error.* The exchange simply does not have it.
+
+NOTE: `propagateHeaders(...)` exists only on the settings of an endpoint that has headers: `http://` as a source, `kafka://` as a source and as a sink. An endpoint with none (a file, a timer, a log) does not offer it, so the flow does not compile; and `queue://` does not either: an exchange that goes through a queue keeps all its headers.
+
+Besides its headers, what a channel adapter knows about the request or the record is offered in the same way, with names of its own: see xref:channel-adapters:http.adoc#_headers_of_the_request[HTTP] and xref:channel-adapters:kafka.adoc#_headers_of_the_record[Kafka].
+
 == Headers vs. payload
 
 Both travel through the flow together, but for different reasons:

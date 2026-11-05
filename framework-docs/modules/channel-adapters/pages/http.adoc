@@ -39,6 +39,37 @@ query string (see xref:custom.adoc[Custom Channel Adapters] for the general mech
 .fromSource("http://orders", (HttpSourceConfigurer c) -> c.method("POST"))
 ----
 
+=== Headers of the request
+
+The headers of a request do not reach the flow unless the flow asks for them, see xref:core:messages.adoc#_headers_from_and_to_the_outside[Headers from and to the outside]. Besides the headers the client sent, these are offered with the names below:
+
+[cols="1,3"]
+|===
+|Name |Value
+
+|`Http-Method`
+|The method of the request: `POST`.
+
+|`Http-Path`
+|The path of the request, without the query: `/orders`.
+
+|`Http-Query`
+|The query as it was sent: `token=abc&x=1`. Absent when the request has none.
+|===
+
+[source,java]
+----
+.fromSource("http://orders", (HttpSourceConfigurer c) -> {
+    c.propagateHeaders(h -> h.filter("Idempotency-Key", "Http-Method"));
+    c.idempotencyKey(k -> k.headerName("Idempotency-Key"));     // <1>
+})
+----
+<1> A request that the client sends again with the same `Idempotency-Key` is the same piece of work and has the same xref:core:exchange.adoc#_idempotency_key[idempotency key].
+
+A header that the client sent with several values arrives as one value, with the values separated by a comma. A client cannot set `Http-Method`, `Http-Path` or `Http-Query` itself: the adapter always writes them.
+
+WARNING: The query can carry tokens. Ask for `Http-Query` only if the flow needs it, since the headers of the exchange are written to disk with it.
+
 === URL format
 
 [source]

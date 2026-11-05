@@ -40,6 +40,35 @@ string (see xref:custom.adoc[Custom Channel Adapters] for the general mechanism)
     .autoOffsetReset("earliest"))
 ----
 
+=== Headers of the record
+
+The record key is always put on the exchange, in the header `org.apache.kafka.record_key`. The other headers of the record do not reach the flow unless the flow asks for them, see xref:core:messages.adoc#_headers_from_and_to_the_outside[Headers from and to the outside]. Besides the headers of the record, these are offered with the names below:
+
+[cols="1,3"]
+|===
+|Name |Value
+
+|`Kafka-Topic`
+|The topic the record was read from.
+
+|`Kafka-Partition`
+|The partition.
+
+|`Kafka-Offset`
+|The offset of the record in its partition.
+
+|`Kafka-Timestamp`
+|The timestamp of the record, in milliseconds since the epoch.
+|===
+
+[source,java]
+----
+.fromSource("kafka://orders", (KafkaSourceConfigurer c) -> c
+    .propagateHeaders(h -> h.filter("Idempotency-Key", "Kafka-Offset")))
+----
+
+The headers of a Kafka record are bytes: they are read as UTF-8 text. When a name is repeated the last value is kept, and a header with no value is left out.
+
 === URL format
 
 [source]
@@ -56,7 +85,17 @@ NOTE: The query-string keys are Kafka's own native `ConsumerConfig` property nam
 .toSink("kafka://output-topic")
 ----
 
-The `DefaultKafkaProducer` sends the serialized payload as the Kafka record value.
+The `DefaultKafkaProducer` sends the serialized payload as the Kafka record value, and the header `org.apache.kafka.record_key`, if the exchange has it, as the record key.
+
+The headers of the exchange are not sent unless the flow chooses them:
+
+[source,java]
+----
+.toSink("kafka://output-topic", (KafkaSinkConfigurer c) -> c
+    .propagateHeaders(h -> h.filter("Idempotency-Key", "X-Tenant-Id")))
+----
+
+They become the headers of the record, written as UTF-8 text. See xref:core:messages.adoc#_headers_from_and_to_the_outside[Headers from and to the outside].
 
 == Configuration
 
