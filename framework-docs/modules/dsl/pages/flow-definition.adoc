@@ -23,6 +23,14 @@ A source is always a URL, with the scheme of a channel adapter.
 .fromSource("queue://order-processing")
 ----
 
+Every source can declare what identifies the requests it receives, for the xref:core:exchange.adoc#_idempotency_key[idempotency key] that the steps hand to external systems:
+
+[source,java]
+----
+.fromSource("queue://orders", (SourceConcurrencyConfigurer c) -> c
+    .idempotencyKey(k -> k.headerName("request-id")))
+----
+
 `queue://` is the queue in front of an internal flow: the receiving end of a xref:channel-adapters:queue.adoc[`queue://`] hop. Its name must be unique within the `PipeliteContext`, since `queue://order-processing` is read by exactly one flow: `start()` fails if two flows declare the same one. A bare name with no scheme, such as `.fromSource("order-processing")`, is not a source and is rejected when the flow is defined.
 
 A queue source can also declare `?concurrency=N` to have `N` consumers of the queue process up to `N` messages at the same time instead of one at a time:
