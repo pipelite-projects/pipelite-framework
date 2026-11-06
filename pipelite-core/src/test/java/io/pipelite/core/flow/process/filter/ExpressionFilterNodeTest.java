@@ -66,4 +66,28 @@ public class ExpressionFilterNodeTest {
         Mockito.verifyNoInteractions(processContribution);
 
     }
+
+    @Test
+    public void givenAPayload_whenFilteredByNotNull_thenForwardExecution(){
+
+        ExpressionFilterNode onlyWithPayload = new ExpressionFilterNode("Payload != null", expressionParser);
+
+        final ProcessContribution processContribution = Mockito.mock(ProcessContribution.class);
+        onlyWithPayload.process(exchangeFactory.createExchange("a payload"), processContribution);
+
+        Mockito.verifyNoInteractions(processContribution);
+
+    }
+
+    @Test
+    public void givenNoPayload_whenFilteredByNotNull_thenStopExecution(){
+
+        ExpressionFilterNode onlyWithPayload = new ExpressionFilterNode("Payload != null", expressionParser);
+
+        final ProcessContribution processContribution = Mockito.mock(ProcessContribution.class);
+        onlyWithPayload.process(exchangeFactory.createExchange(), processContribution);
+
+        Mockito.verify(processContribution).stopExecution();
+
+    }
 }

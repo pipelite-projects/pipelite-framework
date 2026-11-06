@@ -45,7 +45,7 @@ public class BeanPathExpression extends LazyObject {
         if (!variableHolder.isPresent()) {
             throw new ExpressionException("Unknown variable " + token.getValue());
         }
-        Object value = variableHolder.get();
+        Object value = VariableContext.unwrap(variableHolder.get());
         ElContext context = new ElContext();
         while (tokenizer.hasNext()) {
             token = tokenizer.next();

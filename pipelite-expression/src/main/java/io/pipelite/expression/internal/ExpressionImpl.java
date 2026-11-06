@@ -22,6 +22,7 @@ import java.util.Stack;
 
 import io.pipelite.expression.Expression;
 import io.pipelite.expression.internal.context.EvaluationContext;
+import io.pipelite.expression.internal.context.VariableContext;
 import io.pipelite.expression.internal.context.concurrent.ConcurrentEvaluationException;
 import io.pipelite.expression.internal.el.ShuntingYardFunction;
 import io.pipelite.expression.internal.el.ShuntingYardFunctionImpl;
@@ -278,7 +279,7 @@ public class ExpressionImpl implements Expression {
         if (name != null) {
             Optional<Object> valueHolder = evaluationContext.tryResolveVariable(name);
             if (valueHolder.isPresent()) {
-                Object value = valueHolder.get();
+                Object value = VariableContext.unwrap(valueHolder.get());
                 return Optional.of(new Variable(name, value));
             }
         }

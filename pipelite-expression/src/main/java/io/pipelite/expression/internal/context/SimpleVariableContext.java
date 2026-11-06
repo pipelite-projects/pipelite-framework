@@ -42,7 +42,7 @@ public class SimpleVariableContext implements VariableContext {
 
     @Override
     public void putVariable(String name, Object value) {
-        variableContext.put(name, value);
+        variableContext.put(name, value == null ? NULL_VALUE : value);
     }
 
     @Override

@@ -23,6 +23,21 @@ import io.pipelite.common.support.Preconditions;
 
 public interface VariableContext extends Iterable<VariableContext.Entry> {
 
+    /**
+     * Stands for a variable whose value is null, which an {@link Optional} cannot hold: the contexts keep it in place of the
+     * null, and whoever resolves a variable gives it back as null with {@link #unwrap}.
+     */
+    Object NULL_VALUE = new Object() {
+        @Override
+        public String toString() {
+            return "null";
+        }
+    };
+
+    static Object unwrap(Object value) {
+        return value == NULL_VALUE ? null : value;
+    }
+
     void putVariable(String variableName, Object value);
 
     Optional<Object> tryResolveVariable(String variableName);
