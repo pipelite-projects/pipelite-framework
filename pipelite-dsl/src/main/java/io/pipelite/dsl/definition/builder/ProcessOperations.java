@@ -23,6 +23,9 @@ import io.pipelite.dsl.barrier.BarrierConfigurator;
 import io.pipelite.dsl.barrier.BarrierOperations;
 import io.pipelite.dsl.split.SplitConfigurator;
 
+import io.pipelite.dsl.definition.SinkConfigurer;
+
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public interface ProcessOperations extends BuildOperations {
@@ -50,5 +53,14 @@ public interface ProcessOperations extends BuildOperations {
     ProcessOperations barrier(String name, BarrierConfigurator barrierConfigurator);
 
     SinkOperations toSink(String url);
+
+    /**
+     * Like {@link #toSink(String)}, with the typed settings of the sink, the counterpart of {@code fromSource(url,
+     * configurer)}: {@code toSink("kafka://orders", (KafkaSinkConfigurer c) -> c.propagateHeaders(h ->
+     * h.filter("Idempotency-Key")))}. The type of the configurer is the one of the adapter of the URL, and an adapter that
+     * has no settings for a sink does not accept one: both are checked when the context starts. See {@link
+     * SinkConfigurer}.
+     */
+    <C extends SinkConfigurer> SinkOperations toSink(String url, Consumer<C> configurer);
 
 }

@@ -44,7 +44,7 @@ public class TimeSourceTest {
             }
 
             @Override
-            public Exchange newExchange(Object payload) {
+            public Exchange newExchange(Object payload, java.util.Map<String, String> transportHeaders) {
                 final StubExchange exchange = new StubExchange();
                 exchange.setInputPayload(payload);
                 return exchange;

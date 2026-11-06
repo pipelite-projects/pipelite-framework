@@ -17,6 +17,7 @@ package io.pipelite.spi.source;
 
 import io.pipelite.dsl.Exchange;
 
+import java.util.Map;
 import java.util.concurrent.ThreadFactory;
 
 /** The handles the framework gives a {@link Source}. */
@@ -25,8 +26,22 @@ public interface SourceContext {
     /** The name of the flow this source feeds. */
     String flowName();
 
-    /** A new exchange whose input payload is {@code payload}. */
-    Exchange newExchange(Object payload);
+    /** A new exchange whose input payload is {@code payload}, with no header of the transport. */
+    default Exchange newExchange(Object payload) {
+        return newExchange(payload, Map.of());
+    }
+
+    /**
+     * A new exchange whose input payload is {@code payload}, with the headers of what the source received: the headers
+     * of an HTTP request, of a Kafka record, and whatever else the protocol says about it that a flow may want to read
+     * (the method, the topic, the offset...).
+     * <p>
+     * The source hands over <em>all</em> of them, as they are, with the names the protocol gives them: it does not choose.
+     * The framework puts on the exchange only the ones the flow declared with {@code propagateHeaders(...)}, none by
+     * default, ignoring the case of the names, so every adapter behaves the same way and none has a filter of its own.
+     * A value that is not text is converted by the source before it hands it over.
+     */
+    Exchange newExchange(Object payload, Map<String, String> transportHeaders);
 
     /**
      * Hands an exchange to the framework. It returns when the exchange has been accepted: written to the

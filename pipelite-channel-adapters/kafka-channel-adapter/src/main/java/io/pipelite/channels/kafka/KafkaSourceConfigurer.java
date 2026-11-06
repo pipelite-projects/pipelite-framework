@@ -16,6 +16,8 @@
 package io.pipelite.channels.kafka;
 
 import io.pipelite.dsl.definition.SourceConfigurer;
+import io.pipelite.dsl.headers.HeaderPropagation;
+import io.pipelite.dsl.headers.PropagatesHeaders;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 import java.util.Map;
@@ -32,10 +34,11 @@ import java.util.Map;
  * exactly as before, unaware whether that value came from a literal query string or was
  * synthesized from this configurer.
  */
-public final class KafkaSourceConfigurer extends SourceConfigurer {
+public final class KafkaSourceConfigurer extends SourceConfigurer implements PropagatesHeaders {
 
     private String groupId;
     private String autoOffsetReset;
+    private HeaderPropagation headerPropagation = HeaderPropagation.none();
 
     public KafkaSourceConfigurer groupId(String groupId) {
         this.groupId = groupId;
@@ -45,6 +48,16 @@ public final class KafkaSourceConfigurer extends SourceConfigurer {
     public KafkaSourceConfigurer autoOffsetReset(String autoOffsetReset) {
         this.autoOffsetReset = autoOffsetReset;
         return this;
+    }
+
+    @Override
+    public HeaderPropagation headerPropagation() {
+        return headerPropagation;
+    }
+
+    @Override
+    public void setHeaderPropagation(HeaderPropagation propagation) {
+        this.headerPropagation = propagation;
     }
 
     @Override

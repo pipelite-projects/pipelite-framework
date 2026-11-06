@@ -65,7 +65,10 @@ A source acknowledges its input (commits an offset, answers a request) only afte
 `pipelite-spi` now contains only the types an adapter author sees and depends on `pipelite-dsl` alone.
 Adapter unit tests can no longer build the framework's `Exchange` implementation: use a stub of the
 `Exchange` interface, or add `pipelite-core` as a test dependency. The `Exchange` interface has a new method,
-`getIdempotencyKey()`: a stub of it must implement it.
+`getIdempotencyKey()`: a stub of it must implement it. `SourceContext` has a new method,
+`newExchange(payload, transportHeaders)`, that an adapter with headers calls with all of them (a stub of the
+context must implement it), and `Producer` a method `produce(exchange, headers)` that the framework calls with
+the headers the flow chose to send and that an adapter with headers overrides.
 
 == Build
 
@@ -81,6 +84,12 @@ xref:dsl:barrier.adoc[Barrier].
 carries and is the same in every step, retry, restart and flow, to hand to the external systems a step calls. A
 source can declare it from the request with `idempotencyKey(...)`. See
 xref:core:exchange.adoc#_idempotency_key[Idempotency key].
+* *Headers from and to the outside.* A source puts on the exchange the headers of the request or of the record,
+and a sink sends the headers of the exchange to the other system, for the ones the flow chooses with
+`propagateHeaders(h -> h.filter("Idempotency-Key"))` (or `h.all()`), none by default. It is the same for every
+channel adapter that has headers: `propagateHeaders` is a capability (`PropagatesHeaders`) of the settings of the endpoints that have them, so it is not offered on a file, a timer, a log or a queue. A sink now has typed settings too, `toSink(url, (KafkaSinkConfigurer c) -> ...)`, and an adapter offers them with `ChannelAdapter#newSinkConfigurer()`. The `http://` source also offers the method and the path of the request, and each parameter of the query (`Http-Query-<name>`), and the
+`kafka://` source the topic, the partition, the offset and the timestamp of the record. See
+xref:core:messages.adoc#_headers_from_and_to_the_outside[Headers from and to the outside].
 * *Ordered concurrency.* A queue source with `concurrency` can keep the exchanges that have the same key in
 the order they arrived, while the others run in parallel, with `orderedBy(...)`. Nothing changes for a source
 that does not declare it. See xref:channel-adapters:queue.adoc#_order_and_concurrency[Order and `concurrency`].

@@ -28,4 +28,10 @@ public class KafkaConstants {
 
     public static final String KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME = "org.apache.kafka.record_key";
 
+    // What the source knows of a record besides its headers, handed over with them: the flow chooses which to keep.
+    public static final String TOPIC_HEADER_NAME = "Kafka-Topic";
+    public static final String PARTITION_HEADER_NAME = "Kafka-Partition";
+    public static final String OFFSET_HEADER_NAME = "Kafka-Offset";
+    public static final String TIMESTAMP_HEADER_NAME = "Kafka-Timestamp";
+
 }

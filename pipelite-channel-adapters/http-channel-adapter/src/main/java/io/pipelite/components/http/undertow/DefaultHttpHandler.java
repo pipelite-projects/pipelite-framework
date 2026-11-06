@@ -16,11 +16,13 @@
 package io.pipelite.components.http.undertow;
 
 import io.pipelite.components.http.HttpChannelAdapter;
+import io.pipelite.components.http.HttpConstants;
 import io.pipelite.components.http.HttpSource;
 import io.undertow.server.BlockingHttpExchange;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.RequestTooBigException;
+import io.undertow.util.HeaderValues;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,6 +32,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -89,7 +93,7 @@ public class DefaultHttpHandler implements HttpHandler {
                     .collect(Collectors.joining("\n"));
 
                 try {
-                    source.accept(requestBodyAsText);
+                    source.accept(requestBodyAsText, transportHeadersOf(httpServerExchange));
                     httpServerExchange.setStatusCode(201);
                 } catch (RuntimeException notAccepted) {
                     // The request could not be accepted (the durable inbox could not be written): it was not
@@ -117,6 +121,25 @@ public class DefaultHttpHandler implements HttpHandler {
             httpServerExchange.endExchange();
         }
 
+    }
+
+    /**
+     * Every header of the request, with the name the client wrote (the ones with several values joined with a comma), and what
+     * is known of the request: every parameter of the query, decoded, with the prefix {@link HttpConstants#QUERY_PREFIX}, its
+     * method and its path. The handler does not choose: the flow does, with {@code propagateHeaders}. What the adapter writes is
+     * written after the headers of the request, so a client cannot forge it by sending a header with the same name.
+     */
+    static Map<String, String> transportHeadersOf(HttpServerExchange httpServerExchange) {
+        final Map<String, String> headers = new LinkedHashMap<>();
+        for (HeaderValues values : httpServerExchange.getRequestHeaders()) {
+            headers.put(values.getHeaderName().toString(), String.join(", ", values));
+        }
+        for (Map.Entry<String, java.util.Deque<String>> parameter : httpServerExchange.getQueryParameters().entrySet()) {
+            headers.put(HttpConstants.QUERY_PREFIX + parameter.getKey(), String.join(", ", parameter.getValue()));
+        }
+        headers.put(HttpConstants.METHOD_HEADER_NAME, httpServerExchange.getRequestMethod().toString());
+        headers.put(HttpConstants.PATH_HEADER_NAME, httpServerExchange.getRequestPath());
+        return headers;
     }
 
     /**

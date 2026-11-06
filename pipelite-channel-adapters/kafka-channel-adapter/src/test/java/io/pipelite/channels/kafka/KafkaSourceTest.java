@@ -63,6 +63,7 @@ public class KafkaSourceTest {
 
     /** What the framework gives the source, reduced to recording what is handed over, or refusing it. */
     private static final class RecordingContext implements SourceContext {
+        private final List<java.util.Map<String, String>> transportHeaders = new ArrayList<>();
         private final List<Exchange> accepted = new ArrayList<>();
         private final int failAtZeroBasedIndex;
         private final AtomicBoolean running = new AtomicBoolean(true);
@@ -77,7 +78,8 @@ public class KafkaSourceTest {
         }
 
         @Override
-        public Exchange newExchange(Object payload) {
+        public Exchange newExchange(Object payload, java.util.Map<String, String> headers) {
+            transportHeaders.add(headers);
             final StubExchange exchange = new StubExchange();
             exchange.setInputPayload(payload);
             return exchange;
@@ -174,6 +176,36 @@ public class KafkaSourceTest {
                 context.accepted.get(i).tryGetHeader(KafkaConstants.KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME).orElse(null));
         }
         verify(mockKafkaConsumer, times(1)).commitSync();
+    }
+
+    /**
+     * Issue #171: the source does not choose which headers go on the exchange (the framework does, by what the flow
+     * declared): it hands over all the headers of the record and what is known of the record.
+     */
+    @Test
+    public void shouldHandOverTheHeadersOfTheRecordAndItsTopicPartitionOffsetAndTimestamp() {
+        final RecordingContext context = startedWith(-1);
+        final ConsumerRecord<Object, Object> record = new ConsumerRecord<>(TOPIC, 2, 41L, 1700000000000L,
+            org.apache.kafka.common.record.TimestampType.CREATE_TIME, 0, 0, "key", "value",
+            new org.apache.kafka.common.header.internals.RecordHeaders(List.of(
+                new org.apache.kafka.common.header.internals.RecordHeader("Idempotency-Key", "req-1".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                new org.apache.kafka.common.header.internals.RecordHeader("X-Repeated", "first".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                new org.apache.kafka.common.header.internals.RecordHeader("X-Repeated", "last".getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                new org.apache.kafka.common.header.internals.RecordHeader("X-Empty", null))),
+            java.util.Optional.empty());
+        final ConsumerRecords<Object, Object> batch = new ConsumerRecords<>(
+            Collections.singletonMap(new TopicPartition(TOPIC, 2), List.of(record)));
+
+        source.processBatch(batch);
+
+        final Map<String, String> handed = context.transportHeaders.get(0);
+        Assert.assertEquals("req-1", handed.get("Idempotency-Key"));
+        Assert.assertEquals("the last of a repeated header", "last", handed.get("X-Repeated"));
+        Assert.assertFalse("a header without a value is left out", handed.containsKey("X-Empty"));
+        Assert.assertEquals(TOPIC, handed.get(KafkaConstants.TOPIC_HEADER_NAME));
+        Assert.assertEquals("2", handed.get(KafkaConstants.PARTITION_HEADER_NAME));
+        Assert.assertEquals("41", handed.get(KafkaConstants.OFFSET_HEADER_NAME));
+        Assert.assertEquals("1700000000000", handed.get(KafkaConstants.TIMESTAMP_HEADER_NAME));
     }
 
     @Test

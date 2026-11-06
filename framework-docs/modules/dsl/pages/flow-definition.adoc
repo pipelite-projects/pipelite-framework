@@ -31,6 +31,8 @@ Every source can declare what identifies the requests it receives, for the xref:
     .idempotencyKey(k -> k.headerName("request-id")))
 ----
 
+A source also chooses which headers of the request or of the record go on the Exchange, none by default, with `propagateHeaders(...)`: see xref:core:messages.adoc#_headers_from_and_to_the_outside[Headers from and to the outside].
+
 `queue://` is the queue in front of an internal flow: the receiving end of a xref:channel-adapters:queue.adoc[`queue://`] hop. Its name must be unique within the `PipeliteContext`, since `queue://order-processing` is read by exactly one flow: `start()` fails if two flows declare the same one. A bare name with no scheme, such as `.fromSource("order-processing")`, is not a source and is rejected when the flow is defined.
 
 A queue source can also declare `?concurrency=N` to have `N` consumers of the queue process up to `N` messages at the same time instead of one at a time:
@@ -137,6 +139,14 @@ After `toSink`, only `withRetry`, `withErrorChannel`, `withExceptionHandler`, an
 ----
 
 A sink is always a URL: the protocol of a channel adapter, or `queue://<name>` to hand the Exchange to the flow that reads that queue (see xref:channel-adapters:queue.adoc[`queue://`]). A bare name such as `.toSink("output")` is rejected when the flow is defined.
+
+The headers of the Exchange are not sent to the destination unless the flow chooses them, with the settings of the sink (see xref:core:messages.adoc#_headers_from_and_to_the_outside[Headers from and to the outside]):
+
+[source,java]
+----
+.toSink("kafka://output-topic", (KafkaSinkConfigurer c) -> c
+    .propagateHeaders(h -> h.filter("Idempotency-Key")))
+----
 
 A flow does not need a sink. Leave `toSink` out and the flow simply ends after its last step; a flow that ends with `toRoute` or `toRecipientList` hands the Exchange on through them.
 

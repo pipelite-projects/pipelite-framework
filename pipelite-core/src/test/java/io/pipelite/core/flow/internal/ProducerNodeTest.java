@@ -20,6 +20,7 @@ import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.core.context.internal.IOKeys;
 import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.HeaderSelection;
 import io.pipelite.core.exchange.internal.SimpleMessage;
 import org.junit.Assert;
 import org.junit.Test;
@@ -91,6 +92,60 @@ public class ProducerNodeTest {
         final ExchangeImpl exchange = newExchange();
 
         node.process(exchange);
+
+        Assert.assertSame(exchange, received[0]);
+    }
+
+    /** A producer of a protocol that has headers: it records what the framework hands it, and chooses nothing. */
+    private static final class HeaderRecordingProducer implements Producer {
+        private java.util.Map<String, String> received;
+
+        @Override
+        public void produce(Exchange exchange) {
+            Assert.fail("the framework hands over the headers with the exchange");
+        }
+
+        @Override
+        public void produce(Exchange exchange, java.util.Map<String, String> headers) {
+            received = headers;
+        }
+    }
+
+    private static ExchangeImpl exchangeWithHeaders() {
+        final ExchangeImpl exchange = newExchange();
+        exchange.putHeader("Authorization", "Bearer secret");
+        exchange.putHeader("idempotency-key", "abc");
+        exchange.putHeader("attempt", 2);
+        return exchange;
+    }
+
+    @Test
+    public void givenNothingDeclaredOnTheSink_thenTheProducerReceivesNoHeader() {
+        final HeaderRecordingProducer producer = new HeaderRecordingProducer();
+
+        new ProducerNode(producer).process(exchangeWithHeaders());
+
+        Assert.assertTrue(producer.received.isEmpty());
+    }
+
+    @Test
+    public void givenAFilterOnTheSink_thenTheProducerReceivesOnlyTheNamedHeadersAsText() {
+        final HeaderRecordingProducer producer = new HeaderRecordingProducer();
+        final HeaderSelection selection = new HeaderSelection(
+            io.pipelite.dsl.headers.HeaderPropagation.ofNames("Idempotency-Key", "attempt"));
+
+        new ProducerNode(producer, selection).process(exchangeWithHeaders());
+
+        Assert.assertEquals(java.util.Map.of("Idempotency-Key", "abc", "attempt", "2"), producer.received);
+    }
+
+    @Test
+    public void givenAProducerThatIgnoresHeaders_thenItIsStillGivenTheExchange() {
+        final ExchangeImpl[] received = new ExchangeImpl[1];
+        final HeaderSelection selection = new HeaderSelection(io.pipelite.dsl.headers.HeaderPropagation.ofNames("Idempotency-Key"));
+        final ExchangeImpl exchange = exchangeWithHeaders();
+
+        new ProducerNode(e -> received[0] = (ExchangeImpl) e, selection).process(exchange);
 
         Assert.assertSame(exchange, received[0]);
     }

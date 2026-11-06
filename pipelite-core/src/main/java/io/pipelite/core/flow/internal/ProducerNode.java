@@ -19,6 +19,7 @@ import io.pipelite.common.support.Preconditions;
 import io.pipelite.spi.endpoint.Producer;
 import io.pipelite.core.flow.internal.AbstractFlowNode;
 import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.HeaderSelection;
 import io.pipelite.core.flow.internal.FlowNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,9 +41,19 @@ public final class ProducerNode extends AbstractFlowNode {
     private final Logger sysLogger = LoggerFactory.getLogger(getClass());
 
     private final Producer producer;
+    private final HeaderSelection headerSelection;
 
     public ProducerNode(Producer producer) {
+        this(producer, HeaderSelection.none());
+    }
+
+    /**
+     * @param headerSelection which headers of the exchange are handed to the other system, as the flow declared on its
+     *                        sink (issue #171): the producer receives only those, and does not choose
+     */
+    public ProducerNode(Producer producer, HeaderSelection headerSelection) {
         this.producer = Preconditions.notNull(producer, "producer is required and cannot be null");
+        this.headerSelection = Preconditions.notNull(headerSelection, "headerSelection is required and cannot be null");
     }
 
     @Override
@@ -58,7 +69,7 @@ public final class ProducerNode extends AbstractFlowNode {
     @Override
     public void process(ExchangeImpl exchange) {
         try {
-            producer.produce(exchange);
+            producer.produce(exchange, headerSelection.selectFrom(exchange.getHeaders()));
         } catch (RuntimeException exception) {
             if (sysLogger.isErrorEnabled()) {
                 sysLogger.error("An underlying error occurred producing message", exception);

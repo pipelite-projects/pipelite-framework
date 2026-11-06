@@ -17,7 +17,9 @@ package io.pipelite.core.source.internal;
 
 import io.pipelite.dsl.Exchange;
 import io.pipelite.spi.endpoint.Endpoint;
+import io.pipelite.core.consumer.internal.HeaderPropagationAware;
 import io.pipelite.core.consumer.internal.ScheduledPollingConsumerService;
+import io.pipelite.core.exchange.internal.HeaderSelection;
 import io.pipelite.core.concurrent.internal.DefaultThreadFactory;
 import io.pipelite.core.concurrent.internal.FlowNameAbbreviator;
 import io.pipelite.core.exchange.internal.ExchangeFactory;
@@ -25,12 +27,13 @@ import io.pipelite.core.exchange.internal.ExchangeFactoryAware;
 import io.pipelite.spi.source.PollingSource;
 import io.pipelite.spi.source.SourceContext;
 
+import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 
 /** The consumer of a flow fed by a {@link PollingSource}: the schedule is the framework's. */
-final class PollingSourceService extends ScheduledPollingConsumerService implements ExchangeFactoryAware {
+final class PollingSourceService extends ScheduledPollingConsumerService implements ExchangeFactoryAware, HeaderPropagationAware {
 
     private final PollingSource source;
     private final PollingSourceConsumer consumer;
@@ -58,6 +61,11 @@ final class PollingSourceService extends ScheduledPollingConsumerService impleme
     }
 
     @Override
+    public void setHeaderSelection(HeaderSelection headerSelection) {
+        consumer.setHeaderSelection(headerSelection);
+    }
+
+    @Override
     public void doStart() {
         source.start(new Context());
         super.doStart();
@@ -77,8 +85,8 @@ final class PollingSourceService extends ScheduledPollingConsumerService impleme
         }
 
         @Override
-        public Exchange newExchange(Object payload) {
-            return consumer.newExchange(payload);
+        public Exchange newExchange(Object payload, Map<String, String> transportHeaders) {
+            return consumer.newExchange(payload, transportHeaders);
         }
 
         @Override

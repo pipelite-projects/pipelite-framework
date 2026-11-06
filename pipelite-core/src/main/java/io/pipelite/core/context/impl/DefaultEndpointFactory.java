@@ -25,8 +25,12 @@ import io.pipelite.core.context.internal.DestinationURLs;
 import io.pipelite.core.context.internal.SourceURLs;
 import io.pipelite.core.definition.TypedSourceDefinition;
 import io.pipelite.dsl.definition.EndpointDefinition;
+import io.pipelite.dsl.definition.SinkConfigurer;
+import io.pipelite.dsl.definition.SinkDefinition;
 import io.pipelite.dsl.definition.SourceConfigurer;
 import io.pipelite.dsl.definition.SourceDefinition;
+import io.pipelite.dsl.headers.HeaderPropagation;
+import io.pipelite.dsl.headers.PropagatesHeaders;
 import io.pipelite.expression.support.ReflectionUtils;
 import io.pipelite.spi.channel.ChannelAdapter;
 import io.pipelite.core.context.internal.ChannelURL;
@@ -44,6 +48,10 @@ public class DefaultEndpointFactory implements EndpointFactory {
 
     /** By identity: two endpoints can be equal and have declared different keys. */
     private final Map<Endpoint, io.pipelite.dsl.correlation.Correlation> idempotencyKeys =
+        java.util.Collections.synchronizedMap(new java.util.IdentityHashMap<>());
+
+    /** By identity, for the same reason. The endpoints, of a source or of a sink, whose configurer declared which headers cross the border. */
+    private final Map<Endpoint, HeaderPropagation> headerPropagations =
         java.util.Collections.synchronizedMap(new java.util.IdentityHashMap<>());
 
     private final ChannelAdapterManager channelAdapterManager;
@@ -88,12 +96,22 @@ public class DefaultEndpointFactory implements EndpointFactory {
         final ChannelAdapter channel = channelAdapterManager.resolveChannel(channelURL.getProtocol());
         rejectSourceConcurrencyParams(channel, channelURL.getProtocol(), channelURL.getEndpointURL());
         final ConfiguredSource configured = applySourceConfigurer(endpointDefinition, channel, channelURL.getEndpointURL());
+        final SinkConfigurer sinkSettings = applySinkConfigurer(endpointDefinition, channel, channelURL.getEndpointURL());
         final Endpoint endpoint = channel.createEndpoint(configured.endpointURL());
         handOverTypedSettings(configured.settings(), endpoint);
         if (configured.settings() != null && configured.settings().getIdempotencyKey() != null) {
             idempotencyKeys.put(endpoint, configured.settings().getIdempotencyKey());
         }
+        final Object configurer = configured.settings() != null ? configured.settings() : sinkSettings;
+        if (configurer instanceof PropagatesHeaders propagatesHeaders && !propagatesHeaders.headerPropagation().isNone()) {
+            headerPropagations.put(endpoint, propagatesHeaders.headerPropagation());
+        }
         return endpoint;
+    }
+
+    @Override
+    public HeaderPropagation headerPropagationOf(Endpoint endpoint) {
+        return headerPropagations.getOrDefault(endpoint, HeaderPropagation.none());
     }
 
     @Override
@@ -162,6 +180,31 @@ public class DefaultEndpointFactory implements EndpointFactory {
         }
 
         return new ConfiguredSource(mergeQueryParameters(endpointURL, settings.toQueryParameters()), settings);
+    }
+
+    /**
+     * Applies the {@code toSink(url, configurer)} callback to the configurer the adapter hands out for a sink, and returns it,
+     * for the framework to read the capabilities it implements. {@code null} when the sink has no callback. An adapter that has
+     * no configurer for a sink does not accept a callback, and a callback written for the configurer of another adapter is
+     * reported, both with a clear message, the way a source is.
+     */
+    private static SinkConfigurer applySinkConfigurer(EndpointDefinition endpointDefinition, ChannelAdapter channel, String endpointURL) {
+        if (!(endpointDefinition instanceof SinkDefinition sinkDefinition) || sinkDefinition.getConfigurerCallback() == null) {
+            return null;
+        }
+        final SinkConfigurer settings = channel.newSinkConfigurer();
+        if (settings == null) {
+            throw new IllegalStateException(String.format(
+                "Endpoint '%s' does not support a SinkConfigurer", endpointURL));
+        }
+        try {
+            sinkDefinition.getConfigurerCallback().accept(settings);
+        } catch (ClassCastException exception) {
+            throw new IllegalArgumentException(String.format(
+                "Wrong SinkConfigurer type supplied for endpoint '%s' - expected one accepting a %s",
+                endpointURL, settings.getClass().getSimpleName()), exception);
+        }
+        return settings;
     }
 
     private static String mergeQueryParameters(String endpointURL, Map<String, String> extraParameters) {

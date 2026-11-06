@@ -19,16 +19,20 @@ import io.pipelite.dsl.Exchange;
 import io.pipelite.spi.endpoint.Endpoint;
 import io.pipelite.core.consumer.internal.EventDrivenConsumer;
 import io.pipelite.core.consumer.internal.EventDrivenConsumerService;
+import io.pipelite.core.consumer.internal.HeaderPropagationAware;
+import io.pipelite.core.exchange.internal.HeaderSelection;
 import io.pipelite.spi.source.EventSource;
 import io.pipelite.spi.source.SourceContext;
 
+import java.util.Map;
 import java.util.concurrent.ThreadFactory;
 
 /** The consumer of a flow fed by an {@link EventSource}: it starts the source once the machinery is running. */
-final class EventSourceService extends EventDrivenConsumerService {
+final class EventSourceService extends EventDrivenConsumerService implements HeaderPropagationAware {
 
     private final EventSource source;
     private String flowName;
+    private volatile HeaderSelection headerSelection = HeaderSelection.none();
 
     EventSourceService(EventSource source, Endpoint endpoint, String role) {
         super(new EventDrivenConsumer(endpoint), role);
@@ -39,6 +43,11 @@ final class EventSourceService extends EventDrivenConsumerService {
     public void setFlowName(String flowName) {
         this.flowName = flowName;
         super.setFlowName(flowName);
+    }
+
+    @Override
+    public void setHeaderSelection(HeaderSelection headerSelection) {
+        this.headerSelection = headerSelection;
     }
 
     @Override
@@ -61,8 +70,10 @@ final class EventSourceService extends EventDrivenConsumerService {
         }
 
         @Override
-        public Exchange newExchange(Object payload) {
-            return exchangeFactory.createExchange(payload);
+        public Exchange newExchange(Object payload, Map<String, String> transportHeaders) {
+            final Exchange exchange = exchangeFactory.createExchange(payload);
+            headerSelection.select(transportHeaders).forEach(exchange::putHeader);
+            return exchange;
         }
 
         @Override

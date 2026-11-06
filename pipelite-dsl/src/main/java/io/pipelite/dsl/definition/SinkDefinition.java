@@ -15,5 +15,15 @@
  */
 package io.pipelite.dsl.definition;
 
+import java.util.function.Consumer;
+
 public interface SinkDefinition extends EndpointDefinition {
+
+    /**
+     * The lambda passed to {@code toSink(url, configurer)}, erased to the common {@link SinkConfigurer} type - {@code
+     * null} if this sink was declared via the plain {@code toSink(String)} overload. Applied by {@code
+     * DefaultEndpointFactory} once the concrete configurer for this sink's actual adapter is known, the way the callback
+     * of a source is ({@link SourceDefinition#getConfigurerCallback()}).
+     */
+    Consumer<SinkConfigurer> getConfigurerCallback();
 }
