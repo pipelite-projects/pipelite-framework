@@ -45,7 +45,6 @@ public class StandardEvaluationContext implements EvaluationContext {
         // Implicit variables
         this.globalVariableRegistry.put("pi", Constants.PI);
         this.globalVariableRegistry.put("e", Constants.e);
-        this.globalVariableRegistry.put("null", Constants.NULL);
 
     }
 

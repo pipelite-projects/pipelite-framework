@@ -79,6 +79,8 @@ variables are bound automatically before every evaluation:
 
 String literals use single quotes (`'ORDER'`), not double.
 
+`null` is a literal too, in any case: `Payload != null`, `Headers['type'] == null`. An exchange without payload has a `null` `Payload`, and a header the exchange does not have is `null`.
+
 === Expression examples
 
 [source]
