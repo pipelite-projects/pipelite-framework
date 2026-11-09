@@ -57,6 +57,9 @@ public class Constants {
     public final static BigDecimal e = new BigDecimal(
             "2.71828182845904523536028747135266249775724709369995957496696762772407663");
 
-    public final static Object NULL = null;
+    /**
+     * The null literal, in any case. A literal, not a variable: a variable cannot hold null.
+     */
+    public final static String NULL_LITERAL = "null";
 
 }

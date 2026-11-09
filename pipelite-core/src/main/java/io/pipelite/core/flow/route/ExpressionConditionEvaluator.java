@@ -49,9 +49,8 @@ public class ExpressionConditionEvaluator implements ConditionEvaluator {
         final ExpressionCondition expressionCondition = (ExpressionCondition) condition;
         Preconditions.hasText(expressionCondition.getExpression(), "routeCondition.expression must have text");
 
-        if(exchange.getInputPayload() != null){
-            expressionParser.putVariable(PAYLOAD_VARIABLE_NAME, exchange.getInputPayload());
-        }
+        // Set even when null, so that Payload == null can be asked
+        expressionParser.putVariable(PAYLOAD_VARIABLE_NAME, exchange.getInputPayload());
         expressionParser.putVariable(HEADERS_VARIABLE_NAME, exchange.getHeaders());
 
         try{

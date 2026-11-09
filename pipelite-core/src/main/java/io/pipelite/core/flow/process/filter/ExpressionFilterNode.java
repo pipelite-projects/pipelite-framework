@@ -24,7 +24,6 @@ import io.pipelite.expression.ExpressionParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Optional;
 
 import static io.pipelite.core.flow.ExpressionVariables.HEADERS_VARIABLE_NAME;
 import static io.pipelite.core.flow.ExpressionVariables.PAYLOAD_VARIABLE_NAME;
@@ -50,8 +49,8 @@ class ExpressionFilterNode implements Processor {
     @Override
     public void process(Exchange exchange, ProcessContribution contribution) {
 
-        Optional.ofNullable(exchange.getInputPayload())
-            .ifPresent(inputPayload -> expressionParser.putVariable(PAYLOAD_VARIABLE_NAME, inputPayload));
+        // Set even when null, so that Payload == null can be asked
+        expressionParser.putVariable(PAYLOAD_VARIABLE_NAME, exchange.getInputPayload());
         expressionParser.putVariable(HEADERS_VARIABLE_NAME, exchange.getHeaders());
 
         final boolean isSatisfied = expressionParser.evaluateAs(expression, Boolean.class);

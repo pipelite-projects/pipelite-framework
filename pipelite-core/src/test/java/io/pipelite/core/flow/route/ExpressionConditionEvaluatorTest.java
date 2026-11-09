@@ -54,6 +54,31 @@ public class ExpressionConditionEvaluatorTest {
         Assert.assertTrue(result);
     }
 
+    @Test
+    public void shouldComparePayloadWithNull(){
+        final ExpressionCondition notNull = new ExpressionCondition("Payload != null");
+
+        Assert.assertTrue(subject.evaluate(notNull, exchangeFactory.createExchange(new Person("Wayne", "Bruce"))));
+        Assert.assertFalse(subject.evaluate(notNull, exchangeFactory.createExchange()));
+    }
+
+    @Test
+    public void shouldCompareAMissingPayloadWithNull(){
+        final ExpressionCondition isNull = new ExpressionCondition("Payload == null");
+
+        Assert.assertTrue(subject.evaluate(isNull, exchangeFactory.createExchange()));
+        Assert.assertFalse(subject.evaluate(isNull, exchangeFactory.createExchange(new Person("Wayne", "Bruce"))));
+    }
+
+    @Test
+    public void shouldCompareAHeaderWithNull(){
+        final Exchange ioContext = exchangeFactory.createExchange();
+        ioContext.putHeader("Batman-Opponent", "Joker");
+
+        Assert.assertTrue(subject.evaluate(new ExpressionCondition("Headers['Robin'] == null"), ioContext));
+        Assert.assertFalse(subject.evaluate(new ExpressionCondition("Headers['Batman-Opponent'] == null"), ioContext));
+    }
+
     public static class Person {
         private final String surname;
         private final String name;

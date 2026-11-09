@@ -57,10 +57,8 @@ public final class CorrelationKeys {
 
     private static String evaluate(String expression, Exchange exchange) {
         final ExpressionParser parser = PARSER.get();
-        final Object payload = exchange.getInputPayload();
-        if (payload != null) {
-            parser.putVariable(PAYLOAD_VARIABLE_NAME, payload);
-        }
+        // Set even when null, so that Payload == null can be asked
+        parser.putVariable(PAYLOAD_VARIABLE_NAME, exchange.getInputPayload());
         parser.putVariable(HEADERS_VARIABLE_NAME, exchange.getHeaders());
         try {
             return parser.evaluateAsText(expression);

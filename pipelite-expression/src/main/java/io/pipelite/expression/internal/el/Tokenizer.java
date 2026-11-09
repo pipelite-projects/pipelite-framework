@@ -211,7 +211,9 @@ public class Tokenizer implements Iterator<Token> {
                         tokenType = TokenType.BEAN_PATH_EXPRESSION;
                     }
                     else if (!Braket.isOpenBraket(ch)) {
-                        tokenType = TokenType.VARIABLE;
+                        // null is a literal, not a variable: a variable cannot hold it
+                        tokenType = Constants.NULL_LITERAL.equalsIgnoreCase(token.getSurface()) ? TokenType.LITERAL
+                                : TokenType.VARIABLE;
                     }
                 }
                 token.setType(tokenType);
