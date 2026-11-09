@@ -21,7 +21,7 @@ the *first* one that is true.
 ----
 <1> `.when(expression)` is a boolean expression (see xref:expressions.adoc[Expressions]) and `.then(...)` the destination reached when it is true.
 <2> `.then(...)` accepts several destinations: the message is sent to all of them, each receiving its own copy of the `Exchange`.
-<3> `.otherwise(...)` is the fallback when no expression is true. Without it, a message that matches nothing fails like a failed step, and is handled by the flow's error handling.
+<3> `.otherwise(...)` is the fallback when no expression is true, and it is optional. Without it, a message that matches nothing fails like a failed step, and is handled by the flow's error handling.
 <4> `.end()` closes the routing table.
 
 A destination is a URL: `queue://<queue name>` reaches an internal flow (the queue its `fromSource("queue://...")` reads), any other channel adapter protocol reaches an external system. A bare name is rejected when the flow is defined.

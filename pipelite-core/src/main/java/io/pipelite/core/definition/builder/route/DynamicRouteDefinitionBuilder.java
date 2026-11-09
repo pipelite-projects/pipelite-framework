@@ -68,7 +68,10 @@ public class DynamicRouteDefinitionBuilder implements DynamicRouteOperations,
     public RoutingTable<ExpressionCondition> end() {
         final RoutingTable<ExpressionCondition> routingTable = new RoutingTable<>(routeConditionEvaluator);
         routingTable.addAll(routes);
-        routingTable.setDefaultRoutes(defaultRoutes);
+        // otherwise(...) is optional: without it a message that matches nothing fails as a failed step
+        if (defaultRoutes != null) {
+            routingTable.setDefaultRoutes(defaultRoutes);
+        }
         return routingTable;
     }
 }
