@@ -71,4 +71,54 @@ public class PipeliteWireTapIntegrationTest {
 
     }
 
+
+    /**
+     * Issue #34: the tap inspects the exchange, it is not a step of the flow. A tap that cannot be delivered is logged,
+     * the exchange goes on to the next node, and the flow's exception handler is not called.
+     */
+    @Test
+    public void givenATapThatCannotBeDelivered_thenTheFlowGoesOnAndTheExceptionHandlerIsNotCalled(){
+
+        final AtomicBoolean handled = new AtomicBoolean(false);
+        final AtomicBoolean nextProcessed = new AtomicBoolean(false);
+
+        context.registerFlowDefinition(Pipelite.defineFlow("tapping-flow")
+            .fromSource("queue://tapping-in")
+            .wireTap("wire-tap-test", "nobody://tap")
+            .process("next-step", (ioContext, contribution) -> nextProcessed.set(true))
+            .withExceptionHandler((exception, exchange) -> handled.set(true))
+            .build());
+        context.start();
+
+        context.supplyExchange("queue://tapping-in", ((InternalPipeliteContext) context).getExchangeFactory().createExchange("Hello Pipelite!"));
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(nextProcessed::get);
+        Assert.assertFalse(handled.get());
+    }
+
+    @Test
+    public void givenATapThatCannotBeDeliveredAndARetry_thenNothingIsRetried(){
+
+        final AtomicInteger stepRuns = new AtomicInteger(0);
+        final AtomicInteger nextRuns = new AtomicInteger(0);
+        final AtomicBoolean exhausted = new AtomicBoolean(false);
+
+        context.registerFlowDefinition(Pipelite.defineFlow("retrying-tapping-flow")
+            .fromSource("queue://retrying-tapping-in")
+            .process("count", (ioContext, contribution) -> stepRuns.incrementAndGet())
+            .wireTap("wire-tap-test", "nobody://tap")
+            .process("next-step", (ioContext, contribution) -> nextRuns.incrementAndGet())
+            .withRetry(retry -> retry
+                .maxAttempts(2)
+                .onExceptionHandler((exception, exchange) -> exhausted.set(true)))
+            .build());
+        context.start();
+
+        context.supplyExchange("queue://retrying-tapping-in", ((InternalPipeliteContext) context).getExchangeFactory().createExchange("Hello Pipelite!"));
+
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> nextRuns.get() == 1);
+        Assert.assertEquals(1, stepRuns.get());
+        Assert.assertFalse(exhausted.get());
+    }
+
 }

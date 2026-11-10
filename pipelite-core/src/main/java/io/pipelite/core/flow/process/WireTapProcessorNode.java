@@ -30,6 +30,8 @@ import io.pipelite.core.exchange.internal.ExchangeFactory;
 
 import java.util.Collection;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Package-private since #82: construct via {@link ProcessorNodeFactory#wireTap(String)}.
@@ -44,6 +46,8 @@ class WireTapProcessorNode extends AbstractProcessorNode implements PipeliteCont
 
     private static final NoOpProcessor NO_OP_PROCESSOR = new NoOpProcessor();
 
+    private final Logger sysLogger = LoggerFactory.getLogger(getClass());
+
     private final String endpointURL;
 
     private InternalPipeliteContext pipeliteContext;
@@ -54,10 +58,23 @@ class WireTapProcessorNode extends AbstractProcessorNode implements PipeliteCont
         this.endpointURL = endpointURL;
     }
 
+    /**
+     * The tap inspects the exchange, it is not a step of the flow: a copy that cannot be delivered (issue #34) is logged
+     * and the exchange goes on. It is not handed to the flow's exception handler: a retry or an error channel repeats or
+     * parks the whole step, and the exchange that is being inspected has done nothing wrong. Without the catch the failure
+     * escaped the node raw, because the delivery happens outside the try/catch that {@link AbstractProcessorNode} wraps
+     * around its processor.
+     */
     @Override
     public void process(ExchangeImpl exchange) {
 
-        pipeliteContext.supplyExchange(endpointURL, exchangeFactory.copyExchange(exchange));
+        try {
+            pipeliteContext.supplyExchange(endpointURL, exchangeFactory.copyExchange(exchange));
+        } catch (RuntimeException exception) {
+            if (sysLogger.isWarnEnabled()) {
+                sysLogger.warn("Unable to deliver the copy of the exchange to the wire tap '{}', the flow goes on", endpointURL, exception);
+            }
+        }
         super.process(exchange);
 
     }
