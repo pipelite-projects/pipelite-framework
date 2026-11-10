@@ -112,10 +112,16 @@ public final class Expectations {
 
     /**
      * Asserts that the named header is present on the exchange under
-     * inspection and equal to {@code expectedValue}.
+     * inspection and equal to {@code expectedValue}. With a {@code null}
+     * expected value it asserts that the header has no value: a header cannot
+     * hold {@code null}, putting one removes it.
      */
     public static Expectation headerEquals(String name, Object expectedValue) {
         return (exchange, contribution) -> {
+            // A header has no null value (putting null removes it, issue #166): expecting null is expecting no value.
+            if (expectedValue == null && (exchange == null || !exchange.hasHeader(name))) {
+                return;
+            }
             if (exchange == null || !exchange.hasHeader(name)) {
                 throw new AssertionError(String.format("Expected header '%s' to be present, but it was not", name));
             }

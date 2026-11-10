@@ -145,7 +145,7 @@ public class BarrierNodeTest {
     public void givenAnExchangeWithHeadersAndProperties_thenTheWaitKeepsAllOfThemButTheInboxEntry() {
         final ExchangeImpl exchange = order("o-1", new Item("sku-1", 3));
         exchange.putHeader("attempt", 2);
-        exchange.putHeader("tags", new ArrayList<>(List.of("a", "b")));
+        exchange.setProperty("tags", new ArrayList<>(List.of("a", "b")));
         exchange.setReturnAddress("queue://reply");
         exchange.setProperty(IOKeys.FLOW_EXECUTION_ATTEMPT_NUMBER_PROPERTY_NAME, 3);
         exchange.setProperty(IOKeys.DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME, "entry-1");
@@ -157,7 +157,7 @@ public class BarrierNodeTest {
         Assert.assertEquals(new Item("sku-1", 3), kept.getInputPayload());
         Assert.assertEquals("o-1", kept.tryGetHeader("order-id").orElseThrow());
         Assert.assertEquals(Integer.valueOf(2), kept.tryGetHeaderAs("attempt", Integer.class).orElseThrow());
-        Assert.assertEquals(List.of("a", "b"), kept.tryGetHeaderAs("tags", List.class).orElseThrow());
+        Assert.assertEquals(List.of("a", "b"), kept.getProperty("tags", List.class));
         Assert.assertEquals("queue://reply", kept.tryGetReturnAddress().orElseThrow());
         Assert.assertEquals(Integer.valueOf(3), kept.getProperty(IOKeys.FLOW_EXECUTION_ATTEMPT_NUMBER_PROPERTY_NAME, Integer.class));
         Assert.assertEquals(exchange.getInput().getId(), kept.getInput().getId());

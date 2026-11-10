@@ -42,7 +42,7 @@ string (see xref:custom.adoc[Custom Channel Adapters] for the general mechanism)
 
 === Headers of the record
 
-The record key is always put on the exchange, in the header `org.apache.kafka.record_key`. The other headers of the record do not reach the flow unless the flow asks for them, see xref:core:messages.adoc#_headers_from_and_to_the_outside[Headers from and to the outside]. Besides the headers of the record, these are offered with the names below:
+The record key is put on the exchange, in the header `org.apache.kafka.record_key`, as the key deserializer made it: a `String` by default, and a number or a boolean if the deserializer gives one, so that a `kafka://` sink writes it back as it was. A record without key leaves no header. A key of another type, bytes for instance, cannot be a header (see xref:core:exchange.adoc#_headers[Headers]): the exchange is accepted without it, and a warning is logged the first time. The other headers of the record do not reach the flow unless the flow asks for them, see xref:core:messages.adoc#_headers_from_and_to_the_outside[Headers from and to the outside]. Besides the headers of the record, these are offered with the names below:
 
 [cols="1,3"]
 |===

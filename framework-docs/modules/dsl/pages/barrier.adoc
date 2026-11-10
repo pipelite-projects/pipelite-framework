@@ -119,5 +119,5 @@ Mistakes in the declaration itself, such as no `await`, no timeout, an `await` w
 == Limits
 
 * The awaited flow must be identified by a literal `queue://` address: placeholders are not accepted, and other kinds of source cannot be awaited.
-* A waiting exchange must be serializable (messages, headers and properties), because it is kept on disk while it waits. If it is not, the failure is reported at the barrier.
+* A waiting exchange must be serializable (the payload and the properties; the headers are scalars already), because it is kept on disk while it waits. If it is not, the failure is reported at the barrier.
 * A barrier works within a single running instance of the application. When you run several instances, every exchange with the same key, the one that waits and the ones it awaits, must be routed to the same instance, and each instance must have its own state folder. If a key moves to another instance while an exchange is waiting, that exchange is not released and ends at the timeout. See xref:overview:multiple-instances.adoc[Running Several Instances].

@@ -111,7 +111,7 @@ Where the framework hands an exchange to more than one place - the destinations 
 |===
 |Copied |Shared
 
-|The `Exchange` and its message, the headers, the properties (the entries, not their values)
+|The `Exchange` and its message, the headers (their values are scalars, so nothing is shared), the properties (the entries, not their values)
 |The payload object, and the values of the properties
 |===
 

@@ -67,6 +67,14 @@ final class StubExchange implements Exchange, Headers {
 
     @Override
     public void putHeader(String headerName, Object headerValue) {
+        // The contract of the real headers (issue #166): a scalar, and null removes the header.
+        if (headerValue == null) {
+            headers.remove(headerName);
+            return;
+        }
+        if (!(headerValue instanceof String || headerValue instanceof Number || headerValue instanceof Boolean)) {
+            throw new IllegalArgumentException("Header " + headerName + " cannot hold a value of type " + headerValue.getClass().getName());
+        }
         headers.put(headerName, headerValue);
     }
 

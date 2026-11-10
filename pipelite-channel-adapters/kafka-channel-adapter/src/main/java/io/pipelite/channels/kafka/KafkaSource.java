@@ -68,6 +68,7 @@ final class KafkaSource implements EventSource {
     private final Duration pollDuration;
 
     private volatile SourceContext context;
+    private volatile boolean nonScalarKeyReported;
     private Thread thread;
 
     KafkaSource(KafkaChannelConfiguration configuration, Endpoint endpoint) {
@@ -131,6 +132,27 @@ final class KafkaSource implements EventSource {
         }
     }
 
+    /**
+     * The key of the record is a header when it is a scalar (a String, a Boolean or a number, as the deserializer made
+     * it, so that a sink writes it back as it was). A record without key leaves no header; a key of another type
+     * (bytes, say) cannot be one, and the exchange goes on without it, with a warning the first time (issue #166).
+     */
+    private void putRecordKey(Exchange exchange, Object recordKey) {
+        if (recordKey == null) {
+            return;
+        }
+        try {
+            exchange.putHeader(KafkaConstants.KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME, recordKey);
+        } catch (IllegalArgumentException notAScalar) {
+            if (!nonScalarKeyReported && sysLogger.isWarnEnabled()) {
+                nonScalarKeyReported = true;
+                sysLogger.warn("The key of a Kafka record is a {}, which a header cannot hold: the exchanges of this source "
+                    + "have no '{}' header. Use a key deserializer that gives a String or a number.",
+                    recordKey.getClass().getName(), KafkaConstants.KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME);
+            }
+        }
+    }
+
     // Test seam: gives the source its context without starting the polling thread.
     void setContextForTest(SourceContext context) {
         this.context = context;
@@ -142,7 +164,7 @@ final class KafkaSource implements EventSource {
             final Object recordKey = record.key();
             final Object recordValue = record.value();
             final Exchange exchange = context.newExchange(recordValue, transportHeadersOf(record));
-            exchange.putHeader(KafkaConstants.KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME, recordKey);
+            putRecordKey(exchange, recordKey);
             try {
                 context.accept(exchange);
             } catch (Throwable t) {

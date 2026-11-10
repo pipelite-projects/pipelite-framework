@@ -178,6 +178,44 @@ public class KafkaSourceTest {
         verify(mockKafkaConsumer, times(1)).commitSync();
     }
 
+    @Test
+    public void shouldLeaveNoKeyHeaderForARecordWithoutKey() {
+        final RecordingContext context = startedWith(-1);
+
+        source.processBatch(oneRecord(null, "value"));
+
+        Assert.assertEquals(1, context.accepted.size());
+        Assert.assertFalse(context.accepted.get(0).hasHeader(KafkaConstants.KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME));
+        verify(mockKafkaConsumer, times(1)).commitSync();
+    }
+
+    @Test
+    public void shouldKeepANumericKeyWithItsTypeSoThatASinkWritesItBackAsItWas() {
+        final RecordingContext context = startedWith(-1);
+
+        source.processBatch(oneRecord(42L, "value"));
+
+        Assert.assertEquals(42L, context.accepted.get(0).tryGetHeaderAs(KafkaConstants.KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME, Object.class).orElse(null));
+    }
+
+    @Test
+    public void shouldAcceptTheRecordWithoutKeyHeaderWhenTheKeyIsNotAScalar() {
+        final RecordingContext context = startedWith(-1);
+
+        source.processBatch(oneRecord(new byte[]{1, 2, 3}, "value"));
+        source.processBatch(oneRecord(new byte[]{4}, "value-2"));
+
+        Assert.assertEquals("the records are accepted all the same", 2, context.accepted.size());
+        Assert.assertFalse(context.accepted.get(0).hasHeader(KafkaConstants.KAFKA_RECORD_KEY_EXCHANGE_HEADER_NAME));
+        Assert.assertEquals("value", context.accepted.get(0).getInputPayload());
+        verify(mockKafkaConsumer, times(2)).commitSync();
+    }
+
+    private static ConsumerRecords<Object, Object> oneRecord(Object key, Object value) {
+        return new ConsumerRecords<>(Collections.singletonMap(new TopicPartition(TOPIC, 0),
+            List.of(new ConsumerRecord<Object, Object>(TOPIC, 0, 0L, key, value))));
+    }
+
     /**
      * Issue #171: the source does not choose which headers go on the exchange (the framework does, by what the flow
      * declared): it hands over all the headers of the record and what is known of the record.

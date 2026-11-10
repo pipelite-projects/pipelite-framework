@@ -21,7 +21,7 @@ exchange.setOutputPayload(result);
 
 == Headers
 
-Headers are string key-value pairs shared across all nodes in the flow. The methods below are shortcuts to `exchange.getHeaders()`, which returns the underlying `Headers` when you need it (the expression engine uses it to resolve `Headers['name']`).
+Headers are key-value pairs shared across all nodes in the flow. The value of a header is a *scalar*: a `String`, a `Boolean` or a number (`Byte`, `Short`, `Integer`, `Long`, `Float`, `Double`, `BigInteger`, `BigDecimal`), which keeps its type. The methods below are shortcuts to `exchange.getHeaders()`, which returns the underlying `Headers` when you need it (the expression engine uses it to resolve `Headers['name']`).
 
 [source,java]
 ----
@@ -40,6 +40,17 @@ Optional<Integer> count = exchange.tryGetHeaderAs("retry-count", Integer.class);
 // Removal
 exchange.removeHeader("temp-header");
 ----
+
+`tryGetHeader` and `expectHeader` give the text of the value, whatever its type (`7` gives `"7"`); `tryGetHeaderAs` checks the type, and throws a `ClassCastException` if the value is of another one. A `null` value is not stored: `exchange.putHeader("x", null)` removes the header.
+
+Anything that is not a scalar is refused where you put it, with an `IllegalArgumentException` that names the header and the type:
+
+[source,java]
+----
+exchange.putHeader("order", order);   // IllegalArgumentException: Header 'order' cannot hold a value of type com.acme.Order
+----
+
+The reason is that the exchange is written to disk, with its headers: in the inbox, in the retry dumps, in the dead letter queue and in the state of a xref:dsl:barrier.adoc[barrier]. An object of your application in a header would tie what is on disk to the version of its class, so that an entry written before a deploy that changes the class cannot be read after it, and one that cannot be serialized would fail far from the place where it was put. An object belongs in the payload; a value that must not leave the flow can be an exchange property.
 
 == Idempotency key
 
