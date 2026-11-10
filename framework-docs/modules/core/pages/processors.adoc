@@ -78,6 +78,8 @@ secondary delivery synchronously, on the same thread as the main flow, before co
 or blocking tap target delays the main flow by exactly as much (tracked as a known limitation,
 issue #47).
 
+The tap inspects the message, it is not a step of the flow: if the copy cannot be delivered, the failure is logged (at WARN, with the destination) and the main flow continues with the original message. The failure is not handed to the flow's exception handler, so a retry channel or an error channel does not repeat or park the exchange because of it.
+
 == Message Translator
 
 The `MessageTranslatorNode` converts the message type from one format to another via a `Function<Message, Message>`.
