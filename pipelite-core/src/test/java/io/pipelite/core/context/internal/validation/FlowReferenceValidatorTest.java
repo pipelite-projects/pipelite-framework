@@ -83,10 +83,7 @@ public class FlowReferenceValidatorTest {
             .build();
         final FlowDefinition recipients = Pipelite.defineFlow("recipients")
             .fromSource("queue://recipients-in")
-            .toRecipientList(list -> list
-                .toRecipients("queue://recipient-a-in", "queue://recipient-b-in")
-                .when("Headers['x'] eq 'y'").toRecipient("slf4j://audit-logger")
-                .end())
+            .toRecipientList("queue://recipient-a-in", "queue://recipient-b-in", "slf4j://audit-logger")
             .build();
 
         Assert.assertEquals(List.of(), errorsFor(sender, router, recipients,
@@ -121,9 +118,7 @@ public class FlowReferenceValidatorTest {
             .build();
         final FlowDefinition recipients = Pipelite.defineFlow("recipients")
             .fromSource("queue://recipients-in")
-            .toRecipientList(list -> list.toRecipients("queue://missing-recipient")
-                .when("Headers['x'] eq 'y'").toRecipient("slf4j://audit-logger")
-                .end())
+            .toRecipientList("queue://missing-recipient", "slf4j://audit-logger")
             .build();
         final FlowDefinition deadLettering = Pipelite.defineFlow("dead-lettering")
             .fromSource("queue://dead-lettering-in")

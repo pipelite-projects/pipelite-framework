@@ -31,6 +31,12 @@ removes the header. Move any object you put in a header to the payload (or to an
 not to leave the flow). `tryGetHeader(...)` and `expectHeader(...)` now give the text of any scalar instead of
 throwing a `ClassCastException` for a value that is not a `String`; `tryGetHeaderAs(...)` still checks the type.
 See xref:core:exchange.adoc#_headers[Headers].
+* *`toRecipientList(...)` takes a fixed set of destinations.* It is no longer deprecated, and no longer has a
+builder with conditions: `.toRecipientList("queue://a", "queue://b")` sends a copy to every URL given. To choose
+the destinations by looking at the message use `toRoute(...)`. `RecipientListConfigurator` and
+`RecipientListOperations` are gone, and so are the condition methods of `RecipientList`
+(`isConditional`, `getCondition`, `getConditionAs`, `tryGetConditionAs`). A list with conditional recipients
+becomes a `toRoute(...)`; a list without them, `toRecipientList("queue://a", "queue://b")`.
 * *Moved types.* `SourceConcurrencyConfigurer` and `ExecutorType` moved from `io.pipelite.spi` to
 `io.pipelite.dsl.definition`. Update the imports of code that configures the concurrency of a queue
 source.

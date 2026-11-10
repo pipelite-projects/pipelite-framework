@@ -23,25 +23,18 @@ import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.context.internal.DeclaredDestination;
 import io.pipelite.core.context.internal.DeclaresDestinations;
-import io.pipelite.dsl.route.Condition;
-import io.pipelite.dsl.route.ConditionEvaluator;
-import io.pipelite.dsl.route.ExpressionCondition;
 import io.pipelite.dsl.route.RecipientList;
-import io.pipelite.expression.ExpressionParser;
 import io.pipelite.core.flow.internal.AbstractFlowNode;
 import io.pipelite.core.exchange.internal.ExchangeImpl;
 import io.pipelite.core.exchange.internal.ExchangeFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Package-private since #82: construct via {@link RouteNodeFactory#recipientList(RecipientList,
- * ConditionEvaluator)}.
+ * Package-private since #82: construct via {@link RouteNodeFactory#recipientList(RecipientList)}.
  */
 class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContextAware, FlowExitNode, DeclaresDestinations {
 
@@ -49,23 +42,18 @@ class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContex
 
     private final RecipientList recipientList;
 
-    private final ConditionEvaluator conditionEvaluator;
-
     private InternalPipeliteContext pipeliteContext;
 
     private ExchangeFactory exchangeFactory;
 
-    RecipientListRouterNode(RecipientList recipientList, ConditionEvaluator conditionEvaluator) {
+    RecipientListRouterNode(RecipientList recipientList) {
         Preconditions.notNull(recipientList, "recipientList is required and cannot be null");
-        Preconditions.notNull(conditionEvaluator, "conditionEvaluator is required and cannot be null");
         this.recipientList = recipientList;
-        this.conditionEvaluator = conditionEvaluator;
     }
 
     /**
-     * A failure while forwarding - a recipient that cannot be delivered, a condition that cannot
-     * be evaluated - is handed to the flow's exception handler like a failed processor step (issue
-     * #105), so {@code withRetry}, {@code withErrorChannel} and the default handler protect this
+     * A failure while forwarding - a recipient that cannot be delivered - is handed to the flow's exception
+     * handler like a failed processor step (issue #105), so {@code withRetry}, {@code withErrorChannel} and the default handler protect this
      * step too. Delivering to several recipients is not atomic: if the second delivery fails after
      * the first went through, a retry of this step sends to the first one again (at-least-once, as
      * everywhere else in the framework).
@@ -88,16 +76,7 @@ class RecipientListRouterNode extends AbstractFlowNode implements PipeliteContex
             sysLogger.debug("Forwarding exchange to RecipientList {}", ToStringUtils.arrayToString(recipientList.toArray(), 5));
         }
 
-        final Collection<String> filteredRecipients = recipientList.stream()
-            .filter(recipient -> {
-                if(recipientList.isConditional(recipient)){
-                    final Condition condition = recipientList.getCondition(recipient);
-                    return conditionEvaluator.evaluate(condition, exchange);
-                }
-                return true;
-            }).collect(Collectors.toList());
-
-        filteredRecipients.forEach(endpointURL -> {
+        recipientList.forEach(endpointURL -> {
             final ExchangeImpl copy = exchangeFactory.copyExchange(exchange);
             try {
                 pipeliteContext.supplyExchange(endpointURL, copy);

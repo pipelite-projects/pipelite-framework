@@ -38,45 +38,56 @@ public class PipeliteRecipientListIntegrationTest {
         context = new DefaultPipeliteContext();
     }
 
+    /** Issue #151: a fixed set of destinations is written in one call, with no lambda and no condition. */
     @Test
-    public void shouldForwardToRecipients(){
+    public void shouldForwardToAFixedSetOfRecipientsWithNoCondition(){
 
         final AtomicInteger forwardedCount = new AtomicInteger(0);
 
-        final FlowDefinition origin = Pipelite.defineFlow("origin-flow")
-            .fromSource("queue://origin-start")
-            .toRecipientList(recipientListBuilder ->
-                recipientListBuilder
-                    .toRecipients("queue://destination-01-start", "queue://destination-02-start")
-                    .when("Headers['X-Include-Log'] eq 'true'")
-                        .toRecipient("slf4j://logger")
-                    .end())
+        final FlowDefinition origin = Pipelite.defineFlow("fixed-origin-flow")
+            .fromSource("queue://fixed-origin-start")
+            .toRecipientList("queue://fixed-a-start", "queue://fixed-b-start", "queue://fixed-c-start")
             .build();
 
-        final FlowDefinition destination01 = Pipelite.defineFlow("destination-01-flow")
-            .fromSource("queue://destination-01-start")
-            .process("process-message", (ioContext, contribution) -> forwardedCount.incrementAndGet())
-            .build();
-
-        final FlowDefinition destination02 = Pipelite.defineFlow("destination-02-flow")
-            .fromSource("queue://destination-02-start")
-            .process("process-message", (ioContext, contribution) -> forwardedCount.incrementAndGet())
-            .build();
-
+        for (String name : new String[]{"a", "b", "c"}) {
+            context.registerFlowDefinition(Pipelite.defineFlow("fixed-" + name + "-flow")
+                .fromSource("queue://fixed-" + name + "-start")
+                .process("process-message", (ioContext, contribution) -> forwardedCount.incrementAndGet())
+                .build());
+        }
         context.registerFlowDefinition(origin);
-        context.registerFlowDefinition(destination01);
-        context.registerFlowDefinition(destination02);
         context.start();
 
-        final ExchangeFactory exchangeFactory = ((InternalPipeliteContext) context).getExchangeFactory();
+        context.supplyExchange("queue://fixed-origin-start", context.createExchange("Hello Pipelite!"));
 
-        final ExchangeImpl exchange = exchangeFactory.createExchange("Hello Pipelite!");
-        exchange.putHeader("X-Include-Log", "true");
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> forwardedCount.get() == 3);
+    }
 
-        context.supplyExchange("queue://origin-start", exchange);
+    @Test
+    public void shouldGiveEveryRecipientACopyOfTheExchangeWithItsHeadersAndPayload(){
 
-        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> forwardedCount.get() == 2);
+        final java.util.List<String> received = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
 
+        context.registerFlowDefinition(Pipelite.defineFlow("copy-origin-flow")
+            .fromSource("queue://copy-origin-start")
+            .toRecipientList("queue://copy-a-start", "queue://copy-b-start")
+            .build());
+        for (String name : new String[]{"a", "b"}) {
+            context.registerFlowDefinition(Pipelite.defineFlow("copy-" + name + "-flow")
+                .fromSource("queue://copy-" + name + "-start")
+                .process("record", (ioContext, contribution) ->
+                    received.add(name + ":" + ioContext.getInputPayload() + ":" + ioContext.tryGetHeader("X-Tenant").orElse("-")))
+                .build());
+        }
+        context.start();
+
+        final io.pipelite.dsl.Exchange exchange = context.createExchange("Hello Pipelite!");
+        exchange.putHeader("X-Tenant", "acme");
+        context.supplyExchange("queue://copy-origin-start", exchange);
+
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> received.size() == 2);
+        org.junit.Assert.assertTrue(received.contains("a:Hello Pipelite!:acme"));
+        org.junit.Assert.assertTrue(received.contains("b:Hello Pipelite!:acme"));
     }
 
 }
