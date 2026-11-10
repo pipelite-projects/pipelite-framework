@@ -199,6 +199,10 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
     private int maxSourceWorkerPoolSize = DEFAULT_MAX_SOURCE_WORKER_POOL_SIZE;
     private ExecutorService sourceWorkerPool;
 
+    // One for the whole context (issue #169): the identifiers it generates share the node id, and a generator has its
+    // own sequence, so with one for each factory two of them could produce the same identifier in the same millisecond.
+    private final DistributedIdentityGeneratorImpl identityGenerator = new DistributedIdentityGeneratorImpl();
+
     public DefaultPipeliteContext() {
 
         flowDefinitions = new ArrayList<>();
@@ -212,7 +216,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
         dependencyRegistry = new DefaultDependencyRegistry();
         flowConfigurationScanner = new FlowConfigurationScanner();
 
-        final MessageFactory messageFactory = new DefaultMessageFactory(new DistributedIdentityGeneratorImpl());
+        final MessageFactory messageFactory = new DefaultMessageFactory(identityGenerator);
         exchangeFactory = new DefaultExchangeFactory(messageFactory);
         aggregateRepository = new AggregateInMemoryRepository();
         // Durable by default (issue #150), like the retry dumps and the inbox: an exchange that waits at a barrier
@@ -227,7 +231,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
         endpointFactory = new DefaultEndpointFactory(channelAdapterManager, new NoOpEndpointURLPropertyResolver());
         flowFactory = new FlowFactory(this, producers::add);
 
-        executionDumpFactory = new FlowExecutionDumpFactory(new DistributedIdentityGeneratorImpl(), new Base64ObjectSerializer());
+        executionDumpFactory = new FlowExecutionDumpFactory(identityGenerator, new Base64ObjectSerializer());
         // Durable by default (issue #68): a retry-channel dump is a redelivery guarantee, and an
         // in-memory-only implementation quietly breaks that guarantee on the one occasion it
         // matters (a crash while dumps are pending). Callers that genuinely want zero I/O instead
@@ -240,7 +244,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
         // covers a message already routed to a retry channel). setDurableInboxProvider(...) can
         // swap this for a shared/distributed one (e.g. Redis-backed, issue #72).
         durableInboxProvider = new SegmentedLogDurableInboxProvider(
-            PipeliteHome.resolve(DURABLE_INBOX_HOME_SUBFOLDER), new DistributedIdentityGeneratorImpl());
+            PipeliteHome.resolve(DURABLE_INBOX_HOME_SUBFOLDER), identityGenerator);
 
         // Default-on, local dead-letter sink for a durable-inbox entry whose payload fails to
         // deserialize during recovery (issue #70) - see recoverPendingInboxEntries(...) below.
@@ -256,7 +260,7 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
         // durably to disk, one file per entry, with no Flow required to receive it.
         // setDeadLetterQueueRepository(...) can swap this for a different implementation.
         deadLetterQueueRepository = new FileDeadLetterQueueRepository(PipeliteHome.resolve(DEAD_LETTER_QUEUE_HOME_SUBFOLDER));
-        deadLetterQueueEntryFactory = new DeadLetteredExchangeFactory(new DistributedIdentityGeneratorImpl(), new Base64ObjectSerializer());
+        deadLetterQueueEntryFactory = new DeadLetteredExchangeFactory(identityGenerator, new Base64ObjectSerializer());
     }
 
     /**
@@ -300,6 +304,11 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
     @Override
     public void setDurableInboxDeadLetterWriter(DurableInboxDeadLetterWriter writer) {
         this.durableInboxDeadLetterWriter = Preconditions.notNull(writer, "writer is required and cannot be null");
+    }
+
+    @Override
+    public void setNodeId(int nodeId) {
+        identityGenerator.setNodeId(nodeId);
     }
 
     @Override
@@ -424,6 +433,18 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
 
     @Override
     public void start() {
+
+        // The node id is part of every identifier: say which one is in use, and warn when it is only a guess from the
+        // host (issue #169), because two instances can end up with the same.
+        if (identityGenerator.isNodeIdConfigured()) {
+            if (sysLogger.isInfoEnabled()) {
+                sysLogger.info("Identifiers are generated with node id {}", identityGenerator.getNodeId());
+            }
+        } else if (sysLogger.isInfoEnabled()) {
+            sysLogger.info("Identifiers are generated with node id {}, derived from the network interfaces of this host: "
+                + "set '{}' (or {}) to a different number in every instance of the application",
+                identityGenerator.getNodeId(), DistributedIdentityGeneratorImpl.NODE_ID_PROPERTY, DistributedIdentityGeneratorImpl.NODE_ID_ENV);
+        }
 
         // find channelAdapters and register automatically
         channelAdapterManager.scan();
