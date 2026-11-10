@@ -21,6 +21,7 @@ import io.pipelite.core.exchange.internal.ExchangeFactory;
 import io.pipelite.core.exchange.internal.HeadersImpl;
 import io.pipelite.core.exchange.internal.Message;
 import io.pipelite.core.exchange.internal.MessageFactory;
+import io.pipelite.core.exchange.internal.PropertyScope;
 
 import java.util.Map;
 import java.util.Objects;
@@ -89,6 +90,18 @@ public class DefaultExchangeFactory implements ExchangeFactory {
         exchange.setOutput(messageFactory.createMessage());
         copyProperties(current, exchange);
         return exchange;
+    }
+
+    @Override
+    public ExchangeImpl deriveExchange(ExchangeImpl parent, Object payload) {
+        final Headers headersCopy = new HeadersImpl((HeadersImpl) parent.getHeaders());
+        final ExchangeImpl child = createExchange(headersCopy, payload);
+        parent.propertySet().forEach(property -> {
+            if (PropertyScope.of(property.getKey()).inheritedWithinAnExecution()) {
+                child.setProperty(property.getKey(), property.getValue());
+            }
+        });
+        return child;
     }
 
     private static void copyProperties(ExchangeImpl source, ExchangeImpl destination){

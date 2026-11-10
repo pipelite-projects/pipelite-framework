@@ -31,6 +31,13 @@ removes the header. Move any object you put in a header to the payload (or to an
 not to leave the flow). `tryGetHeader(...)` and `expectHeader(...)` now give the text of any scalar instead of
 throwing a `ClassCastException` for a value that is not a `String`; `tryGetHeaderAs(...)` still checks the type.
 See xref:core:exchange.adoc#_headers[Headers].
+* *`split` sends each element on, and no longer puts them back together.* `.split(name, segment -> ...)` is now
+`.split(name)`: each element of the collection continues through the steps that follow the split as an exchange of
+its own, with the headers of `SplitHeaders` (`Pipelite-Split-Id`, `-Index`, `-Size`), so a split can be followed by
+`toRecipientList(...)`, `toRoute(...)` or a sink. The steps of the old segment are now ordinary steps after the
+split; the single exchange with the list of results is gone (the step that collects exchanges into one is
+`aggregate`). A failure is handled for the element that failed, and a retry no longer repeats the elements
+that already went through. `SplitConfigurator`, `SplitSegment*` and `SplitStep` are gone.
 * *`toRecipientList(...)` takes a fixed set of destinations.* It is no longer deprecated, and no longer has a
 builder with conditions: `.toRecipientList("queue://a", "queue://b")` sends a copy to every URL given. To choose
 the destinations by looking at the message use `toRoute(...)`. `RecipientListConfigurator` and

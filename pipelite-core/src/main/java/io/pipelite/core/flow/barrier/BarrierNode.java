@@ -25,6 +25,7 @@ import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.definition.builder.barrier.BarrierSpec;
 import io.pipelite.core.exchange.internal.ExchangeFactory;
 import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.exchange.internal.PropertyScope;
 import io.pipelite.core.exchange.internal.HeadersImpl;
 import io.pipelite.core.flow.internal.AbstractFlowNode;
 import org.slf4j.Logger;
@@ -139,8 +140,7 @@ class BarrierNode extends AbstractFlowNode implements PipeliteContextAware {
         // exchange is not touched.
         final Map<String, Object> properties = new ConcurrentHashMap<>();
         exchange.propertySet().forEach(property -> properties.put(property.getKey(), property.getValue()));
-        properties.remove(IOKeys.DURABLE_INBOX_ENTRY_ID_PROPERTY_NAME);
-        properties.remove(IOKeys.DURABLE_INBOX_RESUPPLIED_ENTRY_ID_PROPERTY_NAME);
+        properties.keySet().removeIf(name -> PropertyScope.of(name) == PropertyScope.INBOX);
         final ExchangeImpl kept = new ExchangeImpl(exchange.getInput(), exchange.getOutput(),
             new HeadersImpl((HeadersImpl) exchange.getHeaders()), properties);
 

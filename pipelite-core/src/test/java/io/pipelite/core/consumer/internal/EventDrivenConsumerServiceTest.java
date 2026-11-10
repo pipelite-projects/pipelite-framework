@@ -77,6 +77,11 @@ public class EventDrivenConsumerServiceTest {
             return createExchange(exchange.getHeaders(), exchange.getInputPayloadAs(Object.class));
         }
         @Override
+        public ExchangeImpl deriveExchange(ExchangeImpl parent, Object payload) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public ExchangeImpl nextExchange(ExchangeImpl current) {
             return copyExchange(current);
         }

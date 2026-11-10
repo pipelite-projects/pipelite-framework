@@ -5,7 +5,7 @@ A barrier synchronizes flows. The exchange that reaches it waits until the execu
 
 Use it when a step of one flow must not run before work done by other flows is finished: an order can be dispatched only after the kitchen has prepared it *and* the payment has been authorized, and those are two flows of their own.
 
-NOTE: A barrier does not combine exchanges into one. It only makes one exchange wait for the completion of others. To collect many messages into one, see xref:split-aggregate.adoc[Split / Aggregate].
+NOTE: A barrier does not combine exchanges into one. It only makes one exchange wait for the completion of others.
 
 == Basic usage
 

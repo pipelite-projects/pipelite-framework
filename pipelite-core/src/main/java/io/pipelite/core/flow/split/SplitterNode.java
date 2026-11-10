@@ -15,162 +15,88 @@
  */
 package io.pipelite.core.flow.split;
 
-import io.pipelite.core.context.internal.InternalPipeliteContext;
-
-import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.PipeliteContextAware;
 import io.pipelite.core.context.internal.IOKeys;
-import io.pipelite.core.flow.FlowNodeConfigurer;
-import io.pipelite.core.flow.process.ProcessorNodeFactory;
-import io.pipelite.dsl.Headers;
-import io.pipelite.dsl.split.SplitSegment;
-import io.pipelite.dsl.split.SplitStep;
-import io.pipelite.core.flow.internal.AbstractFlowNode;
-import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.exchange.internal.ExchangeFactory;
-import io.pipelite.core.flow.internal.FlowNode;
-import io.pipelite.core.exchange.internal.HeadersImpl;
-import io.pipelite.core.flow.internal.ExchangePostProcessor;
-import io.pipelite.core.flow.internal.ExchangePreProcessor;
+import io.pipelite.core.exchange.internal.ExchangeImpl;
+import io.pipelite.core.flow.internal.AbstractFlowNode;
+import io.pipelite.dsl.split.SplitHeaders;
 
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.List;
 import java.util.Objects;
 
 /**
- * Splits a {@code Collection} payload into independent child Exchanges, drives each one
- * synchronously through an inner segment of steps on the calling thread, then aggregates
- * the results back into the original Exchange before continuing the flow.
- *
- * <p>Happy-path scope only: sequential, single-threaded per invocation, no per-item failure
- * isolation. Does not extend {@code AbstractProcessorNode} — it orchestrates an entire
- * sub-chain of {@code FlowNode}s once per collection item, not a single {@code Processor}
- * call, the same reason {@code RecipientListRouterNode} extends {@code AbstractFlowNode}
- * directly instead.
- *
- * <p>Package-private since #82: construct via {@link SplitNodeFactory#splitter(SplitSegment)}.
+ * Splits a {@code Collection} payload into one exchange per element, and sends each of them on through the nodes that
+ * follow (issue #149): the elements flow on as exchanges of their own, to a recipient list, a route, a sink or any
+ * step, and nothing puts them back together unless an {@code aggregate} step does.
+ * <p>
+ * The elements go one after the other on the thread of the flow, and the node returns when the last of them has gone
+ * through the rest of the flow, so the execution of the exchange that was split ends then: the barriers that await
+ * the flow, the key of an ordered source and the entry of the durable inbox are let go after the last element. If
+ * the process stops before, the exchange that was split is delivered again and splits again; the key of each
+ * element, the one of the exchange followed by its position, is the same each time.
+ * <p>
+ * An element is an exchange of the same execution ({@link ExchangeFactory#deriveExchange}): it has the headers and
+ * the properties of the exchange that was split, except the inbox entry and the state of its attempts. A step that
+ * fails for one element is handled for that element: its failure is retried or dead-lettered on its own, and the
+ * other elements go on.
+ * <p>
+ * Package-private since #82: construct via {@link SplitNodeFactory#splitter()}.
  */
 class SplitterNode extends AbstractFlowNode implements PipeliteContextAware {
 
-    private final FlowNode segmentHead;
-    private final List<FlowNode> segmentNodes;   // for propagation, not for wiring
-    private final SplitResultCollectorNode collector;
-
     private ExchangeFactory exchangeFactory;
-    private AggregateRepository aggregateRepository;
-    private Aggregator aggregator;
-
-    SplitterNode(SplitSegment segment) {
-        Objects.requireNonNull(segment, "segment is required and cannot be null");
-        this.collector = new SplitResultCollectorNode();
-        this.segmentNodes = new ArrayList<>();
-
-        FlowNode head = collector;
-        FlowNode tail = null;
-        for (SplitStep step : segment) {
-            final FlowNode node = ProcessorNodeFactory.wrap(step.getProcessor());
-            node.setProcessorName(step.getName());
-            segmentNodes.add(node);
-            if (tail == null) {
-                head = node;
-            } else {
-                tail.setNext(node);
-            }
-            tail = node;
-        }
-        if (tail != null) {
-            tail.setNext(collector);
-        }
-        this.segmentHead = head;
-    }
-
-    @Override
-    public void setFlowName(String flowName) {
-        super.setFlowName(flowName);
-        segmentNodes.forEach(node -> node.setFlowName(flowName));
-    }
-
-    @Override
-    public void setSourceEndpointResource(String sourceEndpointResource) {
-        super.setSourceEndpointResource(sourceEndpointResource);
-        segmentNodes.forEach(node -> node.setSourceEndpointResource(sourceEndpointResource));
-    }
 
     @Override
     public void setPipeliteContext(InternalPipeliteContext pipeliteContext) {
         Objects.requireNonNull(pipeliteContext, "pipeliteContext is required and cannot be null");
         this.exchangeFactory = pipeliteContext.getExchangeFactory();
-        this.aggregateRepository = pipeliteContext.getAggregateRepository();
-        this.aggregator = new UseOriginalAggregator(aggregateRepository);
-        // Same injection logic FlowFactory uses for top-level flow nodes (ExchangeFactoryAware/
-        // PipeliteContextAware) - shared via FlowNodeConfigurer since these inner nodes are never
-        // seen by FlowFactory itself and must be injected here instead.
-        segmentNodes.forEach(node -> FlowNodeConfigurer.injectDependencies(node, pipeliteContext));
-    }
-
-    @Override
-    public void addExchangePreProcessor(ExchangePreProcessor exchangePreProcessor) {
-        super.addExchangePreProcessor(exchangePreProcessor);
-        segmentNodes.forEach(node -> node.addExchangePreProcessor(exchangePreProcessor));
-    }
-
-    @Override
-    public void addExchangePostProcessor(ExchangePostProcessor exchangePostProcessor) {
-        super.addExchangePostProcessor(exchangePostProcessor);
-        segmentNodes.forEach(node -> node.addExchangePostProcessor(exchangePostProcessor));
     }
 
     @Override
     public void process(ExchangeImpl exchange) {
 
-        final String splitId = exchange.getInput().getId();
-        ExchangeImpl aggregated;
-
+        final Collection<?> elements;
         try {
             preProcessExchange(exchange);
-            aggregateRepository.save(splitId, exchange);
-
-            final Collection<?> items = exchange.getInputPayloadAs(Collection.class);
-            final List<Object> results = new ArrayList<>();
-
-            final String idempotencyKey = exchange.getIdempotencyKey();
-            int position = 0;
-            for (Object item : items) {
-                final Headers childHeaders = new HeadersImpl((HeadersImpl) exchange.getHeaders());
-                final ExchangeImpl child = exchangeFactory.createExchange(childHeaders, item);
-                if (idempotencyKey != null) {
-                    // A piece of work of its own within the step: the same one every time the split is run again.
-                    child.setProperty(IOKeys.IDEMPOTENCY_KEY_PROPERTY_NAME, idempotencyKey + "-" + position);
-                }
-                position++;
-                segmentHead.process(child);
-                final ExchangeImpl collected = collector.consumeResult();
-                results.add(collected.getOutput().getPayloadAs(Object.class));
-            }
-
-            aggregated = aggregator.aggregate(splitId, results);
-            postProcessExchange(aggregated);
-
+            elements = elementsOf(exchange);
         } catch (RuntimeException exception) {
-            // Written explicitly (not inherited from AbstractProcessorNode) because the work being
-            // wrapped here is the whole split loop, not a single Processor call. No exceptionHandler
-            // is propagated to inner segment nodes (would break the collector for a failing last
-            // step) - a single dispatch covers the entire split, never a per-item one.
-            // D13: intentionally the whole pre-split collection, not the single failing item - a
-            // resume/dead-letter targeting the failed processor lands back on the split step
-            // itself, atomically re-running/dead-lettering the entire batch. See
-            // 2026-Q3-pipelite-dead-letter-channel-review.md §3.7 for the reasoning.
+            // Nothing was split yet: the failure is the one of the exchange that reached the step.
             handleFailure(exception, exchange);
             return;
-        } finally {
-            // Never leave an orphaned entry behind, on the happy path or the exception path.
-            aggregateRepository.remove(splitId);
         }
 
-        if (next != null) {
-            final ExchangeImpl nextExchange = exchangeFactory.nextExchange(aggregated);
-            next.process(nextExchange);
+        if (next == null) {
+            return;
         }
+
+        final String splitId = exchange.getInput().getId();
+        final int size = elements.size();
+        final String idempotencyKey = exchange.getIdempotencyKey();
+        int position = 0;
+        for (Object element : elements) {
+            final ExchangeImpl child = exchangeFactory.deriveExchange(exchange, element);
+            child.putHeader(SplitHeaders.ID, splitId);
+            child.putHeader(SplitHeaders.INDEX, position);
+            child.putHeader(SplitHeaders.SIZE, size);
+            if (idempotencyKey != null) {
+                // A piece of work of its own: the same one every time the split is run again.
+                child.setProperty(IOKeys.IDEMPOTENCY_KEY_PROPERTY_NAME, idempotencyKey + "-" + position);
+            }
+            position++;
+            postProcessExchange(child);
+            next.process(exchangeFactory.nextExchange(child));
+        }
+    }
+
+    private static Collection<?> elementsOf(ExchangeImpl exchange) {
+        final Object payload = exchange.getInputPayloadAs(Object.class);
+        if (payload instanceof Collection<?> collection) {
+            return collection;
+        }
+        throw new IllegalArgumentException(String.format(
+            "A split needs a Collection as the payload, and the payload is %s",
+            payload == null ? "null" : "a " + payload.getClass().getName()));
     }
 }

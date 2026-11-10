@@ -177,19 +177,16 @@ public class PipeliteIdempotencyKeyIntegrationTest {
         context.registerFlowDefinition(Pipelite.defineFlow("checkout")
             .fromSource("queue://checkout", PipeliteIdempotencyKeyIntegrationTest::durableInboxOff)
             .process("before", (exchange, contribution) -> seen.add("before=" + exchange.getIdempotencyKey()))
-            .split("charge-each", segment -> segment
-                .process("charge", (exchange, contribution) -> seen.add("charge=" + exchange.getIdempotencyKey()))
-                .end())
-            .process("after", (exchange, contribution) -> seen.add("after=" + exchange.getIdempotencyKey()))
+            .split("charge-each")
+            .process("charge", (exchange, contribution) -> seen.add("charge=" + exchange.getIdempotencyKey()))
             .build());
         context.start();
 
         context.supplyExchange("queue://checkout", context.createExchange(List.of("a", "b", "c")));
 
-        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> keysOf("after").size() == 1);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> keysOf("charge").size() == 3);
         final String key = keysOf("before").get(0);
         Assert.assertEquals(List.of(key + "-0", key + "-1", key + "-2"), keysOf("charge"));
-        Assert.assertEquals("after the split it is the work of the exchange again", key, keysOf("after").get(0));
     }
 
     private void supplyWith(String queue, String payload, String headerName, String headerValue) {

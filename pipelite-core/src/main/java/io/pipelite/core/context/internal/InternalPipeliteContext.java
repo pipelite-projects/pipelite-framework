@@ -21,7 +21,6 @@ import io.pipelite.core.flow.barrier.BarrierCoordinator;
 import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
 import io.pipelite.core.flow.execution.deadletter.DeadLetteredExchangeFactory;
 import io.pipelite.core.flow.barrier.BarrierRepository;
-import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.core.flow.internal.Flow;
 import io.pipelite.core.exchange.internal.ExchangeFactory;
 import io.pipelite.core.flow.execution.inbox.DurableInboxProvider;
@@ -56,8 +55,6 @@ public interface InternalPipeliteContext extends PipeliteContext {
     EndpointFactory getEndpointFactory();
 
     ExchangeFactory getExchangeFactory();
-
-    AggregateRepository getAggregateRepository();
 
     /** Where the barriers keep the exchanges that wait for other flows (issue #150). */
     BarrierRepository getBarrierRepository();

@@ -15,7 +15,6 @@
  */
 package io.pipelite.core.flow.split;
 
-import io.pipelite.dsl.split.SplitSegment;
 import io.pipelite.core.flow.internal.FlowNode;
 
 /**
@@ -29,8 +28,8 @@ public final class SplitNodeFactory {
     private SplitNodeFactory() {
     }
 
-    public static FlowNode splitter(SplitSegment segment) {
-        return new SplitterNode(segment);
+    public static FlowNode splitter() {
+        return new SplitterNode();
     }
 
 }

@@ -194,6 +194,11 @@ public class PollingSourceConsumerTest {
         }
 
         @Override
+        public ExchangeImpl deriveExchange(ExchangeImpl parent, Object payload) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
         public ExchangeImpl nextExchange(ExchangeImpl current) {
             throw new UnsupportedOperationException();
         }

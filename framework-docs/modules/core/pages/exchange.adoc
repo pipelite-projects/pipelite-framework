@@ -72,7 +72,7 @@ The key is fixed where the work enters the application and is the same:
 * in a retry of a step, after the exchange waited at a xref:dsl:barrier.adoc[barrier], and after the application restarted and the durable inbox gave the message back;
 * in the flow that receives the exchange through a `queue://`, also when the flow before it is replayed and hands the exchange over again.
 
-Each element of a xref:dsl:split-aggregate.adoc[split] is a piece of work of its own, with the key of the exchange followed by its position (`<key>-0`, `<key>-1`, ...): the same ones each time the split is run again.
+Each element of a xref:dsl:split.adoc[split] is a piece of work of its own, with the key of the exchange followed by its position (`<key>-0`, `<key>-1`, ...): the same ones each time the split is run again.
 
 [NOTE]
 ====
