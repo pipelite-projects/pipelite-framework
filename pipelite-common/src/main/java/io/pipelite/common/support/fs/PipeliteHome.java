@@ -31,9 +31,18 @@ import java.util.Optional;
  * happen to share the same machine/home directory without ever customizing {@code pipelite.home}
  * don't silently share (and corrupt) each other's durable state — e.g. one application's
  * retry-channel trying to resolve a dump whose {@code flowName} only exists in the other
- * application's flow registry. Set it to something stable and unique per logical application
- * (not per replica/instance — multiple replicas of the <em>same</em> application are expected to
- * share this id and, with it, its durable state).
+ * application's flow registry. The application id names the <em>application</em>, not the instance:
+ * set it to something stable and unique per logical application.
+ * <p>
+ * <strong>Instances of the same application do not share a state folder.</strong> The durable inbox
+ * ({@code SegmentedLogDurableInbox}) is not safe for two processes to use the same directory: it has no
+ * file locking, only a lock inside the JVM. The retry dumps do take a lock per dump, so two instances
+ * never resume the same one, but then either of them can resume it, and the exchanges that wait at a
+ * barrier or are ordered by a key are meant to be handled by the instance that owns the key. The
+ * dead letter queue and the position reached in the files read are per instance as well. Give each
+ * instance its own {@code pipelite.home} (for example one volume for each pod) and let it find the same
+ * one again when it restarts. Sharing the inbox between instances is the job of a shared implementation
+ * of it, not of this folder.
  */
 public final class PipeliteHome {
 

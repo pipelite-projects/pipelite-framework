@@ -98,4 +98,16 @@ public interface ConfigurablePipeliteContext extends PipeliteContext {
      */
     void setBarrierScanPeriod(java.time.Duration period);
 
+    /**
+     * Sets the node id of the identifiers the context generates (message ids, retry and dead letter entries, barrier
+     * waits), a number from 0 to 1023 (issue #169). The identifiers of two instances that have different node ids are
+     * never the same, so give every instance of an application its own. When it is not called the value of the
+     * {@code pipelite.node.id} system property or of the {@code PIPELITE_NODE_ID} environment variable is used, and
+     * when those are not set either, a number derived from the network interfaces of the host, which two instances
+     * can happen to share. Must be called before {@link PipeliteContext#start()}.
+     *
+     * @throws IllegalArgumentException if it is out of range
+     */
+    void setNodeId(int nodeId);
+
 }

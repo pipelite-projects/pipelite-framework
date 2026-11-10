@@ -3,7 +3,7 @@
 
 A single Pipelite instance can process a large number of exchanges, but you may want several instances of the same application, for more capacity or for availability. This page collects the guidelines to follow so that every feature of Pipelite behaves as it does on a single instance.
 
-The approach is simple, and it has two parts:
+The approach is simple, and it has two parts (plus a node id for each instance, below):
 
 . *Each instance keeps its own state.* Waiting exchanges, pending retries and the inbox live in a folder that belongs to that instance alone.
 . *The work must be distributed by business key.* Every exchange that belongs to the same order, customer or document must reach the same instance, so that everything that concerns it happens in one place. Pipelite does not distribute the work: it is up to you to route the exchanges, as described below.
@@ -57,6 +57,23 @@ spec:
 ----
 
 Each pod gets its own volume, and keeps it when it is restarted or rescheduled. Avoid mounting one shared volume on all the pods.
+
+The `pipelite.application.id` system property (or `PIPELITE_APPLICATION_ID`) is another thing: it names the *application*, not the instance, and it keeps the folders of two different applications that run on the same machine apart. Every instance of the same application has the same one, and its own `PIPELITE_HOME`.
+
+NOTE: Do not point two instances at the same folder, not even to share the waiting work. The inbox has no locking between processes, and the exchanges that wait or retry belong to the instance that owns their key.
+
+== A node id for each instance
+
+Every identifier that Pipelite generates (the ids of the messages, the entries of the dead letter queue and of the retries, the waits at a barrier) contains a *node id*, a number from 0 to 1023. Two instances with different node ids never generate the same identifier.
+
+When you do not set it, the node id is derived from the network interfaces of the host. Two instances can end up with the same one: one chance in 1024 for each pair, and for sure when the interfaces are virtual or identical, as in many containers. Give every instance its own:
+
+* the `PIPELITE_NODE_ID` environment variable, or the `pipelite.node.id` system property, or
+* `setNodeId(int)` on the `ConfigurablePipeliteContext`, before `start()`.
+
+An out-of-range or non-numeric value stops the application at start. When the context starts it writes the node id it uses in the log, and says if it is only the one derived from the host.
+
+On a `StatefulSet` the number at the end of the pod name is already different for every pod, so the entrypoint can use it: `PIPELITE_NODE_ID=${HOSTNAME##*-}`.
 
 == Distribute the work by key
 
