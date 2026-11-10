@@ -15,6 +15,8 @@ writes the output message's payload - see xref:core:exchange.adoc[Exchange].
 
 NOTE: The id of a message changes from one step of the flow to the next, and is not the same when the application restarts and gives a message back: it is not a key to hand to an external system. For that, see the xref:exchange.adoc#_idempotency_key[idempotency key] of the exchange.
 
+The payload is shared, not copied, when an exchange is handed to several places: see <<_what_is_copied_and_what_is_shared,What is copied, and what is shared>>.
+
 == Headers
 
 `Headers` are string key-value pairs that live on the `Exchange` itself, not on the `Message` -
@@ -100,3 +102,19 @@ to put application data.
 A simple test: if a value is something you would filter or route on without touching the business
 object, it belongs in a header; if it is the data your processors' logic actually reads or
 produces, it belongs in the payload.
+
+== What is copied, and what is shared
+
+Where the framework hands an exchange to more than one place - the destinations of `toRoute(...)` and `toRecipientList(...)`, and `wireTap(...)` - each one receives an `Exchange` of its own: the headers and the properties are copied, and the message is a new one. The *payload* is not cloned: it is the same object in every copy, and so are the values of the properties. It is the same object from one step of a flow to the next, too, because the output of a step is the input of the following one.
+
+[cols="1,2"]
+|===
+|Copied |Shared
+
+|The `Exchange` and its message, the headers, the properties (the entries, not their values)
+|The payload object, and the values of the properties
+|===
+
+So treat the payload as a *value*: do not change an object you received, set a new one with `exchange.setOutputPayload(...)`. If you do change it, every flow that got the same object sees the change, on its own thread, in no particular order and with no error. When a destination has to change an object that another destination has too, it makes a copy of it first, at the start of its flow.
+
+NOTE: Through `queue://` the receiving flow gets the very instance of the `Exchange` that the sender handed over, see xref:channel-adapters:queue.adoc[Queue Channel Adapter].

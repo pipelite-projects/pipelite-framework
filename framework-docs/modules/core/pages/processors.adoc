@@ -66,7 +66,7 @@ The expression uses the engine from the `pipelite-expression` module - see xref:
 == WireTap
 
 The WireTap sends a *copy* of the current message to a secondary endpoint, then the main flow
-continues with the original message.
+continues with the original message. The copy has its own headers and properties; the payload is the same object, not a clone (see xref:core:messages.adoc#_what_is_copied_and_what_is_shared[What is copied, and what is shared]).
 
 [source,java]
 ----
