@@ -16,12 +16,12 @@
 package io.pipelite.core.definition.builder;
 
 import io.pipelite.core.definition.internal.*;
+import io.pipelite.common.support.Preconditions;
 import io.pipelite.core.context.internal.DestinationURLs;
 import io.pipelite.core.context.internal.SourceURLs;
 import io.pipelite.core.definition.builder.error.ErrorChannelBuilder;
 import io.pipelite.core.definition.builder.retry.RetryBuilder;
 import io.pipelite.core.definition.builder.internal.Builder;
-import io.pipelite.core.definition.builder.route.RecipientListBuilder;
 import io.pipelite.core.definition.builder.route.RouteDefinitionBuilder;
 import io.pipelite.core.definition.builder.barrier.BarrierSpecBuilder;
 import io.pipelite.core.definition.builder.split.SplitSegmentBuilder;
@@ -161,10 +161,16 @@ public class FlowDefinitionBuilder implements FlowOperations {
     }
 
     @Override
-    @Deprecated
-    public BuildOperations toRecipientList(RecipientListConfigurator configurator) {
-        final RecipientList recipientList = configurator.configure(new RecipientListBuilder());
-        final FlowNode recipientListNode = RouteNodeFactory.recipientList(recipientList, conditionEvaluator);
+    public BuildOperations toRecipientList(String... recipients) {
+        Preconditions.notNull(recipients, "recipients is required and cannot be null");
+        if (recipients.length == 0) {
+            throw new IllegalArgumentException("toRecipientList(...) needs at least one recipient");
+        }
+        for (String recipient : recipients) {
+            DestinationURLs.requireStatic(recipient, "toRecipientList(...)");
+        }
+        final RecipientList recipientList = RecipientList.of(recipients);
+        final FlowNode recipientListNode = RouteNodeFactory.recipientList(recipientList);
         final ProcessorDefinition recipientListNodeDefinition = new ProcessorDefinitionImpl("to-recipient-list", recipientListNode);
         builder.with(target -> target.addProcessorDefinition(recipientListNodeDefinition));
         return this;

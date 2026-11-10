@@ -19,7 +19,6 @@ import io.pipelite.core.context.internal.InternalPipeliteContext;
 import io.pipelite.core.context.impl.DefaultExchangeFactory;
 import io.pipelite.core.context.impl.DefaultMessageFactory;
 import io.pipelite.dsl.route.RecipientList;
-import io.pipelite.expression.ExpressionParser;
 import io.pipelite.core.context.internal.IOKeys;
 import io.pipelite.core.exchange.internal.DistributedIdentityGeneratorImpl;
 import io.pipelite.core.exchange.internal.ExchangeFactory;
@@ -49,8 +48,7 @@ public class RecipientListRouterNodeTest {
         Mockito.when(((InternalPipeliteContext) pipeliteContext).getExchangeFactory()).thenReturn(exchangeFactory);
 
         subject = new RecipientListRouterNode(
-            RecipientList.of("queue://first-in", "queue://second-in"),
-            new ExpressionConditionEvaluator(new ExpressionParser()));
+            RecipientList.of("queue://first-in", "queue://second-in"));
         subject.setPipeliteContext(pipeliteContext);
     }
 

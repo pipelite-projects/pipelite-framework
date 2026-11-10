@@ -16,7 +16,6 @@
 package io.pipelite.core.flow.route;
 
 import io.pipelite.core.flow.expression.TextExpressionEvaluator;
-import io.pipelite.dsl.route.ConditionEvaluator;
 import io.pipelite.dsl.route.RecipientList;
 import io.pipelite.dsl.route.RoutingTable;
 import io.pipelite.core.flow.internal.FlowNode;
@@ -36,8 +35,8 @@ public final class RouteNodeFactory {
         return new RouterNode(routingTable, textExpressionEvaluator);
     }
 
-    public static FlowNode recipientList(RecipientList recipientList, ConditionEvaluator conditionEvaluator) {
-        return new RecipientListRouterNode(recipientList, conditionEvaluator);
+    public static FlowNode recipientList(RecipientList recipientList) {
+        return new RecipientListRouterNode(recipientList);
     }
 
     /**

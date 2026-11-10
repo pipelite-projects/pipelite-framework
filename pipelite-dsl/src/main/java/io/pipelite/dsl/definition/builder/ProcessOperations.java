@@ -38,8 +38,14 @@ public interface ProcessOperations extends BuildOperations {
 
     ProcessOperations filter(String name, String expression);
 
-    @Deprecated
-    BuildOperations toRecipientList(RecipientListConfigurator recipientListConfigurator);
+    /**
+     * Hands a copy of the exchange to <em>every</em> one of the recipients, a fixed set of destinations (the
+     * Recipient List pattern), and the flow ends here. Each recipient is a URL, as for {@code toSink(...)}. To choose
+     * the destinations by looking at the message use {@link #toRoute(Function)}.
+     *
+     * @throws IllegalArgumentException if no recipient is given, or one is not a URL
+     */
+    BuildOperations toRecipientList(String... recipients);
 
     BuildOperations toRoute(Function<RouteConfigurator, RoutingTable<?>> dynamicRouteConfigurator);
 

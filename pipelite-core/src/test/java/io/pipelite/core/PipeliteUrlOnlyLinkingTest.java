@@ -145,15 +145,11 @@ public class PipeliteUrlOnlyLinkingTest {
         try {
             Pipelite.defineFlow("bare-recipient-flow")
                 .fromSource("queue://bare-recipient-in")
-                .toRecipientList(recipients -> recipients
-                    .toRecipients("queue://destination-01-start", "destination-02-start")
-                    .when("Headers['x'] eq 'y'")
-                        .toRecipient("queue://destination-03-start")
-                    .end())
+                .toRecipientList("queue://destination-01-start", "destination-02-start", "queue://destination-03-start")
                 .build();
             Assert.fail("expected the bare recipient to be rejected");
         } catch (IllegalArgumentException expected) {
-            assertRejectionSays(expected, "toRecipients(...)", "destination-02-start");
+            assertRejectionSays(expected, "toRecipientList(...)", "destination-02-start");
         }
     }
 

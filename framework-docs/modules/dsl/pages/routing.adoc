@@ -3,7 +3,7 @@
 
 A flow can end by handing its `Exchange` on to other flows or channels chosen at runtime, instead of
 a fixed `toSink(...)`. Two constructs do this: `toRoute(...)`, which picks destinations with
-expressions, and `toRecipientList(...)`, which is deprecated.
+expressions, and `toRecipientList(...)`, which sends it to a fixed set of destinations.
 
 == Expression-based routing
 
@@ -42,19 +42,13 @@ NOTE: `#{...}` is resolved for each message when it is routed. The `${...}` prop
 
 == Recipient List
 
-The *Recipient List* pattern sends the message to *several destinations* at once.
-For a fixed set of destinations, or a set chosen by an expression, `toRoute(...)` above already does this: pass several destinations to `.then(...)`.
-
-The dedicated `toRecipientList(...)` construct is deprecated:
+The *Recipient List* pattern sends the message to a *fixed set of destinations*, all of them, every time:
 
 [source,java]
 ----
-.toRecipientList(list -> list
-    .toRecipients("queue://flow-a", "queue://flow-b")            // <1>
-    .when("Headers['audit'] == 'true'").toRecipient("slf4j://audit-logger")  // <2>
-    .end())
+.toRecipientList("queue://flow-a", "queue://flow-b", "slf4j://audit-logger")
 ----
-<1> Recipients that always receive the message.
-<2> A recipient added only when the expression is true.
 
-Prefer `toRoute(route -> route.dynamic()...)` for new flows.
+Each recipient is a URL and receives a copy of the `Exchange` (see xref:core:messages.adoc#_what_is_copied_and_what_is_shared[What is copied, and what is shared]). The flow ends there, as with `toRoute(...)`. A recipient list needs at least one recipient, and every recipient must be a URL: a mistake is reported when the flow is defined.
+
+It does not look at the message. When the destinations depend on it, use `toRoute(...)` above: it picks the destinations of the first expression that is true, and can send to several of them (pass them all to `.then(...)`).
