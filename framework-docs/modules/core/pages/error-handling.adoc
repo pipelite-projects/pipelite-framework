@@ -40,6 +40,8 @@ FlowDefinition flow = Pipelite.defineFlow("resilient-flow")
 
 NOTE: On a queue source that declares `orderedBy` (see xref:channel-adapters:queue.adoc#_order_and_concurrency[Order and `concurrency`]), the exchanges with the same key as one that is waiting for its retry wait for it too, until it has succeeded or has been given up.
 
+A retry runs on the threads of the flow it belongs to, in its turn, like any other exchange of the flow: a flow without `concurrency` processes one exchange at a time, a retry included, and a flow with `concurrency` runs it within its own limit. The retry service only hands it over and goes on.
+
 A retry repeats a step, and a step that calls an external system may have had its effect before it failed (the answer was lost, a time-out came first). Hand that system the xref:exchange.adoc#_idempotency_key[idempotency key] of the exchange, with the name of the step: it is the same in every attempt, so the system recognizes the repetition instead of charging, reserving or sending twice.
 
 == Custom Error Channel

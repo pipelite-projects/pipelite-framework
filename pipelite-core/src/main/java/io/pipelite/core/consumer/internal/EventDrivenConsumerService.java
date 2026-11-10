@@ -148,6 +148,27 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
     }
 
     /**
+     * Queues the resume of {@code exchange} at {@code target}, a node of this flow, to be run by the workers of
+     * this flow: the dedicated thread when it has no concurrency, the shared worker pool within its budget when it
+     * has. Unlike {@link #dispatchToNode}, which at concurrency greater than one submits it straight to the shared pool,
+     * this one always goes through the queue of the flow, in its turn, and the flow keeps the one-at-a-time it
+     * promised. {@code onComplete} runs once
+     * {@code target} has finished. The resume waits its turn behind what is already queued, and a resume still
+     * queued when the flow stops is not run: whoever asked for it keeps it, and asks again.
+     */
+    public void resumeAt(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
+        eventDrivenConsumer.resume(target, exchange, onComplete);
+    }
+
+    /**
+     * The execution of the exchange {@code owner}, admitted with {@code key} by a source that orders (issue #156), is
+     * over: the next exchange of that key can start. Called by whoever ends the execution, which may be a retry.
+     */
+    public void keyFinished(String key, String owner) {
+        eventDrivenConsumer.keyFinished(key, owner);
+    }
+
+    /**
      * Runs {@code exchange} through {@code target} — an arbitrary node belonging to this
      * service's own flow, not necessarily its head — under this flow's own {@link
      * DispatchStrategy} (its {@code concurrency(n)} budget, if any), instead of on the calling
@@ -165,26 +186,6 @@ public class EventDrivenConsumerService extends AbstractService implements Consu
      * {@link DispatchStrategy#dispatch} — not merely been submitted), including on this fallback
      * path.
      */
-    /**
-     * Queues the resume of {@code exchange} at {@code target}, a node of this flow, to be run by the workers of
-     * this flow: the dedicated thread when it has no concurrency, the shared worker pool within its budget when it
-     * has. Unlike {@link #dispatchToNode}, which at no concurrency runs on the caller's thread, the caller never runs
-     * it and never waits for it, and the flow keeps the one-at-a-time it promised. {@code onComplete} runs once
-     * {@code target} has finished. The resume waits its turn behind what is already queued, and a resume still
-     * queued when the flow stops is not run: whoever asked for it keeps it, and asks again.
-     */
-    public void resumeAt(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
-        eventDrivenConsumer.resume(target, exchange, onComplete);
-    }
-
-    /**
-     * The execution of the exchange {@code owner}, admitted with {@code key} by a source that orders (issue #156), is
-     * over: the next exchange of that key can start. Called by whoever ends the execution, which may be a retry.
-     */
-    public void keyFinished(String key, String owner) {
-        eventDrivenConsumer.keyFinished(key, owner);
-    }
-
     public void dispatchToNode(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
         if (dispatchStrategy == null) {
             if (logger.isWarnEnabled()) {

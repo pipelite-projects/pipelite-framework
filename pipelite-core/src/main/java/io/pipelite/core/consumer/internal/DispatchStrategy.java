@@ -61,16 +61,15 @@ interface DispatchStrategy {
      * {@code target.process(exchange)} has been submitted to its shared pool, not once it has
      * run, so that a caller draining a batch of several pending retries (see issue #61) is never
      * itself blocked by one flow's concurrency budget being momentarily exhausted; {@link
-     * InlineDispatchStrategy} has no pool to submit to and genuinely runs {@code target}
-     * synchronously, which is harmless there since it is only ever used at {@code
-     * concurrency<=1}, where nothing could run concurrently with it anyway.
+     * InlineDispatchStrategy} queues the resume for the dedicated thread of the flow (issue #168), so
+     * that the one-at-a-time of a flow without concurrency holds for retries too.
      * <p>
      * {@code onComplete} is the way a caller learns {@code target}'s processing has actually
      * finished rather than merely started or been submitted (see issue #58: a caller like {@code
      * SupplyExchangeProcessor} must not remove a retry-channel dump until the attempt's outcome is
      * genuinely settled). It runs exactly once per call, after {@code target.process(exchange)}
-     * returns or throws — on the pool thread for {@link PooledDispatchStrategy}, on the calling
-     * thread for {@link InlineDispatchStrategy} — never if {@code target} is never actually
+     * returns or throws — on the pool thread for {@link PooledDispatchStrategy}, on the dedicated
+     * thread of the flow for {@link InlineDispatchStrategy} — never if {@code target} is never actually
      * attempted (e.g. the dispatching thread is interrupted before submission runs).
      */
     void dispatch(FlowNode target, ExchangeImpl exchange, Runnable onComplete);
