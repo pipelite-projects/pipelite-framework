@@ -93,7 +93,7 @@ See xref:expressions.adoc[Expressions] for the syntax.
 
 == wireTap
 
-Sends a copy of the message to a secondary endpoint without blocking the flow.
+Sends a copy of the exchange to a secondary endpoint, on the thread of the flow (issue #47). The headers are copied, the payload is the same object: see xref:core:messages.adoc#_what_is_copied_and_what_is_shared[What is copied, and what is shared].
 
 [source,java]
 ----
