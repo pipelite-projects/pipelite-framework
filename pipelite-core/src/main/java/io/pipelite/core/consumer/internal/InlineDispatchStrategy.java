@@ -100,22 +100,16 @@ final class InlineDispatchStrategy implements DispatchStrategy {
     }
 
     /**
-     * No semaphore, no pool, nothing to gate here — this strategy is only ever used for {@code
-     * concurrency<=1} (see {@code EventDrivenConsumerService#doStart}), so there is no budget for
-     * a retry to inherit beyond what running it inline already provides. Unlike {@link
-     * PooledDispatchStrategy#dispatch}, this genuinely blocks the caller until {@code target} has
-     * finished — there is no pool here to submit async work to. Harmless in practice: at {@code
-     * concurrency<=1} nothing else could have run concurrently with it anyway, so a caller
-     * draining several pending retries in one batch (issue #61) gains nothing from async
-     * submission for a flow that has no concurrency to offer in the first place.
+     * Queues the resume in the consumer queue of the flow, to be run by the dedicated thread(s) of the flow, in its
+     * turn (issue #168). At {@code concurrency<=1} the flow promises one exchange at a time: running the step on the
+     * caller's thread, the retry thread, would overlap it with the exchange the dedicated thread is busy with, and would
+     * hold the retry thread for as long as the step lasts. The caller returns at once. {@code onComplete} runs on the
+     * dedicated thread, once {@code target} has finished. A resume still queued when the flow stops is not run, nor is
+     * its {@code onComplete}: the caller keeps what it has to remove (the retry dump) and asks again at the next start.
      */
     @Override
     public void dispatch(FlowNode target, ExchangeImpl exchange, Runnable onComplete) {
-        try {
-            target.process(exchange);
-        } finally {
-            onComplete.run();
-        }
+        consumer.resume(target, exchange, onComplete);
     }
 
     @Override
