@@ -19,9 +19,18 @@ import java.util.Optional;
 
 public interface Headers {
 
+    /** The text of the header, whatever its type: a number or a boolean gives its {@code String.valueOf}. */
     Optional<String> tryGetHeader(String headerName);
     String expectHeader(String headerName);
     <T> Optional<T> tryGetHeaderAs(String headerName, Class<T> expectedType);
+    /**
+     * Puts a header. The value of a header is a scalar: a {@code String}, a {@code Boolean} or a number ({@code Byte},
+     * {@code Short}, {@code Integer}, {@code Long}, {@code Float}, {@code Double}, {@code BigInteger}, {@code
+     * BigDecimal}), which keeps its type. Headers are written to disk with the exchange, and the object of an
+     * application there would tie what is stored to the version of its class. A {@code null} value removes the header.
+     *
+     * @throws IllegalArgumentException if the value is of another type; the message names the header and the type
+     */
     void putHeader(String headerName, Object headerValue);
     void removeHeader(String headerName);
     boolean hasHeader(String headerName);

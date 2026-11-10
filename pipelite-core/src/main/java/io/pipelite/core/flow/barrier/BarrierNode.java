@@ -149,7 +149,7 @@ class BarrierNode extends AbstractFlowNode implements PipeliteContextAware {
             exchangeData = serializer.serializeObject(kept);
         } catch (ByteArrayWriteException exception) {
             throw new IllegalStateException(String.format(
-                "The exchange cannot wait at barrier '%s': it cannot be serialized, so its payload and every header must be serializable",
+                "The exchange cannot wait at barrier '%s': it cannot be serialized, so its payload and every property must be serializable",
                 barrierId()), exception);
         }
 

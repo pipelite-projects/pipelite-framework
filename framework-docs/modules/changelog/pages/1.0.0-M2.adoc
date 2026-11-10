@@ -24,6 +24,13 @@ the `Exchange` interface. `getExchangeFactory().createExchange(...)` is gone.
 slip and the details of a failure (`X-Failure-Exception-Type`, `X-Failure-Exception-Message`,
 `X-Failure-Stack-Trace`) are exchange properties. Code that read them with `tryGetHeader(...)` must not
 rely on them: they are not part of the public API.
+* *The value of a header is a scalar.* `putHeader(name, value)` accepts a `String`, a `Boolean` or a number
+(`Byte`, `Short`, `Integer`, `Long`, `Float`, `Double`, `BigInteger`, `BigDecimal`), kept with its type, and
+refuses anything else with an `IllegalArgumentException` that names the header and the type; a `null` value
+removes the header. Move any object you put in a header to the payload (or to an exchange property, if it is
+not to leave the flow). `tryGetHeader(...)` and `expectHeader(...)` now give the text of any scalar instead of
+throwing a `ClassCastException` for a value that is not a `String`; `tryGetHeaderAs(...)` still checks the type.
+See xref:core:exchange.adoc#_headers[Headers].
 * *Moved types.* `SourceConcurrencyConfigurer` and `ExecutorType` moved from `io.pipelite.spi` to
 `io.pipelite.dsl.definition`. Update the imports of code that configures the concurrency of a queue
 source.
