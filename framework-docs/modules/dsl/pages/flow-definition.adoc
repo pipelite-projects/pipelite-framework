@@ -102,14 +102,13 @@ Sends a copy of the exchange to a secondary endpoint, on the thread of the flow 
 
 == split
 
-Splits a collection payload into independent messages, processes each one through a dedicated segment of steps, and aggregates the results back into a single message before the flow continues.
-See xref:split-aggregate.adoc[Split / Aggregate] for complete documentation.
+Splits a collection payload into one exchange per element, and sends each of them on through the steps that follow, on its own.
+See xref:split.adoc[Split] for complete documentation.
 
 [source,java]
 ----
-.split("split-items", segment -> segment
-    .process("step-1", processor)
-    .end())
+.split("split-items")
+.process("step-1", processor)           // runs once for each element
 ----
 
 == barrier

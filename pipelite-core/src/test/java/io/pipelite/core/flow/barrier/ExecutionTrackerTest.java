@@ -89,6 +89,43 @@ public class ExecutionTrackerTest {
         Assert.assertEquals(ExecutionTracker.Outcome.NONE, tracker.settleExhausted());
     }
 
+    // Issue #149: the elements of a split are exchanges of the same run, and share the tracker.
+
+    @Test
+    public void givenOneElementFailedForGoodAndAnotherWillBeRetried_thenTheRunFailed() {
+        final ExecutionTracker tracker = new ExecutionTracker(PENDINGS);
+        final ExchangeImpl first = exchangeWith(tracker);
+        final ExchangeImpl second = exchangeWith(tracker);
+        ExecutionTracker.markFailed(first);
+        // the second element's failure is handled after: it must not hide the definitive one of the first
+        ExecutionTracker.markFailed(second);
+        ExecutionTracker.markRetrying(second);
+
+        Assert.assertEquals(ExecutionTracker.Outcome.FAILED, tracker.settle());
+    }
+
+    @Test
+    public void givenOneElementWillBeRetriedAndTheOthersWentThrough_thenNothingIsToldYet() {
+        final ExecutionTracker tracker = new ExecutionTracker(PENDINGS);
+        final ExchangeImpl retried = exchangeWith(tracker);
+        ExecutionTracker.markFailed(retried);
+        ExecutionTracker.markRetrying(retried);
+
+        Assert.assertEquals(ExecutionTracker.Outcome.NONE, tracker.settle());
+    }
+
+    @Test
+    public void givenOneElementFailedBeforeAnotherWasRetried_thenTheOrderOfTheFailuresDoesNotMatter() {
+        final ExecutionTracker tracker = new ExecutionTracker(PENDINGS);
+        final ExchangeImpl retried = exchangeWith(tracker);
+        final ExchangeImpl failed = exchangeWith(tracker);
+        ExecutionTracker.markFailed(retried);
+        ExecutionTracker.markRetrying(retried);
+        ExecutionTracker.markFailed(failed);
+
+        Assert.assertEquals(ExecutionTracker.Outcome.FAILED, tracker.settle());
+    }
+
     @Test
     public void givenNoTracker_thenMarkingIsHarmless() {
         final ExchangeImpl exchange = exchangeWith(null);

@@ -21,7 +21,6 @@ import io.pipelite.dsl.route.RecipientList;
 import io.pipelite.dsl.route.RoutingTable;
 import io.pipelite.dsl.barrier.BarrierConfigurator;
 import io.pipelite.dsl.barrier.BarrierOperations;
-import io.pipelite.dsl.split.SplitConfigurator;
 
 import io.pipelite.dsl.definition.SinkConfigurer;
 
@@ -49,7 +48,13 @@ public interface ProcessOperations extends BuildOperations {
 
     BuildOperations toRoute(Function<RouteConfigurator, RoutingTable<?>> dynamicRouteConfigurator);
 
-    ProcessOperations split(String name, SplitConfigurator segmentConfigurator);
+    /**
+     * Splits a {@code Collection} payload into one exchange per element, and sends each of them on through the steps that
+     * follow, on its own: to a recipient list, a route, a sink or any step. Nothing puts the elements back together
+     * unless an {@code aggregate} step does. The elements go one after the other, and each carries the headers of
+     * {@link io.pipelite.dsl.split.SplitHeaders}.
+     */
+    ProcessOperations split(String name);
 
     /**
      * Makes the exchange that reaches this step wait until the executions of other flows have completed, and then

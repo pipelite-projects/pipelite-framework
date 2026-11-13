@@ -41,12 +41,10 @@ import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueExceptionHandle
 import io.pipelite.core.flow.execution.deadletter.DeadLetterQueueRepository;
 import io.pipelite.core.flow.execution.deadletter.DeadLetteredExchangeFactory;
 import io.pipelite.core.flow.execution.deadletter.FileDeadLetterQueueRepository;
-import io.pipelite.core.flow.split.AggregateInMemoryRepository;
 import io.pipelite.core.flow.barrier.BarrierCoordinator;
 import io.pipelite.core.flow.barrier.BarrierFileRepository;
 import io.pipelite.core.flow.barrier.BarrierMaintenanceService;
 import io.pipelite.core.flow.barrier.BarrierRepository;
-import io.pipelite.core.flow.split.AggregateRepository;
 import io.pipelite.core.flow.execution.dump.FileFlowExecutionDumpRepository;
 import io.pipelite.core.flow.execution.dump.FlowExecutionDumpFactory;
 import io.pipelite.core.flow.execution.inbox.DurableInboxDeadLetterWriter;
@@ -164,7 +162,6 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
     private final DefaultEndpointFactory endpointFactory;
     private final FlowFactory flowFactory;
     private final ExchangeFactory exchangeFactory;
-    private final AggregateRepository aggregateRepository;
     // Not final, same reasoning as deadLetterQueueRepository below: ConfigurablePipeliteContext#
     // setBarrierRepository(...) may replace the default before start() (issue #150).
     private BarrierRepository barrierRepository;
@@ -218,7 +215,6 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
 
         final MessageFactory messageFactory = new DefaultMessageFactory(identityGenerator);
         exchangeFactory = new DefaultExchangeFactory(messageFactory);
-        aggregateRepository = new AggregateInMemoryRepository();
         // Durable by default (issue #150), like the retry dumps and the inbox: an exchange that waits at a barrier
         // has been acknowledged to its inbox, so losing it in a restart would lose the order.
         barrierRepository = new BarrierFileRepository(PipeliteHome.resolve(BARRIER_HOME_SUBFOLDER));
@@ -345,11 +341,6 @@ public class DefaultPipeliteContext implements ConfigurablePipeliteContext, Inte
     @Override
     public ExchangeFactory getExchangeFactory() {
         return exchangeFactory;
-    }
-
-    @Override
-    public AggregateRepository getAggregateRepository() {
-        return aggregateRepository;
     }
 
     @Override

@@ -24,7 +24,6 @@ import io.pipelite.core.definition.builder.retry.RetryBuilder;
 import io.pipelite.core.definition.builder.internal.Builder;
 import io.pipelite.core.definition.builder.route.RouteDefinitionBuilder;
 import io.pipelite.core.definition.builder.barrier.BarrierSpecBuilder;
-import io.pipelite.core.definition.builder.split.SplitSegmentBuilder;
 import io.pipelite.core.flow.barrier.BarrierNodeFactory;
 import io.pipelite.dsl.barrier.BarrierConfigurator;
 import io.pipelite.core.flow.DeadLetterChannelExceptionHandler;
@@ -46,8 +45,6 @@ import io.pipelite.dsl.process.Processor;
 import io.pipelite.dsl.route.ConditionEvaluator;
 import io.pipelite.dsl.route.RecipientList;
 import io.pipelite.dsl.route.RoutingTable;
-import io.pipelite.dsl.split.SplitConfigurator;
-import io.pipelite.dsl.split.SplitSegment;
 import io.pipelite.expression.ExpressionParser;
 import io.pipelite.dsl.process.ExceptionHandler;
 import io.pipelite.core.flow.internal.FlowNode;
@@ -177,9 +174,9 @@ public class FlowDefinitionBuilder implements FlowOperations {
     }
 
     @Override
-    public ProcessOperations split(String name, SplitConfigurator configurator) {
-        final SplitSegment segment = configurator.configure(new SplitSegmentBuilder());
-        final FlowNode splitNode = SplitNodeFactory.splitter(segment);
+    public ProcessOperations split(String name) {
+        Preconditions.hasText(name, "name must have text");
+        final FlowNode splitNode = SplitNodeFactory.splitter();
         final ProcessorDefinition splitDefinition = new ProcessorDefinitionImpl(name, splitNode);
         builder.with(target -> target.addProcessorDefinition(splitDefinition));
         return this;

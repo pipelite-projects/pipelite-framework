@@ -40,8 +40,8 @@ The interface hierarchy ensures that the Java compiler enforces the correct sequ
 |xref:routing.adoc[Routing]
 |Content-based routing, recipient list, and routing slip.
 
-|xref:split-aggregate.adoc[Split / Aggregate]
-|Splitting a collection payload into independent messages and aggregating the results.
+|xref:split.adoc[Split]
+|Splitting a collection payload into one exchange per element, each continuing through the flow on its own.
 
 |xref:barrier.adoc[Barrier]
 |Making an exchange wait for the completion of other flows, for the same business key.

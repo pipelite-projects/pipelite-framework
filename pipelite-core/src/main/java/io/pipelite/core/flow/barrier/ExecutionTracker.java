@@ -26,17 +26,20 @@ import java.util.Set;
  * the pairs, flow and key, that the barriers wait for, and how the run is going.
  * <p>
  * The state is shared by every copy of the exchange within a run, since a property is copied by reference, so a
- * failure handled anywhere down the flow is seen where the run ends. It is not serialized: a retry, or the wait at
- * a barrier, that writes the exchange away and reads it back starts a new run, with the same pairs and a clean
- * state.
+ * failure handled anywhere down the flow is seen where the run ends. A run can have more than one exchange in it:
+ * the elements of a split continue through the flow as exchanges of their own and share the tracker of the run
+ * (issue #149), so the outcomes are counted for each exchange, not kept as one state that the last one overwrites.
+ * It is not serialized: a retry, or the wait at a barrier, that writes the exchange away and reads it back starts a
+ * new run, with the same pairs and a clean state.
+ * <p>
+ * When the run ends:
  * <ul>
- *     <li>{@code RUNNING}, and it ends: the execution completed. An exchange dropped by a filter or stopped by
- *     the user counts, since it did not fail.</li>
- *     <li>{@code FAILED}: a failure was handed to the error handling of the flow. It is definitive, unless the
- *     handler says it is {@code RETRYING}.</li>
- *     <li>{@code RETRYING}: the failure was saved to be retried. The retry is a new run that will end, or fail
- *     again, or exhaust the attempts: nothing is told yet.</li>
- *     <li>{@code WAITING}: the exchange waits at a barrier of this same flow, so the execution has not ended.</li>
+ *     <li>no exchange failed for good, and none is retrying or waiting: the execution completed. An exchange dropped
+ *     by a filter or stopped by the user counts, since it did not fail.</li>
+ *     <li>an exchange has a failure handed to the error handling of the flow, and it is not to be retried: the
+ *     execution failed. It is definitive, and it is told even if another exchange of the run is retrying.</li>
+ *     <li>otherwise, an exchange was saved to be retried, or waits at a barrier of this same flow: the run has not
+ *     ended, nothing is told yet. The retry is a new run that will end, or fail again, or exhaust the attempts.</li>
  * </ul>
  */
 public final class ExecutionTracker implements Serializable {
@@ -52,10 +55,6 @@ public final class ExecutionTracker implements Serializable {
         NONE
     }
 
-    private enum State {
-        RUNNING, FAILED, RETRYING, WAITING, SETTLED
-    }
-
     /**
      * The key a source that orders holds while this execution is not over (issue #156): the flow, the key, and the
      * exchange that owns it. It travels with the exchange, so the key is let go when the execution ends wherever it
@@ -66,8 +65,11 @@ public final class ExecutionTracker implements Serializable {
 
     private final Set<Pending> pendings;
     private final Ordering ordering;
-    /** {@code null} after the exchange was read back from storage: a new run, which is running. */
-    private transient volatile State state;
+    // All of them are zero after the exchange was read back from storage: a new run, which is running.
+    private transient int failed;
+    private transient int retrying;
+    private transient int waiting;
+    private transient boolean settled;
 
     public ExecutionTracker(Set<Pending> pendings) {
         this(pendings, null);
@@ -87,7 +89,7 @@ public final class ExecutionTracker implements Serializable {
     public static void markFailed(ExchangeImpl exchange) {
         final ExecutionTracker tracker = of(exchange);
         if (tracker != null) {
-            tracker.move(State.FAILED);
+            tracker.failed();
         }
     }
 
@@ -95,7 +97,7 @@ public final class ExecutionTracker implements Serializable {
     public static void markRetrying(ExchangeImpl exchange) {
         final ExecutionTracker tracker = of(exchange);
         if (tracker != null) {
-            tracker.move(State.RETRYING);
+            tracker.retrying();
         }
     }
 
@@ -103,7 +105,7 @@ public final class ExecutionTracker implements Serializable {
     public static void markWaiting(ExchangeImpl exchange) {
         final ExecutionTracker tracker = of(exchange);
         if (tracker != null) {
-            tracker.move(State.WAITING);
+            tracker.waiting();
         }
     }
 
@@ -117,27 +119,44 @@ public final class ExecutionTracker implements Serializable {
         return ordering;
     }
 
-    /** The run ended: what to tell. Only once: a second call, and a run that was retried or waits, tell nothing. */
+    /** The run ended: what to tell. Only once: a second call tells nothing. */
     public synchronized Outcome settle() {
-        final State current = state == null ? State.RUNNING : state;
-        state = State.SETTLED;
-        return switch (current) {
-            case RUNNING -> Outcome.COMPLETED;
-            case FAILED -> Outcome.FAILED;
-            default -> Outcome.NONE;
-        };
+        if (settled) {
+            return Outcome.NONE;
+        }
+        settled = true;
+        if (failed > 0) {
+            return Outcome.FAILED;
+        }
+        return retrying > 0 || waiting > 0 ? Outcome.NONE : Outcome.COMPLETED;
     }
 
     /** The attempts to retry the failure are exhausted: it is definitive. Only once. */
     public synchronized Outcome settleExhausted() {
-        final boolean already = state == State.SETTLED;
-        state = State.SETTLED;
+        final boolean already = settled;
+        settled = true;
         return already ? Outcome.NONE : Outcome.FAILED;
     }
 
-    private synchronized void move(State next) {
-        if (state != State.SETTLED) {
-            state = next;
+    private synchronized void failed() {
+        if (!settled) {
+            failed++;
+        }
+    }
+
+    /** The failure of an exchange that was counted as failed is to be retried: it is not a definitive one. */
+    private synchronized void retrying() {
+        if (!settled) {
+            if (failed > 0) {
+                failed--;
+            }
+            retrying++;
+        }
+    }
+
+    private synchronized void waiting() {
+        if (!settled) {
+            waiting++;
         }
     }
 }

@@ -26,4 +26,12 @@ public interface ExchangeFactory {
     ExchangeImpl copyExchange(ExchangeImpl exchange);
     ExchangeImpl nextExchange(ExchangeImpl current);
 
+    /**
+     * Makes an exchange with {@code payload} that continues the execution {@code parent} is in, like the elements of a
+     * split (issue #149): it has the headers of {@code parent} and the properties that {@link PropertyScope} says an
+     * exchange inherits within an execution, and a message of its own. It does not carry the inbox entry of
+     * {@code parent} (the acknowledgement is the parent's) nor the state of its attempts.
+     */
+    ExchangeImpl deriveExchange(ExchangeImpl parent, Object payload);
+
 }
